@@ -1,0 +1,187 @@
+# =====================================================================
+# 🎚️ HEATING / MODE ENGINE
+# Řídí globální režimy topení:
+#   - Auto  … používá prahy z policy_config.yaml beze změny
+#   - Eco   … přísnější prahy (vyšší nároky na zapnutí kotle)
+#   - Boost … uvolněné prahy + časově omezené „přitop“
+#   - Off   … tvrdá blokace spínání kotle
+#
+# VSTUPNÍ ENTITy (musí už existovat z předchozích kroků):
+#   input_select.topny_rezim
+#   input_boolean.topny_system_enable
+#   input_boolean.boost_now
+#   input_number.boost_minutes
+#   input_datetime.boost_until
+#   input_number.kotel_min_active_zones
+#   input_number.kotel_min_avg_demand_pct
+#   input_number.kotel_on_delay_sec
+#   input_number.kotel_off_delay_sec
+#
+# VÝSTUPNÍ / ODVOZENÉ ENTITy (tady definujeme):
+#   binary_sensor.kotel_boost_active          … „Boost aktivní?“ (podle režimu / časovače)
+#   binary_sensor.kotel_mode_off_block        … blokace kotle (Off / master OFF)
+#   sensor.kotel_effective_min_active_zones   … účinné min. aktivních zón (podle režimu)
+#   sensor.kotel_effective_min_avg_demand_pct … účinná min. průměrná poptávka (%)
+#   sensor.kotel_effective_on_delay_sec       … účinné zpoždění zapnutí (s)
+#   sensor.kotel_effective_off_delay_sec      … účinné zpoždění vypnutí (s)
+#
+# POZN.: Logika spínání kotle (kotel_control.yaml) má číst VŽDY „effective_*“
+#        a respektovat „kotel_mode_off_block“ + „kotel_boost_active“.
+# =====================================================================
+
+template:
+
+  # ────────────────────────────────────────────────────────────────────
+  # ⏱️ BOOST – Aktivní?
+  #   - Aktivuje se, když:
+  #       a) režim je přímo „Boost“ NEBO
+  #       b) je zapnuté tlačítko boost_now NEBO
+  #       c) je „teď“ < boost_until
+  #   - Díky tomu Boost platí i při manuálním „Boost – zapnout nyní“
+  #     na zadané období (boost_minutes) – viz automatizace níže.
+  # ────────────────────────────────────────────────────────────────────
+  - binary_sensor:
+      - name: "kotel_boost_active"
+        unique_id: kotel_boost_active
+        state: >
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set bn    = is_state('input_boolean.boost_now','on') %}
+          {% set until = states('input_datetime.boost_until') %}
+          {% set nowts = now().timestamp() %}
+          {% set uts   = as_timestamp(until, default=0) %}
+          {{ mode == 'Boost' or bn or (nowts < uts) }}
+
+  # ────────────────────────────────────────────────────────────────────
+  # ⛔ BLOKACE KOTLE – OFF / master OFF
+  #   - Kotel nesmí spínat, pokud:
+  #       a) režim je „Off“ NEBO
+  #       b) master povolení (topny_system_enable) je OFF
+  #   - Tuto blokaci musí brát v potaz logika spínání (kotel_control).
+  # ────────────────────────────────────────────────────────────────────
+  - binary_sensor:
+      - name: "kotel_mode_off_block"
+        unique_id: kotel_mode_off_block
+        state: >
+          {{ is_state('input_select.topny_rezim','Off')
+             or is_state('input_boolean.topny_system_enable','off') }}
+
+  # ────────────────────────────────────────────────────────────────────
+  # 🎚️ ÚČINNÉ PRAHY – podle režimu:
+  #   * Auto  → použij vstupní hodnoty beze změny
+  #   * Eco   → zvedni prahy (přísnější):
+  #              - min_active_zones +1  (min 1)
+  #              - min_avg_demand +10 %
+  #              - on_delay + 30 s
+  #              - off_delay + 60 s
+  #   * Boost → uvolni prahy:
+  #              - min_active_zones = 1
+  #              - min_avg_demand = 0 %
+  #              - on_delay = 0 s
+  #              - off_delay = MAX( vstupní off_delay, 300 s )  (nech topení déle doběhnout)
+  #   * Off   → hodnoty nejsou pro spínání relevantní (blokuje off_block),
+  #             ale nastavíme je konzervativně jako v „Auto“ pro přehlednost.
+  # ────────────────────────────────────────────────────────────────────
+  - sensor:
+      - name: "kotel_effective_min_active_zones"
+        unique_id: kotel_effective_min_active_zones
+        state: >
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set base = states('input_number.kotel_min_active_zones') | int(0) %}
+          {% if mode == 'Eco' %}
+            {{ [1, base + 1] | max }}
+          {% elif mode == 'Boost' %}
+            1
+          {% else %}  {# Auto i Off #}
+            {{ base }}
+          {% endif %}
+
+      - name: "kotel_effective_min_avg_demand_pct"
+        unique_id: kotel_effective_min_avg_demand_pct
+        unit_of_measurement: "%"
+        state: >
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set base = states('input_number.kotel_min_avg_demand_pct') | int(0) %}
+          {% if mode == 'Eco' %}
+            {{ [0, base + 10] | max }}
+          {% elif mode == 'Boost' %}
+            0
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+      - name: "kotel_effective_on_delay_sec"
+        unique_id: kotel_effective_on_delay_sec
+        unit_of_measurement: "s"
+        state: >
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set base = states('input_number.kotel_on_delay_sec') | int(0) %}
+          {% if mode == 'Eco' %}
+            {{ base + 30 }}
+          {% elif mode == 'Boost' %}
+            0
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+      - name: "kotel_effective_off_delay_sec"
+        unique_id: kotel_effective_off_delay_sec
+        unit_of_measurement: "s"
+        state: >
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set base = states('input_number.kotel_off_delay_sec') | int(0) %}
+          {% if mode == 'Eco' %}
+            {{ base + 60 }}
+          {% elif mode == 'Boost' %}
+            {{ [base, 300] | max }}
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+# =====================================================================
+# 🤖 AUTOMATIZACE PRO BOOST
+# - Při zapnutí Boostu nastaví "boost_until" = teď + boost_minutes
+# - Hlídá expiraci → po vypršení smaže boost_now (aby UI odpovídalo realitě)
+# - Reaguje na:
+#     a) ruční přepnutí input_select.topny_rezim na "Boost"
+#     b) klik na input_boolean.boost_now
+# =====================================================================
+automation:
+
+  # ▶️ Start Boostu – z režimu nebo tlačítkem
+  - id: heating_boost_start
+    alias: "Topení: start Boostu (nastav boost_until)"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: input_select.topny_rezim
+        to: "Boost"
+      - platform: state
+        entity_id: input_boolean.boost_now
+        to: "on"
+    action:
+      - variables:
+          minutes: "{{ states('input_number.boost_minutes') | int(60) }}"
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boost_until
+        data:
+          datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}"
+
+  # ⏹ Konec Boostu – automaticky zhasni tlačítko po vypršení
+  - id: heating_boost_auto_clear_button
+    alias: "Topení: po vypršení Boostu vypnout tlačítko"
+    mode: queued
+    trigger:
+      # kontrola každou minutu, jestli už jsme po „until“
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: template
+        value_template: >
+          {% set until = states('input_datetime.boost_until') %}
+          {% set uts   = as_timestamp(until, default=0) %}
+          {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now

@@ -1,0 +1,51 @@
+# =====================================================================
+# 📊 AGREGACE pro kotel
+# - kolik zón chce teplo (aktivních)
+# - průměrná poptávka aktivních zón (%)
+# - maximální poptávka napříč zónami (%)
+# - Snadno rozšiřitelné: přidej sem další zónu do seznamů.
+# =====================================================================
+
+template:
+  - sensor:
+      - name: "kotel_aktivni_zony_pocet"
+        unit_of_measurement: "zón"
+        state: >
+          {% set zs = [
+            is_state('binary_sensor.zona_prizemi_michal_aktivni','on'),
+            is_state('binary_sensor.zona_1p_kuchyn_aktivni','on'),
+            is_state('binary_sensor.zona_2p_mama_aktivni','on')
+          ] %}
+          {{ zs | select('equalto', true) | list | count }}
+
+      - name: "kotel_poptavka_prumer"
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >
+          {% set demands = [] %}
+          {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_prizemi_michal_demand')|int(0) ] %}
+          {% endif %}
+          {% if is_state('binary_sensor.zona_1p_kuchyn_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_1p_kuchyn_demand')|int(0) ] %}
+          {% endif %}
+          {% if is_state('binary_sensor.zona_2p_mama_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_2p_mama_demand')|int(0) ] %}
+          {% endif %}
+          {{ (demands | sum / (demands|count)) | round(1) if (demands|count) > 0 else 0 }}
+
+      - name: "kotel_poptavka_max"
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >
+          {% set demands = [] %}
+          {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_prizemi_michal_demand')|int(0) ] %}
+          {% endif %}
+          {% if is_state('binary_sensor.zona_1p_kuchyn_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_1p_kuchyn_demand')|int(0) ] %}
+          {% endif %}
+          {% if is_state('binary_sensor.zona_2p_mama_aktivni','on') %}
+            {% set demands = demands + [ states('sensor.zona_2p_mama_demand')|int(0) ] %}
+          {% endif %}
+          {{ (demands | max) if (demands|count) > 0 else 0 }}

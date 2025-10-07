@@ -1,0 +1,57 @@
+# =====================================================================
+# 🎛️ Režimy systému + Boost (UI kontrolky)
+# - input_select.topny_rezim: Auto / Eco / Boost / Off
+# - input_boolean.boost_now: ruční zapnutí Boostu (rychlé prohřátí mimo plán)
+# - input_number.boost_minutes: délka Boostu (min)
+# - input_datetime.boost_until: do kdy Boost platí (nastavíme v autom.)
+#
+# DOPLŇKY PRO POHODLNÉ OVLÁDÁNÍ:
+# - input_boolean.topny_system_enable: Hlavní „master“ povolení topení
+# - input_boolean.kotel_ignore_open_windows: Globální volba ignorovat zóny s otevřeným oknem
+# =====================================================================
+
+# ▶️ Hlavní výběr režimu
+input_select:
+  topny_rezim:
+    name: "Topení – režim"
+    options:
+      - Auto     # standardní provoz (prah z policy_config.yaml)
+      - Eco      # úspornější prahy (zvýší požadavky na zapnutí)
+      - Boost    # uvolněné prahy + dočasné „top víc/rychleji“
+      - Off      # úplné vypnutí (blokuje spínání kotle)
+    icon: mdi:home-thermometer-outline
+    initial: Auto
+
+# 🔘 Všechny přepínače v JEDNOM bloku
+input_boolean:
+  boost_now:
+    name: "Boost – zapnout nyní"
+    icon: mdi:fire
+
+  topny_system_enable:
+    name: "Topení – povoleno"
+    icon: mdi:power
+    initial: on
+
+  kotel_ignore_open_windows:
+    name: "Kotel – ignorovat otevřená okna"
+    icon: mdi:window-open-variant
+    initial: true
+
+# ⏱️ Délka Boostu
+input_number:
+  boost_minutes:
+    name: "Boost – délka (min)"
+    min: 10
+    max: 180
+    step: 10
+    unit_of_measurement: min
+    icon: mdi:timer
+    initial: 60
+
+# 🗓️ Do kdy Boost platí (vyplňuje automatizace při zapnutí Boostu)
+input_datetime:
+  boost_until:
+    name: "Boost – platí do"
+    has_time: true
+    has_date: true

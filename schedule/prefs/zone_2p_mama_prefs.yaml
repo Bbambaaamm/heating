@@ -1,0 +1,16 @@
+# =====================================================================
+# 💾 2. patro – Máma: poslední komfortní teplota (perzistentní „sejf“)
+# - Sem se ukládá NAPOSLEDY používaná KOMFORTNÍ teplota v pokoji mámy.
+# - ECO hodnoty se nesmí ukládat (řeší automatizace s podmínkou).
+# - Tuto hodnotu pak používá rozvrh při STARTU okna.
+# =====================================================================
+
+input_number:
+  2p_mama_last_comfort:
+    name: "2. patro Máma – poslední komfortní teplota"
+    min: 10
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+    initial: 21.5

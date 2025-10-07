@@ -1,0 +1,25 @@
+# =====================================================================
+# 🧩 ZÓNA: 1. patro – Kuchyň
+# =====================================================================
+
+template:
+
+  # ---- Senzory (požadavek) ---------------------------------------------------
+  - sensor:
+      - name: "zona_1p_kuchyn_demand"
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ state_attr('climate.1_patro_kuchyn', 'pi_heating_demand') | int(0) }}"
+
+  # ---- Binární senzory (okno + aktivita) ------------------------------------
+  - binary_sensor:
+      - name: "zona_1p_kuchyn_okno_otevrene"
+        device_class: opening
+        state: >
+          {% set s = states('sensor.1_patro_kuchyn_detekovano_otevrene_okno') %}
+          {{ s is not string or s|lower != 'closed' }}
+
+      - name: "zona_1p_kuchyn_aktivni"
+        state: >
+          {{ (states('sensor.zona_1p_kuchyn_demand')|int(0) > 0)
+             and (not is_state('binary_sensor.zona_1p_kuchyn_okno_otevrene','on')) }}

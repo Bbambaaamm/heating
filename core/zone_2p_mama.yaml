@@ -1,0 +1,25 @@
+# =====================================================================
+# 🧩 ZÓNA: 2. patro – Máma
+# =====================================================================
+
+template:
+
+  # ---- Senzory (požadavek) ---------------------------------------------------
+  - sensor:
+      - name: "zona_2p_mama_demand"
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ state_attr('climate.danfoss_etrv0103_2', 'pi_heating_demand') | int(0) }}"
+
+  # ---- Binární senzory (okno + aktivita) ------------------------------------
+  - binary_sensor:
+      - name: "zona_2p_mama_okno_otevrene"
+        device_class: opening
+        state: >
+          {% set s = states('sensor.danfoss_etrv0103_detekovano_otevrene_okno_2') %}
+          {{ s is not string or s|lower != 'closed' }}
+
+      - name: "zona_2p_mama_aktivni"
+        state: >
+          {{ (states('sensor.zona_2p_mama_demand')|int(0) > 0)
+             and (not is_state('binary_sensor.zona_2p_mama_okno_otevrene','on')) }}

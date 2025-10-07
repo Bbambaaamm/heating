@@ -1,0 +1,91 @@
+# =====================================================================
+# 📅 SCHEDULE HELPERS – uživatelské nastavení rozvrhu v UI (pro každou zónu)
+# - schedule_enable_* … zda rozvrh pro zónu platí
+# - weekday_*         … start/stop pro Po–Pá
+# - weekend_*         … start/stop pro So–Ne
+# Pozn.: časové pomocníky nezpůsobují akci sami o sobě; logiku řeší schedule_engine.yaml
+# =====================================================================
+
+input_boolean:
+  # ── Přízemí – Michal ────────────────────────────────────────────────
+  schedule_enable_prizemi_michal:
+    name: "Rozvrh – Přízemí Michal zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+  # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
+  schedule_enable_1p_kuchyn:
+    name: "Rozvrh – 1. patro Kuchyň+Jídelna zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+  # ── 2. patro – Máma ────────────────────────────────────────────────
+  schedule_enable_2p_mama:
+    name: "Rozvrh – 2. patro Máma zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+input_datetime:
+  # ── Přízemí – Michal ────────────────────────────────────────────────
+  prizemi_michal_weekday_start:
+    name: "Přízemí Michal – Po–Pá začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_weekday_end:
+    name: "Přízemí Michal – Po–Pá konec"
+    has_date: false
+    has_time: true
+  prizemi_michal_weekend_start:
+    name: "Přízemí Michal – So–Ne začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_weekend_end:
+    name: "Přízemí Michal – So–Ne konec"
+    has_date: false
+    has_time: true
+
+  # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
+  kuchyn_weekday_start:
+    name: "1. patro Kuchyň+Jídelna – Po–Pá začátek"
+    has_date: false
+    has_time: true
+  kuchyn_weekday_end:
+    name: "1. patro Kuchyň+Jídelna – Po–Pá konec"
+    has_date: false
+    has_time: true
+  kuchyn_weekend_start:
+    name: "1. patro Kuchyň+Jídelna – So–Ne začátek"
+    has_date: false
+    has_time: true
+  kuchyn_weekend_end:
+    name: "1. patro Kuchyň+Jídelna – So–Ne konec"
+    has_date: false
+    has_time: true
+
+  # ── 2. patro – Máma ────────────────────────────────────────────────
+  mama_weekday_start:
+    name: "2. patro Máma – Po–Pá začátek"
+    has_date: false
+    has_time: true
+  mama_weekday_end:
+    name: "2. patro Máma – Po–Pá konec"
+    has_date: false
+    has_time: true
+  mama_weekend_start:
+    name: "2. patro Máma – So–Ne začátek"
+    has_date: false
+    has_time: true
+  mama_weekend_end:
+    name: "2. patro Máma – So–Ne konec"
+    has_date: false
+    has_time: true
+
+input_number:
+  eco_temp_default:
+    name: "ECO teplota (°C)"
+    min: 15
+    max: 22
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:leaf
+    initial: 18.0

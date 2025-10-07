@@ -1,0 +1,116 @@
+# =====================================================================
+# 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
+# - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
+#   zapíšeme ji do příslušného input_number.*_user_set_temp.
+# - Při startu HA provedeme inicializaci (vezmeme aktuální setpoint).
+# - Důraz na robustnost: hlídáme „unknown/unavailable“ a nuly.
+# =====================================================================
+
+automation:
+
+  # ───────────────────────────────────────────────────────────────────
+  # ▶️ Přízemí – Michal (climate.danfoss_etrv0103)
+  # ───────────────────────────────────────────────────────────────────
+  - id: zona_prizemi_michal_capture_setpoint
+    alias: "Zóna – Přízemí Michal: zachyť změnu setpointu"
+    mode: restart
+    trigger:
+      # Trigguj při jakékoliv změně (včetně atributů); filtrujeme v akci.
+      - platform: state
+        entity_id: climate.danfoss_etrv0103
+    variables:
+      new_sp: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(0) }}"
+    condition:
+      - condition: template
+        value_template: "{{ new_sp > 0 }}"
+    action:
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_prizemi_michal_user_set_temp
+          value: "{{ new_sp }}"
+
+  - id: zona_prizemi_michal_init_on_start
+    alias: "Zóna – Přízemí Michal: init helperu po startu"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      # počkej chvilku, ať se climate stihne načíst
+      - delay: "00:00:05"
+      - variables:
+          sp: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(22.0) }}"
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_prizemi_michal_user_set_temp
+          value: "{{ sp }}"
+
+  # ───────────────────────────────────────────────────────────────────
+  # ▶️ 1. patro – Kuchyň (climate.1_patro_kuchyn)
+  # ───────────────────────────────────────────────────────────────────
+  - id: zona_1p_kuchyn_capture_setpoint
+    alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: climate.1_patro_kuchyn
+    variables:
+      new_sp: "{{ state_attr('climate.1_patro_kuchyn','temperature') | float(0) }}"
+    condition:
+      - condition: template
+        value_template: "{{ new_sp > 0 }}"
+    action:
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_1p_kuchyn_user_set_temp
+          value: "{{ new_sp }}"
+
+  - id: zona_1p_kuchyn_init_on_start
+    alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: "00:00:05"
+      - variables:
+          sp: "{{ state_attr('climate.1_patro_kuchyn','temperature') | float(22.0) }}"
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_1p_kuchyn_user_set_temp
+          value: "{{ sp }}"
+
+  # ───────────────────────────────────────────────────────────────────
+  # ▶️ 2. patro – Máma (climate.danfoss_etrv0103_2)
+  # ───────────────────────────────────────────────────────────────────
+  - id: zona_2p_mama_capture_setpoint
+    alias: "Zóna – 2. patro Máma: zachyť změnu setpointu"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: climate.danfoss_etrv0103_2
+    variables:
+      new_sp: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(0) }}"
+    condition:
+      - condition: template
+        value_template: "{{ new_sp > 0 }}"
+    action:
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_2p_mama_user_set_temp
+          value: "{{ new_sp }}"
+
+  - id: zona_2p_mama_init_on_start
+    alias: "Zóna – 2. patro Máma: init helperu po startu"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: "00:00:05"
+      - variables:
+          sp: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(22.0) }}"
+      - service: input_number.set_value
+        data:
+          entity_id: input_number.zona_2p_mama_user_set_temp
+          value: "{{ sp }}"

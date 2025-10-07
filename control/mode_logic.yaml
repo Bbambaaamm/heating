@@ -1,0 +1,169 @@
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/mode_logic.yaml
+# =====================================================================
+# 🎛️ Logika přepínání režimů topení (Auto / Eco / Boost / Off)
+# -------------------------------------------------------------
+# Tento soubor řídí, jak se mění prahy a chování kotle podle zvoleného režimu.
+# Obsahuje také logiku pro "Boost" (krátkodobé intenzivní topení mimo plán).
+#
+# 🔹 REŽIMY:
+#   - Auto  → standardní chování dle běžných prahů
+#   - Eco   → úspornější – topí méně často
+#   - Boost → okamžitý náběh tepla po omezený čas (např. 60 min)
+#   - Off   → úplné vypnutí topení (kotel blokován)
+#
+# 🔹 BOOST NOW:
+#   - ručně spustí režim Boost (přes input_boolean.boost_now)
+#   - po uplynutí nastavené doby (input_number.boost_minutes) se vrátí do režimu Auto
+# =====================================================================
+
+automation:
+  - alias: "Topení – logika režimů"
+    id: "heating_mode_logic"
+    description: "Reaguje na změnu režimu topení a upravuje parametry kotle."
+    mode: restart                     # nové spuštění ukončí předchozí běh (ochrana proti překryvům)
+
+    # ------------------------------------------------------------
+    # 🧩 SPUŠTĚNÍ AUTOMATIZACE
+    # ------------------------------------------------------------
+    trigger:
+      # Spouští se při změně režimu topení (Auto / Eco / Boost / Off)
+      - platform: state
+        entity_id: input_select.topny_rezim
+
+      # Spouští se i při ruční aktivaci Boostu
+      - platform: state
+        entity_id: input_boolean.boost_now
+        to: "on"
+
+    # ------------------------------------------------------------
+    # 🧩 HLAVNÍ AKCE – přepínání logiky podle režimu
+    # ------------------------------------------------------------
+    action:
+      - choose:
+
+          # ========================================================
+          # 🔹 REŽIM AUTO – standardní provoz
+          # ========================================================
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Auto"
+            sequence:
+              # Odblokuj kotel (vypni případný "Off block")
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.kotel_mode_off_block
+
+              # Nastav prahy kotle na standardní hodnoty
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_avg_demand_pct
+                  value: 15          # min. průměrná poptávka zón pro zapnutí
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_active_zones
+                  value: 2           # min. počet aktivních zón pro zapnutí kotle
+
+          # ========================================================
+          # 🔹 REŽIM ECO – úspornější (vyšší prahy pro zapnutí)
+          # ========================================================
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Eco"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.kotel_mode_off_block
+
+              # Zpřísni podmínky pro zapnutí kotle
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_avg_demand_pct
+                  value: 25          # kotel zapíná až při větším průměrném požadavku
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_active_zones
+                  value: 3           # zapnutí až při více aktivních zónách
+
+          # ========================================================
+          # 🔹 REŽIM BOOST – okamžité topení (na omezenou dobu)
+          # ========================================================
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Boost"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.kotel_mode_off_block
+
+              # Sniž prahy na minimum (okamžité spuštění kotle)
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_avg_demand_pct
+                  value: 5           # kotel spíná už při 5 % poptávce
+              - service: input_number.set_value
+                data:
+                  entity_id: input_number.kotel_min_active_zones
+                  value: 1           # stačí jedna aktivní zóna
+
+              # Nastav čas, do kdy Boost platí (aktuální čas + délka Boostu)
+              - service: input_datetime.set_datetime
+                data:
+                  entity_id: input_datetime.boost_until
+                  datetime: "{{ (now() + timedelta(minutes = states('input_number.boost_minutes') | int)) | as_datetime | as_local }}"
+
+          # ========================================================
+          # 🔹 REŽIM OFF – kompletní vypnutí topení
+          # ========================================================
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Off"
+            sequence:
+              # Aktivuj blokaci kotle (kotel se nesepne ani při požadavku)
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.kotel_mode_off_block
+
+              # Okamžitě vypni Aqara T2 relé (kotel)
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.aqara_lumi_switch_acn047_spinac
+
+              # Vypni všechny aktivní zónové požadavky
+              - service: input_boolean.turn_off
+                target:
+                  entity_id:
+                    - input_boolean.zonovy_ohrev_prizemi_michal
+                    - input_boolean.zonovy_ohrev_1p_kuchyn_jidelna
+                    - input_boolean.zonovy_ohrev_2p_mama
+
+      # ------------------------------------------------------------
+      # 🧨 BOOST NOW – ruční spuštění z UI (mimo plán)
+      # ------------------------------------------------------------
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.boost_now
+                state: "on"
+            sequence:
+              # Přepni režim na Boost
+              - service: input_select.select_option
+                data:
+                  entity_id: input_select.topny_rezim
+                  option: "Boost"
+
+              # Po uplynutí délky Boostu (v minutách) vrať režim zpět na Auto
+              - delay: "{{ states('input_number.boost_minutes') | int * 60 }}"
+              - service: input_select.select_option
+                data:
+                  entity_id: input_select.topny_rezim
+                  option: "Auto"
+
+              # Vypni ruční přepínač Boost_now, aby byl připraven na další použití
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.boost_now

@@ -1,0 +1,153 @@
+# =====================================================================
+# 🔌 KOTEL – ŘÍZENÍ RELÉ (Aqara T2) PODLE POLITIKY A POŽADAVKU ZÓN
+# - Zapíná, když jsou splněny prahy (min. aktivních zón NEBO min. průměrná poptávka)
+# - Vypíná, když prahy přestanou platit, nebo je režim Off / master OFF
+# - Respektuje konfigurovatelná zpoždění (anti-cycling)
+# - Po zpoždění dělá „re-check“, aby necvakal při rychlých změnách
+# =====================================================================
+
+automation:
+
+  # ---------------------------------------------------------------
+  # ▶️ ZAPNOUT KOTEL
+  # ---------------------------------------------------------------
+  - id: kotel_turn_on_by_policy
+    alias: "Kotel: zapnout při splnění politiky"
+    description: "Zapne relé kotle po zpoždění, pokud platí prahy a není blokace."
+    mode: restart  # nová změna zruší předchozí běh (aby se delay nepřekrýval)
+
+    # Reaguj na všechny relevantní změny
+    trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.kotel_threshold_any_ok
+          - binary_sensor.kotel_mode_off_block
+          - input_boolean.topny_system_enable
+          - input_select.topny_rezim
+          - input_boolean.boost_now
+          - input_datetime.boost_until
+          - input_number.kotel_on_delay_sec
+          - sensor.kotel_aktivni_zony_pocet
+          - sensor.kotel_poptavka_prumer
+          - sensor.kotel_poptavka_max
+
+    # Zapínáme jen když:
+    # - master je ON
+    # - režim není Off (tj. kotel_mode_off_block == off)
+    # - je splněna ALESPOŇ jedna podmínka (min. aktivní zóny NEBO min. průměrná poptávka)
+    condition:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.kotel_threshold_any_ok
+        state: "on"
+
+    action:
+      # ⏳ Anti-cycling zpoždění (konfigurovatelné)
+      - delay:
+          seconds: "{{ states('input_number.kotel_on_delay_sec') | int(0) }}"
+
+      # ✅ Re-check po zpoždění (jestli podmínky pořád platí)
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.kotel_mode_off_block
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.kotel_threshold_any_ok
+                state: "on"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.aqara_lumi_switch_acn047_spinac
+
+  # ---------------------------------------------------------------
+  # ⏹ VYPNOUT KOTEL
+  # ---------------------------------------------------------------
+  - id: kotel_turn_off_by_policy
+    alias: "Kotel: vypnout při nesplnění politiky / blokaci"
+    description: "Vypne relé kotle po zpoždění, když prahy neplatí, režim je Off, nebo master OFF."
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.kotel_threshold_any_ok
+          - binary_sensor.kotel_mode_off_block
+          - input_boolean.topny_system_enable
+          - input_select.topny_rezim
+          - input_boolean.boost_now
+          - input_datetime.boost_until
+          - input_number.kotel_off_delay_sec
+          - sensor.kotel_aktivni_zony_pocet
+          - sensor.kotel_poptavka_prumer
+          - sensor.kotel_poptavka_max
+
+    # Vypínáme, když:
+    # - master je OFF  NEBO
+    # - režim je Off (kotel_mode_off_block == on) NEBO
+    # - prahy NEJSOU splněny (kotel_threshold_any_ok == off)
+    condition: []
+
+    action:
+      - choose:
+          # ⛔ Master OFF
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "off"
+            sequence:
+              - delay:
+                  seconds: "{{ states('input_number.kotel_off_delay_sec') | int(0) }}"
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: input_boolean.topny_system_enable
+                        state: "off"
+                    sequence:
+                      - service: switch.turn_off
+                        target:
+                          entity_id: switch.aqara_lumi_switch_acn047_spinac
+
+          # ⛔ Režim Off
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.kotel_mode_off_block
+                state: "on"
+            sequence:
+              - delay:
+                  seconds: "{{ states('input_number.kotel_off_delay_sec') | int(0) }}"
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: binary_sensor.kotel_mode_off_block
+                        state: "on"
+                    sequence:
+                      - service: switch.turn_off
+                        target:
+                          entity_id: switch.aqara_lumi_switch_acn047_spinac
+
+          # ⛔ Nesplněné prahy
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.kotel_threshold_any_ok
+                state: "off"
+            sequence:
+              - delay:
+                  seconds: "{{ states('input_number.kotel_off_delay_sec') | int(0) }}"
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: binary_sensor.kotel_threshold_any_ok
+                        state: "off"
+                    sequence:
+                      - service: switch.turn_off
+                        target:
+                          entity_id: switch.aqara_lumi_switch_acn047_spinac

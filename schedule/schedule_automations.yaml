@@ -1,0 +1,68 @@
+# =====================================================================
+# ⏱️ Rozvrh → nastav teploty hlavic (komfort/útlum)
+# - Triggery: změna stavu schedule.* nebo start HA
+# - Akce: climate.set_temperature na konkrétní climate.* podle zóny
+# - Bezpečné: používá odvozené senzory comfort/eco (už s ořezem)
+# =====================================================================
+
+automation:
+
+  # ── Přízemí – Michal ────────────────────────────────────────────────
+  - id: schedule_prizemi_michal_follow
+    alias: "Rozvrh: Přízemí Michal → nastav teplotu"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: schedule.zona_prizemi_michal_komfort
+      - platform: homeassistant
+        event: start
+    action:
+      - variables:
+          is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}"
+          comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}"
+          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(19) }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.danfoss_etrv0103
+        data:
+          temperature: "{{ comfort if is_on else eco }}"
+
+  # ── 1. patro – Kuchyň ───────────────────────────────────────────────
+  - id: schedule_1p_kuchyn_follow
+    alias: "Rozvrh: 1. patro Kuchyň → nastav teplotu"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: schedule.zona_1p_kuchyn_komfort
+      - platform: homeassistant
+        event: start
+    action:
+      - variables:
+          is_on: "{{ is_state('schedule.zona_1p_kuchyn_komfort','on') }}"
+          comfort: "{{ states('sensor.zona_1p_kuchyn_comfort_temp') | float(22) }}"
+          eco: "{{ states('sensor.zona_1p_kuchyn_eco_temp') | float(19) }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.1_patro_kuchyn
+        data:
+          temperature: "{{ comfort if is_on else eco }}"
+
+  # ── 2. patro – Máma ─────────────────────────────────────────────────
+  - id: schedule_2p_mama_follow
+    alias: "Rozvrh: 2. patro Máma → nastav teplotu"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: schedule.zona_2p_mama_komfort
+      - platform: homeassistant
+        event: start
+    action:
+      - variables:
+          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}"
+          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}"
+          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(19) }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.danfoss_etrv0103_2
+        data:
+          temperature: "{{ comfort if is_on else eco }}"
