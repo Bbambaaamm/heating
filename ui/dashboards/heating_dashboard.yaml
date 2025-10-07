@@ -1,0 +1,13 @@
+template:
+  - sensor:
+      - name: "Přízemí Michal pokoj aktuální teplota"
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.danfoss_etrv0103', 'current_temperature') }}"
+
+      - name: "1. patro Kuchyň aktuální teplota"
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.1_patro_kuchyn', 'current_temperature') }}"
+
+      - name: "2. patro Máma pokoj aktuální teplota"
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.danfoss_etrv0103_2', 'current_temperature') }}"
