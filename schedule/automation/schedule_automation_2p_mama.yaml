@@ -72,7 +72,10 @@ automation:
           # 🟢 KOMFORTNÍ OKNO
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"
+                value_template: >
+                  {% set now = now().strftime('%H:%M:%S') %}
+                  {{ (now >= start and now < end)
+                     or (end < start and (now >= start or now < end)) }}
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103_2 }
@@ -90,7 +93,10 @@ automation:
           # 🌿 MIMO OKNO
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}"
+                value_template: >
+                  {% set now = now().strftime('%H:%M:%S') %}
+                  {{ not ((now >= start and now < end)
+                     or (end < start and (now >= start or now < end))) }}
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103_2 }
