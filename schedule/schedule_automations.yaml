@@ -58,6 +58,15 @@ automation:
         target: { entity_id: climate.danfoss_etrv0103 }                                       # cílová hlavice (Michal – přízemí)
         data: { temperature: "{{ target_temp }}" }                                            # nastav cílovou teplotu
 
+      - service: logbook.log
+        data:
+          name: "Rozvrh – Přízemí Michal"                                    # čitelný název v deníku
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.danfoss_etrv0103                                 # sváže záznam s hlavicí
+
 # =====================================================================
 # ── 1. patro – Kuchyň ────────────────────────────────────────────────
 # =====================================================================
@@ -105,6 +114,15 @@ automation:
         target: { entity_id: climate.1_patro_kuchyn }                                         # cílová hlavice (1. patro – kuchyň)
         data: { temperature: "{{ target_temp }}" }
 
+      - service: logbook.log
+        data:
+          name: "Rozvrh – 1. patro Kuchyň"
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.1_patro_kuchyn
+
 # =====================================================================
 # ── 2. patro – Máma ──────────────────────────────────────────────────
 # =====================================================================
@@ -151,3 +169,12 @@ automation:
       - service: climate.set_temperature
         target: { entity_id: climate.danfoss_etrv0103_2 }                                     # cílová hlavice (2. patro – máma)
         data: { temperature: "{{ target_temp }}" }
+
+      - service: logbook.log
+        data:
+          name: "Rozvrh – 2. patro Máma"
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.danfoss_etrv0103_2

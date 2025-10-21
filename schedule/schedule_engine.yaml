@@ -1,56 +1,99 @@
 # =====================================================================
-# 🧠 SCHEDULE ENGINE – přenastavuje setpointy hlavic podle rozvrhu a režimu
-# - Start/End události pro Po–Pá a So–Ne u každé zóny
-# - Cílová teplota vychází z "sensor.last_user_temp_*"
-# - Režimy: Auto/Eco/Boost/Off ovlivňují výslednou teplotu
+# ROZVRH – SCHEDULE ENGINE (více zón)
+# ---------------------------------------------------------------------
+# Cíl:
+# Přenastavit teploty hlavic podle rozvrhových časů (start/end)
+# a aktuálního topného režimu (Auto / Eco / Boost / Off).
+#
+# Základní logika:
+# - Počítá komfortní teplotu z poslední uživatelské hodnoty (sensor.last_user_temp_*)
+# - Aplikuje offset v režimu Eco (např. –1 °C)
+# - Na konci komfortního okna nastaví útlumovou teplotu (setback)
+#
+# Vstupy:
+# - input_datetime.*_start / *_end (časy rozvrhu)
+# - input_boolean.schedule_enable_* (aktivace rozvrhu)
+# - input_select.topny_rezim (globální režim topení)
+#
+# Výstupy:
+# - climate.* (nastavení teploty hlavic)
 # =====================================================================
 
-# ── Globální šablony pro výpočet komfortní/útlumové teploty ───────────
+# ---------------------------------------------------------------------
+# Globální šablony – výpočet komfortního offsetu a útlumové teploty
+# ---------------------------------------------------------------------
 template:
   - sensor:
-      # Komfortní teplota pro režim (může mít offset v Eco)
+      # Offset komfortní teploty podle režimu (Eco snižuje o 1 °C)
       - name: "heating_mode_comfort_offset_c"
         unique_id: heating_mode_comfort_offset_c
         unit_of_measurement: "°C"
         state: >
           {% set mode = states('input_select.topny_rezim') %}
-          {# Offset aplikujeme jen v Eco; v Boost/Auto 0 #}
-          {{ 1.0 if mode == 'Eco' else 0.0 }}
+          {{ 1.0 if mode == 'Eco' else 0.0 }}                  # v režimu Eco použij offset 1°C, jinak 0
 
-      # Útlumová teplota (globální konstanta – můžeš změnit)
+      # Globální útlumová teplota (setback)
       - name: "heating_setback_temp_c"
         unique_id: heating_setback_temp_c
         unit_of_measurement: "°C"
-        state: "17"
+        state: "17"                                            # konstantní hodnota (případně změň)
 
-# ── Pomocná skriptová sekce (DRY): nastavení zóny na komfort/útlum ────
+# ---------------------------------------------------------------------
+# Pomocné skripty – sdílená logika pro komfort a útlum
+# ---------------------------------------------------------------------
 script:
-  # Nastaví ZÓNU na KOMFORT (podle poslední uživatelské teploty + režim)
+
+  # Nastaví danou zónu na komfortní teplotu
   schedule_set_zone_comfort:
     alias: "Schedule: set zone comfort"
     mode: queued
     fields:
-      climate_entity:
+      climate_entity:                                          # cílová climate.* entita
         description: "climate.* entita hlavice"
-      last_user_temp_sensor:
+      last_user_temp_sensor:                                   # zdroj poslední komfortní teploty
         description: "sensor.last_user_temp_* pro danou zónu"
     sequence:
       - variables:
-          mode: "{{ states('input_select.topny_rezim') }}"
-          base: "{{ states(last_user_temp_sensor) | float(21) }}"
-          eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}"
-          target: >
+          mode: "{{ states('input_select.topny_rezim') }}"     # aktuální režim topení
+          base: "{{ states(last_user_temp_sensor) | float(21) }}"  # výchozí komfort (fallback 21)
+          eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}"  # offset v Eco
+          target: >                                            # výsledná cílová teplota
             {% if mode == 'Eco' %}
               {{ (base - eco_off) | round(1) }}
             {% else %}
               {{ base | round(1) }}
             {% endif %}
-      - service: climate.set_temperature
-        target: { entity_id: "{{ climate_entity }}" }
-        data:
-          temperature: "{{ target }}"
 
-  # Nastaví ZÓNU na ÚTLUM (globální setback temp)
+      # Přepni na heat jen pokud už není, ať neprovokujeme zbytečné změny režimu
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ states(climate_entity) | lower != 'heat' }}"  # není v režimu heat?
+            sequence:
+              - service: climate.set_hvac_mode
+                data:
+                  entity_id: "{{ climate_entity }}"            # cílová hlavice
+                  hvac_mode: heat                              # zapnout topení
+
+      # Guard: nepiš stejnou teplotu znovu (±0.1 °C tolerance)
+      - condition: template
+        value_template: >
+          {{ (state_attr(climate_entity, 'temperature') | float(0) - (target | float(0))) | abs > 0.1 }}
+
+      # Nastav cílovou teplotu
+      - service: climate.set_temperature
+        data:
+          entity_id: "{{ climate_entity }}"                    # cílová hlavice
+          temperature: "{{ target }}"                          # vypočtená komfortní teplota
+
+      # Záznam do logbooku – pouze při reálné změně
+      - service: logbook.log
+        data:
+          name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"
+          message: "Rozvrh – nastavena komfortní teplota: {{ target }} °C"
+          entity_id: "{{ climate_entity }}"
+
+  # Nastaví danou zónu na útlumovou teplotu (setback)
   schedule_set_zone_setback:
     alias: "Schedule: set zone setback"
     mode: queued
@@ -58,46 +101,65 @@ script:
       climate_entity:
         description: "climate.* entita hlavice"
     sequence:
-      - service: climate.set_temperature
-        target: { entity_id: "{{ climate_entity }}" }
-        data:
-          temperature: "{{ states('sensor.heating_setback_temp_c') | float(17) }}"
+      - variables:
+          setback: "{{ states('sensor.heating_setback_temp_c') | float(17) }}"  # cílový útlum
 
-# ── AUTOMATIZACE: Triggery start/stop pro jednotlivé zóny ─────────────
+      # Přepni na heat jen pokud už není (některé hlavice ignorují set_temperature v off)
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ states(climate_entity) | lower != 'heat' }}"
+            sequence:
+              - service: climate.set_hvac_mode
+                data:
+                  entity_id: "{{ climate_entity }}"
+                  hvac_mode: heat
+
+      # Guard: nepiš stejnou teplotu znovu (±0.1 °C)
+      - condition: template
+        value_template: >
+          {{ (state_attr(climate_entity, 'temperature') | float(0) - (setback | float(0))) | abs > 0.1 }}
+
+      # Nastav útlumovou teplotu
+      - service: climate.set_temperature
+        data:
+          entity_id: "{{ climate_entity }}"
+          temperature: "{{ setback }}"
+
+      # Záznam do logbooku – pouze při reálné změně
+      - service: logbook.log
+        data:
+          name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"
+          message: "Rozvrh – nastavena útlumová teplota: {{ setback }} °C"
+          entity_id: "{{ climate_entity }}"
+
+# ---------------------------------------------------------------------
+# AUTOMATIZACE – události start/end pro jednotlivé zóny
+# ---------------------------------------------------------------------
 automation:
 
-  # ========== PŘÍZEMÍ – MICHAL ==========
+  # ==============================================================================================================================================================================
+  # PŘÍZEMÍ – MICHAL
+  # ==============================================================================================================================================================================
+
   - id: sched_prizemi_michal_start
     alias: "Rozvrh: Přízemí Michal – START komfortního okna"
     mode: restart
     trigger:
-      # Po–Pá start
       - platform: time
-        at: input_datetime.prizemi_michal_weekday_start
-      # So–Ne start
+        at: input_datetime.prizemi_michal_weekday_start        # start Po–Pá
       - platform: time
-        at: input_datetime.prizemi_michal_weekend_start
+        at: input_datetime.prizemi_michal_weekend_start        # start So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_prizemi_michal
-        state: "on"
+        state: "on"                                            # rozvrh aktivní
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}  {# 0=Po ... 6=Ne #}
-          {# Povolíme, pokud je to Po–Pá a čas = weekday_start, NEBO So–Ne a čas = weekend_start #}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wstart = states('input_datetime.prizemi_michal_weekday_start')[11:] %}
-          {% set weest  = states('input_datetime.prizemi_michal_weekend_start')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wstart) or (dow in [5,6] and t == weest) }}
-      # Boost a Off mají speciální chování:
-      # - Off: rozvrh ignorujeme → neděláme nic (kotel/hlavice pak jede útlumem dle Off)
-      # - Boost: chceme komfort hned: proto neblokujeme, naopak necháme proběhnout
-      - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"  # Off = nic nedělej
     action:
       - service: script.schedule_set_zone_comfort
         data:
-          climate_entity: climate.danfoss_etrv0103
+          climate_entity: climate.danfoss_etrv0103             # cílová hlavice
           last_user_temp_sensor: sensor.last_user_temp_prizemi_michal
 
   - id: sched_prizemi_michal_end
@@ -105,50 +167,38 @@ automation:
     mode: restart
     trigger:
       - platform: time
-        at: input_datetime.prizemi_michal_weekday_end
+        at: input_datetime.prizemi_michal_weekday_end          # konec Po–Pá
       - platform: time
-        at: input_datetime.prizemi_michal_weekend_end
+        at: input_datetime.prizemi_michal_weekend_end          # konec So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_prizemi_michal
         state: "on"
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wend = states('input_datetime.prizemi_michal_weekday_end')[11:] %}
-          {% set ween = states('input_datetime.prizemi_michal_weekend_end')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wend) or (dow in [5,6] and t == ween) }}
-      # Pokud je Boost aktivní, útlum NEPOSÍLÁME (Boost má přednost).
-      - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"
+        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"  # Boost má přednost
     action:
       - service: script.schedule_set_zone_setback
         data:
           climate_entity: climate.danfoss_etrv0103
 
-  # ========== 1. PATRO – KUCHYŇ+JÍDELNA ==========
+  # ==============================================================================================================================================================================
+  # 1. PATRO – KUCHYŇ
+  # ==============================================================================================================================================================================
+
   - id: sched_1p_kuchyn_start
-    alias: "Rozvrh: 1.patro Kuchyň – START komfortního okna"
+    alias: "Rozvrh: 1. patro Kuchyň – START komfortního okna"
     mode: restart
     trigger:
       - platform: time
-        at: input_datetime.kuchyn_weekday_start
+        at: input_datetime.kuchyn_weekday_start                # start Po–Pá
       - platform: time
-        at: input_datetime.kuchyn_weekend_start
+        at: input_datetime.kuchyn_weekend_start                # start So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_kuchyn
         state: "on"
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wstart = states('input_datetime.kuchyn_weekday_start')[11:] %}
-          {% set weest  = states('input_datetime.kuchyn_weekend_start')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wstart) or (dow in [5,6] and t == weest) }}
-      - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"  # Off = nic nedělej
     action:
       - service: script.schedule_set_zone_comfort
         data:
@@ -156,53 +206,42 @@ automation:
           last_user_temp_sensor: sensor.last_user_temp_1p_kuchyn
 
   - id: sched_1p_kuchyn_end
-    alias: "Rozvrh: 1.patro Kuchyň – KONEC komfortního okna → útlum"
+    alias: "Rozvrh: 1. patro Kuchyň – KONEC komfortního okna → útlum"
     mode: restart
     trigger:
       - platform: time
-        at: input_datetime.kuchyn_weekday_end
+        at: input_datetime.kuchyn_weekday_end                  # konec Po–Pá
       - platform: time
-        at: input_datetime.kuchyn_weekend_end
+        at: input_datetime.kuchyn_weekend_end                  # konec So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_kuchyn
         state: "on"
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wend = states('input_datetime.kuchyn_weekday_end')[11:] %}
-          {% set ween = states('input_datetime.kuchyn_weekend_end')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wend) or (dow in [5,6] and t == ween) }}
-      - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"
+        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"  # Boost má přednost
     action:
       - service: script.schedule_set_zone_setback
         data:
           climate_entity: climate.1_patro_kuchyn
 
-  # ========== 2. PATRO – MÁMA ==========
+  # ==============================================================================================================================================================================
+  # 2. PATRO – MÁMA
+  # ==============================================================================================================================================================================
+
   - id: sched_2p_mama_start
-    alias: "Rozvrh: 2.patro Máma – START komfortního okna"
+    alias: "Rozvrh: 2. patro Máma – START komfortního okna"
     mode: restart
     trigger:
       - platform: time
-        at: input_datetime.mama_weekday_start
+        at: input_datetime.mama_weekday_start                  # start Po–Pá
       - platform: time
-        at: input_datetime.mama_weekend_start
+        at: input_datetime.mama_weekend_start                  # start So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
         state: "on"
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wstart = states('input_datetime.mama_weekday_start')[11:] %}
-          {% set weest  = states('input_datetime.mama_weekend_start')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wstart) or (dow in [5,6] and t == weest) }}
-      - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"  # Off = nic nedělej
     action:
       - service: script.schedule_set_zone_comfort
         data:
@@ -210,26 +249,19 @@ automation:
           last_user_temp_sensor: sensor.last_user_temp_2p_mama
 
   - id: sched_2p_mama_end
-    alias: "Rozvrh: 2.patro Máma – KONEC komfortního okna → útlum"
+    alias: "Rozvrh: 2. patro Máma – KONEC komfortního okna → útlum"
     mode: restart
     trigger:
       - platform: time
-        at: input_datetime.mama_weekday_end
+        at: input_datetime.mama_weekday_end                    # konec Po–Pá
       - platform: time
-        at: input_datetime.mama_weekend_end
+        at: input_datetime.mama_weekend_end                    # konec So–Ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
         state: "on"
       - condition: template
-        value_template: >
-          {% set dow = now().weekday() %}
-          {% set t = now().strftime('%H:%M:%S') %}
-          {% set wend = states('input_datetime.mama_weekday_end')[11:] %}
-          {% set ween = states('input_datetime.mama_weekend_end')[11:] %}
-          {{ (dow in [0,1,2,3,4] and t == wend) or (dow in [5,6] and t == ween) }}
-      - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"
+        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}"  # Boost má přednost
     action:
       - service: script.schedule_set_zone_setback
         data:
