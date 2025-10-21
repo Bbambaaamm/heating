@@ -1,11 +1,46 @@
 # =====================================================================
-# 🔌 KOTEL – ŘÍZENÍ RELÉ (Aqara T2) PODLE POLITIKY A POŽADAVKU ZÓN
-# - Zapíná, když jsou splněny prahy (min. aktivních zón NEBO min. průměrná poptávka)
-# - Vypíná, když prahy přestanou platit, nebo je režim Off / master OFF
-# - Respektuje konfigurovatelná zpoždění (anti-cycling)
-# - Po zpoždění dělá „re-check“, aby necvakal při rychlých změnách
+# 🔌 KOTEL – PRAHY + ŘÍZENÍ RELÉ (Aqara T2)
+# - Zapnout: master ON ∧ režim ≠ Off ∧ (min. aktivních zón) ∧ (min. průměrná poptávka)
+# - Vypnout: master OFF ∨ režim Off ∨ (práhy nesplněny)
+# - Anti-cycling: on/off delay + re-check po zpoždění
 # =====================================================================
 
+# -----------------------------
+# ✅ PRAHOVÉ BINÁRNÍ SENZORY
+# -----------------------------
+template:
+  - binary_sensor:
+
+      # Splněno: minimální počet aktivních zón
+      - name: "kotel_threshold_min_active_zones_ok"
+        unique_id: kotel_threshold_min_active_zones_ok
+        state: >
+          {% set aktivni = states('sensor.kotel_aktivni_zony_pocet') | int(0) %}
+          {% set min_zony = states('input_number.kotel_min_active_zones') | int(1) %}
+          {{ aktivni >= min_zony }}
+        device_class: connectivity
+
+      # Splněno: minimální průměrná poptávka aktivních zón (%)
+      - name: "kotel_threshold_min_avg_demand_ok"
+        unique_id: kotel_threshold_min_avg_demand_ok
+        state: >
+          {% set avg = states('sensor.kotel_poptavka_prumer') | float(0) %}
+          {% set min_avg = states('input_number.kotel_min_avg_demand_pct') | float(15) %}
+          {{ avg >= min_avg }}
+        device_class: connectivity
+
+      # 🔁 HLAVNÍ PRÁH – VŠECHNY PODMÍNKY MUSÍ PLATIT (AND)
+      # (dříve to bylo OR → způsobovalo zbytečné sepnutí při malé poptávce)
+      - name: "kotel_threshold_any_ok"
+        unique_id: kotel_threshold_all_ok   # ID může zůstat jiné; entity_id zůstane podle name
+        icon: mdi:checkbox-marked-circle
+        state: >
+          {{ is_state('binary_sensor.kotel_threshold_min_active_zones_ok','on')
+             and is_state('binary_sensor.kotel_threshold_min_avg_demand_ok','on') }}
+
+# -----------------------------
+# ⚙️ AUTOMATIZACE (BEZE ZMĚNY)
+# -----------------------------
 automation:
 
   # ---------------------------------------------------------------
@@ -16,7 +51,6 @@ automation:
     description: "Zapne relé kotle po zpoždění, pokud platí prahy a není blokace."
     mode: restart  # nová změna zruší předchozí běh (aby se delay nepřekrýval)
 
-    # Reaguj na všechny relevantní změny
     trigger:
       - platform: state
         entity_id:
@@ -31,10 +65,10 @@ automation:
           - sensor.kotel_poptavka_prumer
           - sensor.kotel_poptavka_max
 
-    # Zapínáme jen když:
+    # Zapneme, když:
     # - master je ON
     # - režim není Off (tj. kotel_mode_off_block == off)
-    # - je splněna ALESPOŇ jedna podmínka (min. aktivní zóny NEBO min. průměrná poptávka)
+    # - a (min. aktivní zóny) ∧ (min. průměrná poptávka)
     condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
@@ -51,7 +85,7 @@ automation:
       - delay:
           seconds: "{{ states('input_number.kotel_on_delay_sec') | int(0) }}"
 
-      # ✅ Re-check po zpoždění (jestli podmínky pořád platí)
+      # ✅ Re-check po zpoždění
       - choose:
           - conditions:
               - condition: state
@@ -90,10 +124,6 @@ automation:
           - sensor.kotel_poptavka_prumer
           - sensor.kotel_poptavka_max
 
-    # Vypínáme, když:
-    # - master je OFF  NEBO
-    # - režim je Off (kotel_mode_off_block == on) NEBO
-    # - prahy NEJSOU splněny (kotel_threshold_any_ok == off)
     condition: []
 
     action:
