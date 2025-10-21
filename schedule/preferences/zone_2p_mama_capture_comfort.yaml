@@ -36,13 +36,20 @@ automation:
 
     # Akce: uloží poslední komfortní teplotu do helperu
     action:
-      - service: input_number.set_value                    # Zápis hodnoty do input_number
+      # ✅ Nejprve ověří, že se komfortní teplota skutečně změnila (±0.1 °C)
+      - condition: template
+        value_template: >
+          {{ ((states('input_number.2p_mama_last_comfort') | float) - (new_set | float)) | abs > 0.1 }}
+
+      - service: input_number.set_value                       # Zápis hodnoty do input_number (uložení nové komfortní teploty)
         target:
-          entity_id: input_number.2p_mama_last_comfort     # Cílový helper (komfortní teplota)
+          entity_id: input_number.2p_mama_last_comfort  # Cílový helper (komfortní teplota)
         data:
-          value: "{{ new_set }}"                           # Hodnota = aktuálně nastavená teplota
+          value: "{{ new_set }}"                               # Hodnota = aktuálně nastavená teplota
+
+      # 🪶 Logování pro přehled (uložení nové komfortní teploty do Logbooku)
       - service: logbook.log
         data:
-          name: "2P Máma"
-          message: "Uložena komfortní teplota: {{ new_set }} °C"
-          entity_id: climate.danfoss_etrv0103_2
+          name: "2.P Máma"                               # Název v logu
+          message: "Uložena komfortní teplota: {{ new_set }} °C"  # Zpráva do Logbooku
+          entity_id: climate.danfoss_etrv0103_2                  # K jaké entitě se vztahuje

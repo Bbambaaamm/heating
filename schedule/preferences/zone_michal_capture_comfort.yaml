@@ -37,7 +37,6 @@ automation:
     # Akce: uloží poslední komfortní teplotu do helperu
     action:
       # ✅ Nejprve ověří, že se komfortní teplota skutečně změnila (±0.1 °C)
-      # → Zabrání zbytečnému zápisu do helperu i logu, pokud hodnota zůstala stejná
       - condition: template
         value_template: >
           {{ ((states('input_number.prizemi_michal_last_comfort') | float) - (new_set | float)) | abs > 0.1 }}
