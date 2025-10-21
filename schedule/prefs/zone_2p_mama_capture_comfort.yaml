@@ -1,8 +1,15 @@
 # =====================================================================
 # 🧲 2. patro – Máma: zachytávání poslední KOMFORTNÍ teploty
-# - Sleduje změny setpointu (attribute: temperature) na hlavici (máma).
-# - Pokud nová teplota > ECO (s malou hysterezí), uloží ji do 2p_mama_last_comfort.
-# - Díky tomu se po skončení ECO vždy vrátí opravdu poslední „komfort“.
+# ---------------------------------------------------------------------
+# 🔍 Cíl:
+# Tato automatizace sleduje, kdy Michal ručně (nebo přes rozvrh)
+# změní teplotu na hlavici. Pokud nová hodnota odpovídá komfortnímu
+# režimu (tj. je vyšší než ECO teplota), uloží se do helperu
+# `input_number.prizemi_michal_last_comfort`.
+#
+# ➕ Díky tomu se při návratu z ECO módu (např. po odchodu nebo v noci)
+# může automaticky obnovit právě ta poslední komfortní teplota,
+# kterou uživatel naposledy použil.
 # =====================================================================
 
 automation:
@@ -11,23 +18,33 @@ automation:
     mode: restart
     initial_state: true
 
-    # 🔔 Spouštěč: změna žádané teploty na hlavici (máma)
+    # 🔔 Spouštěč:
+    # Sleduje změny atributu `temperature` na hlavici Danfoss.
+    # Jakmile uživatel (nebo automatizace) změní žádanou teplotu,
+    # automatizace se spustí.
     trigger:
       - platform: state
         entity_id: climate.danfoss_etrv0103_2
         attribute: temperature
 
-    # 📦 Proměnné pro přehlednost
+    # 📦 Proměnné:
+    # `new_set` → nová žádaná teplota na hlavici.
+    # `eco` → hodnota ECO teploty z globálního helperu (typicky 18 °C).
     variables:
       new_set: "{{ state_attr('climate.danfoss_etrv0103_2', 'temperature') | float(0) }}"
       eco: "{{ states('input_number.eco_temp_default') | float(18) }}"
 
-    # ✅ Ukládáme jen KOMFORT (tj. > ECO + 0.2 °C hystereze)
+    # ✅ Podmínka:
+    # Uloží se jen teplota, která je o něco vyšší než ECO (např. > 18.2 °C),
+    # aby se neukládaly hodnoty z ECO režimu nebo drobné přechody.
     condition:
       - condition: template
         value_template: "{{ new_set >= (eco + 0.2) }}"
 
-    # 💾 Zapiš poslední komfortní teplotu do helperu
+    # 💾 Akce:
+    # Zapisuje zachycenou komfortní teplotu do helperu
+    # `input_number.prizemi_michal_last_comfort`.
+    # Tato hodnota se pak může použít při návratu z ECO.
     action:
       - service: input_number.set_value
         target:
