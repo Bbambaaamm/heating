@@ -18,25 +18,45 @@ automation:
 
     # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
-      - platform: time                                        # Časový trigger pro „teď je start/konec okna“
-        at:                                                   # Podporuje přímo entity input_datetime (time / date_time)
-          - input_datetime.prizemi_michal_weekday_start       # Pracovní dny – start okna
-          - input_datetime.prizemi_michal_weekday_end         # Pracovní dny – konec okna
-          - input_datetime.prizemi_michal_weekend_start       # Víkend – start okna
-          - input_datetime.prizemi_michal_weekend_end         # Víkend – konec okna
+      - platform: time
+        at:
+          - input_datetime.prizemi_michal_monday_start
+          - input_datetime.prizemi_michal_monday_end
+          - input_datetime.prizemi_michal_tuesday_start
+          - input_datetime.prizemi_michal_tuesday_end
+          - input_datetime.prizemi_michal_wednesday_start
+          - input_datetime.prizemi_michal_wednesday_end
+          - input_datetime.prizemi_michal_thursday_start
+          - input_datetime.prizemi_michal_thursday_end
+          - input_datetime.prizemi_michal_friday_start
+          - input_datetime.prizemi_michal_friday_end
+          - input_datetime.prizemi_michal_saturday_start
+          - input_datetime.prizemi_michal_saturday_end
+          - input_datetime.prizemi_michal_sunday_start
+          - input_datetime.prizemi_michal_sunday_end
 
-      - platform: state                                       # Změna parametrů rozvrhu → přepočti a aplikuj
+      - platform: state
         entity_id:
-          - input_datetime.prizemi_michal_weekday_start
-          - input_datetime.prizemi_michal_weekday_end
-          - input_datetime.prizemi_michal_weekend_start
-          - input_datetime.prizemi_michal_weekend_end
-          - input_boolean.schedule_enable_prizemi_michal      # Zap/Vyp rozvrhu pro zónu
+          - input_datetime.prizemi_michal_monday_start
+          - input_datetime.prizemi_michal_monday_end
+          - input_datetime.prizemi_michal_tuesday_start
+          - input_datetime.prizemi_michal_tuesday_end
+          - input_datetime.prizemi_michal_wednesday_start
+          - input_datetime.prizemi_michal_wednesday_end
+          - input_datetime.prizemi_michal_thursday_start
+          - input_datetime.prizemi_michal_thursday_end
+          - input_datetime.prizemi_michal_friday_start
+          - input_datetime.prizemi_michal_friday_end
+          - input_datetime.prizemi_michal_saturday_start
+          - input_datetime.prizemi_michal_saturday_end
+          - input_datetime.prizemi_michal_sunday_start
+          - input_datetime.prizemi_michal_sunday_end
+          - input_boolean.schedule_enable_prizemi_michal
 
-      - platform: state                                       # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
+      - platform: state
         entity_id: input_number.prizemi_michal_last_comfort
 
-      - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
+      - platform: state
         entity_id: climate.danfoss_etrv0103
         attribute: temperature
 
@@ -46,16 +66,25 @@ automation:
       last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"   # Poslední komfort (fallback 22)
 
       start: >                                                                                # Vyber správný START dle dne v týdnu
-        {% if now().isoweekday() in [1,2,3,4,5] %}
-          {{ states('input_datetime.prizemi_michal_weekday_start') }}
-        {% else %}
-          {{ states('input_datetime.prizemi_michal_weekend_start') }}
+        {% set d = now().weekday() %}  {# 0=Po .. 6=Ne #}
+        {% if   d == 0 %} {{ states('input_datetime.prizemi_michal_monday_start') }}
+        {% elif d == 1 %} {{ states('input_datetime.prizemi_michal_tuesday_start') }}
+        {% elif d == 2 %} {{ states('input_datetime.prizemi_michal_wednesday_start') }}
+        {% elif d == 3 %} {{ states('input_datetime.prizemi_michal_thursday_start') }}
+        {% elif d == 4 %} {{ states('input_datetime.prizemi_michal_friday_start') }}
+        {% elif d == 5 %} {{ states('input_datetime.prizemi_michal_saturday_start') }}
+        {% else %}         {{ states('input_datetime.prizemi_michal_sunday_start') }}
         {% endif %}
+
       end: >                                                                                  # Vyber správný KONEC dle dne v týdnu
-        {% if now().isoweekday() in [1,2,3,4,5] %}
-          {{ states('input_datetime.prizemi_michal_weekday_end') }}
-        {% else %}
-          {{ states('input_datetime.prizemi_michal_weekend_end') }}
+        {% set d = now().weekday() %}
+        {% if   d == 0 %} {{ states('input_datetime.prizemi_michal_monday_end') }}
+        {% elif d == 1 %} {{ states('input_datetime.prizemi_michal_tuesday_end') }}
+        {% elif d == 2 %} {{ states('input_datetime.prizemi_michal_wednesday_end') }}
+        {% elif d == 3 %} {{ states('input_datetime.prizemi_michal_thursday_end') }}
+        {% elif d == 4 %} {{ states('input_datetime.prizemi_michal_friday_end') }}
+        {% elif d == 5 %} {{ states('input_datetime.prizemi_michal_saturday_end') }}
+        {% else %}         {{ states('input_datetime.prizemi_michal_sunday_end') }}
         {% endif %}
       now_hms: "{{ now().strftime('%H:%M:%S') }}"                                             # Aktuální čas jako HH:MM:SS
 
