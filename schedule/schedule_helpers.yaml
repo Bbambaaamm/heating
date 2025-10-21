@@ -103,20 +103,66 @@ input_datetime:
   # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
   # ==============================================================================================================================================================================
 
-  kuchyn_weekday_start:
-    name: "1. patro Kuchyň+Jídelna – Po–Pá začátek"
+  1_patro_kuchyn_monday_start:
+    name: "1. patro Kuchyň+Jídelna – Pondělí začátek"
     has_date: false
     has_time: true
-  kuchyn_weekday_end:
-    name: "1. patro Kuchyň+Jídelna – Po–Pá konec"
+  1_patro_kuchyn_monday_end:
+    name: "1. patro Kuchyň+Jídelna – Pondělí konec"
     has_date: false
     has_time: true
-  kuchyn_weekend_start:
-    name: "1. patro Kuchyň+Jídelna – So–Ne začátek"
+
+  1_patro_kuchyn_tuesday_start:
+    name: "1. patro Kuchyň+Jídelna – Úterý začátek"
     has_date: false
     has_time: true
-  kuchyn_weekend_end:
-    name: "1. patro Kuchyň+Jídelna – So–Ne konec"
+  1_patro_kuchyn_tuesday_end:
+    name: "1. patro Kuchyň+Jídelna – Úterý konec"
+    has_date: false
+    has_time: true
+
+  1_patro_kuchyn_wednesday_start:
+    name: "1. patro Kuchyň+Jídelna – Středa začátek"
+    has_date: false
+    has_time: true
+  1_patro_kuchyn_wednesday_end:
+    name: "1. patro Kuchyň+Jídelna – Středa konec"
+    has_date: false
+    has_time: true
+
+  1_patro_kuchyn_thursday_start:
+    name: "1. patro Kuchyň+Jídelna – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  1_patro_kuchyn_thursday_end:
+    name: "1. patro Kuchyň+Jídelna – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  1_patro_kuchyn_friday_start:
+    name: "1. patro Kuchyň+Jídelna – Pátek začátek"
+    has_date: false
+    has_time: true
+  1_patro_kuchyn_friday_end:
+    name: "1. patro Kuchyň+Jídelna – Pátek konec"
+    has_date: false
+    has_time: true
+
+  1_patro_kuchyn_saturday_start:
+    name: "1. patro Kuchyň+Jídelna – Sobota začátek"
+    has_date: false
+    has_time: true
+  1_patro_kuchyn_saturday_end:
+    name: "1. patro Kuchyň+Jídelna – Sobota konec"
+    has_date: false
+    has_time: true
+
+  1_patro_kuchyn_sunday_start:
+    name: "1. patro Kuchyň+Jídelna – Neděle začátek"
+    has_date: false
+    has_time: true
+  1_patro_kuchyn_sunday_end:
+    name: "1. patro Kuchyň+Jídelna – Neděle konec"
     has_date: false
     has_time: true
 

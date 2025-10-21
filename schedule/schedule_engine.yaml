@@ -185,10 +185,8 @@ automation:
     alias: "Rozvrh: 1. patro Kuchyň – START komfortního okna"
     mode: restart
     trigger:
-      - platform: time
-        at: input_datetime.kuchyn_weekday_start                # start Po–Pá
-      - platform: time
-        at: input_datetime.kuchyn_weekend_start                # start So–Ne
+      - platform: template
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"    # start Po,út,st,čt,pá,so,ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_kuchyn
@@ -205,10 +203,8 @@ automation:
     alias: "Rozvrh: 1. patro Kuchyň – KONEC komfortního okna → útlum"
     mode: restart
     trigger:
-      - platform: time
-        at: input_datetime.kuchyn_weekday_end                  # konec Po–Pá
-      - platform: time
-        at: input_datetime.kuchyn_weekend_end                  # konec So–Ne
+      - platform: template
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}"    # end Po,út,st,čt,pá,so,ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_kuchyn
