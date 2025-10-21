@@ -6,6 +6,8 @@
 # Pozn.: časové pomocníky nezpůsobují akci sami o sobě; logiku řeší schedule_engine.yaml
 # =====================================================================
 
+# ==============================================================================================================================================================================
+
 input_boolean:
   # ── Přízemí – Michal ────────────────────────────────────────────────
   schedule_enable_prizemi_michal:
@@ -25,26 +27,82 @@ input_boolean:
     icon: mdi:calendar-clock
     initial: on
 
+# ==============================================================================================================================================================================
+
 input_datetime:
+
+  # ==============================================================================================================================================================================
   # ── Přízemí – Michal ────────────────────────────────────────────────
-  prizemi_michal_weekday_start:
-    name: "Přízemí Michal – Po–Pá začátek"
+  # ==============================================================================================================================================================================
+
+  prizemi_michal_monday_start:
+    name: "Přízemí Michal – Pondělí začátek"
     has_date: false
     has_time: true
-  prizemi_michal_weekday_end:
-    name: "Přízemí Michal – Po–Pá konec"
-    has_date: false
-    has_time: true
-  prizemi_michal_weekend_start:
-    name: "Přízemí Michal – So–Ne začátek"
-    has_date: false
-    has_time: true
-  prizemi_michal_weekend_end:
-    name: "Přízemí Michal – So–Ne konec"
+  prizemi_michal_monday_end:
+    name: "Přízemí Michal – Pondělí konec"
     has_date: false
     has_time: true
 
+  prizemi_michal_tuesday_start:
+    name: "Přízemí Michal – Úterý začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_tuesday_end:
+    name: "Přízemí Michal – Úterý konec"
+    has_date: false
+    has_time: true
+
+  prizemi_michal_wednesday_start:
+    name: "Přízemí Michal – Středa začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_wednesday_end:
+    name: "Přízemí Michal – Středa konec"
+    has_date: false
+    has_time: true
+
+  prizemi_michal_thursday_start:
+    name: "Přízemí Michal – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_thursday_end:
+    name: "Přízemí Michal – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  prizemi_michal_friday_start:
+    name: "Přízemí Michal – Pátek začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_friday_end:
+    name: "Přízemí Michal – Pátek konec"
+    has_date: false
+    has_time: true
+
+  prizemi_michal_saturday_start:
+    name: "Přízemí Michal – Sobota začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_saturday_end:
+    name: "Přízemí Michal – Sobota konec"
+    has_date: false
+    has_time: true
+
+  prizemi_michal_sunday_start:
+    name: "Přízemí Michal – Neděle začátek"
+    has_date: false
+    has_time: true
+  prizemi_michal_sunday_end:
+    name: "Přízemí Michal – Neděle konec"
+    has_date: false
+    has_time: true
+
+
+  # ==============================================================================================================================================================================
   # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
+  # ==============================================================================================================================================================================
+
   kuchyn_weekday_start:
     name: "1. patro Kuchyň+Jídelna – Po–Pá začátek"
     has_date: false
@@ -62,7 +120,10 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # ==============================================================================================================================================================================
   # ── 2. patro – Máma ────────────────────────────────────────────────
+  # ==============================================================================================================================================================================
+
   mama_weekday_start:
     name: "2. patro Máma – Po–Pá začátek"
     has_date: false
@@ -79,6 +140,8 @@ input_datetime:
     name: "2. patro Máma – So–Ne konec"
     has_date: false
     has_time: true
+
+# ==============================================================================================================================================================================
 
 input_number:
   eco_temp_default:
