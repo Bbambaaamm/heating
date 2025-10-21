@@ -16,7 +16,7 @@ automation:
     mode: restart                                             # Při nové události restartuj běh (vyhne se závodům)
     initial_state: true                                       # Aktivní po restartu HA
 
-    # 🔔 Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
+    # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
       - platform: time                                        # Časový trigger pro „teď je start/konec okna“
         at:                                                   # Podporuje přímo entity input_datetime (time / date_time)
@@ -40,7 +40,7 @@ automation:
         entity_id: climate.danfoss_etrv0103
         attribute: temperature
 
-    # 📦 Proměnné – načtení teplot a dynamický výběr časů dle dne
+    # Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
       eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"                  # ECO teplota (fallback 18.0)
       last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"   # Poslední komfort (fallback 22)
@@ -70,15 +70,15 @@ automation:
           {{ (n >= s) or (n < e) }}
         {% endif %}
 
-    # ✅ Rozvrh musí být zapnutý (globální enable pro zónu)
+    # Rozvrh musí být zapnutý (globální enable pro zónu)
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_prizemi_michal
         state: "on"
 
-    # ▶️ Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
+    # Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
-      # ⏱️ Debounce: pokud to spustila hlavice, chvilku počkej,
+      # Debounce: pokud to spustila hlavice, chvilku počkej,
       # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
       - choose:
           - conditions:
@@ -90,10 +90,10 @@ automation:
               - delay: "00:00:01"                                                              # zpoždění 1 s při triggeru z hlavice
 
       - choose:
-          # 🟢 Uvnitř okna → nastav poslední KOMFORT
+          # Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"                                              # True → jsme v okně
+                value_template: "{{ in_window }}"                                             # True → jsme v okně
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103 }                               # Cílová hlavice
@@ -112,7 +112,7 @@ automation:
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                   entity_id: climate.danfoss_etrv0103
 
-          # 🌿 Mimo okno → nastav ECO
+          # Mimo okno → nastav ECO
           - conditions:
               - condition: template
                 value_template: "{{ not in_window }}"                                          # False → mimo okno

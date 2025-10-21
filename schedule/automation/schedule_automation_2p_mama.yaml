@@ -6,7 +6,7 @@
 # (čas start/konec, úprava rozvrhu, ruční změna setpointu), a tím
 # udržet hlavice klidné a logy čisté.
 #
-# Uvnitř okna: obnov poslední KOMFORT (input_number.prizemi_michal_last_comfort)
+# Uvnitř okna: obnov poslední KOMFORT (input_number.2p_mama_last_comfort)
 #    Mimo okno:   nastav ECO (input_number.eco_temp_default)
 # =====================================================================
 
@@ -16,7 +16,7 @@ automation:
     mode: restart                                             # Při nové události restartuj běh (vyhne se závodům)
     initial_state: true                                       # Aktivní po restartu HA
 
-    # 🔔 Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
+    # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
       - platform: time                                        # Časový trigger pro „teď je start/konec okna“
         at:                                                   # Podporuje přímo entity input_datetime (time / date_time)
@@ -33,11 +33,14 @@ automation:
           - input_datetime.mama_weekend_end
           - input_boolean.schedule_enable_2p_mama      # Zap/Vyp rozvrhu pro zónu
 
+      - platform: state                                       # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
+        entity_id: input_number.2p_mama_last_comfort
+
       - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
         entity_id: climate.danfoss_etrv0103_2
         attribute: temperature
 
-    # 📦 Proměnné – načtení teplot a dynamický výběr časů dle dne
+    # Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
       eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"              # ECO teplota (fallback 18.0)
       last_comfort: "{{ states('input_number.2p_mama_last_comfort') | float(22) }}"      # Poslední komfort (fallback 22)
@@ -67,16 +70,27 @@ automation:
           {{ (n >= s) or (n < e) }}
         {% endif %}
 
-    # ✅ Rozvrh musí být zapnutý (globální enable pro zónu)
+    # Rozvrh musí být zapnutý (globální enable pro zónu)
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
         state: "on"
 
-    # ▶️ Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
+    # Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
+      # Debounce: pokud to spustila hlavice, chvilku počkej,
+      # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
       - choose:
-          # 🟢 Uvnitř okna → nastav poslední KOMFORT
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.platform == 'state'
+                     and trigger.entity_id == 'climate.danfoss_etrv0103_2' }}
+            sequence:
+              - delay: "00:00:01"                                                              # zpoždění 1 s při triggeru z hlavice
+
+      - choose:
+          # Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
                 value_template: "{{ in_window }}"                                          # True → jsme v okně
@@ -84,6 +98,10 @@ automation:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103_2 }                          # Cílová hlavice
                 data: { hvac_mode: heat }                                                  # Režim vytápění
+              - condition: template                                                        # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                value_template: >
+                  {{ ((state_attr('climate.danfoss_etrv0103_2','temperature') | float)
+                      - (last_comfort | float)) | abs > 0.1 }}
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103_2 }
                 data:
@@ -102,6 +120,10 @@ automation:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103_2 }
                 data: { hvac_mode: heat }
+              - condition: template                                                           # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                value_template: >
+                  {{ ((state_attr('climate.danfoss_etrv0103_2','temperature') | float)
+                      - (eco_temp | float)) | abs > 0.1 }}
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103_2 }
                 data:
