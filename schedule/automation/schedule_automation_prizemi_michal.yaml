@@ -1,61 +1,62 @@
 # =====================================================================
-# 🕒 ROZVRH – Přízemí (Michal) – inteligentní spouštění
-# - Spíná POUZE při změně (čas start/konec, změna rozvrhu, ruční změna setpointu)
-# - Uvnitř okna → nastaví poslední komfortní teplotu (input_number.prizemi_michal_last_comfort)
-# - Mimo okno   → nastaví ECO teplotu (input_number.eco_temp_default)
-# - NEposílá nic každou minutu → klidné hlavice, čisté logy
+# ROZVRH – Přízemí (Michal) – inteligentní spouštění
+# ---------------------------------------------------------------------
+# Cíl:
+# Spínat komfort/ECO jen ve chvíli, kdy dojde ke SKUTEČNÉ změně
+# (čas start/konec, úprava rozvrhu, ruční změna setpointu), a tím
+# udržet hlavice klidné a logy čisté.
+#
+# Uvnitř okna: obnov poslední KOMFORT (input_number.prizemi_michal_last_comfort)
+#    Mimo okno:   nastav ECO (input_number.eco_temp_default)
 # =====================================================================
 
 automation:
-  - alias: "Rozvrh Přízemí – inteligentní spouštění"
-    id: schedule_prizemi_michal_smart
-    mode: restart
-    initial_state: true
+  - alias: "Rozvrh Přízemí – inteligentní spouštění"          # Název automatizace v UI
+    id: schedule_prizemi_michal_smart                         # Stabilní ID (pro odkazy, scény, editory)
+    mode: restart                                             # Při nové události restartuj běh (vyhne se závodům)
+    initial_state: true                                       # Aktivní po restartu HA
 
-    # 🔔 Spouštěče: jen skutečné změny (žádný time_pattern každou minutu)
+    # 🔔 Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
-      # ▶️ Nastal čas startu nebo konce (funguje i pro time-only input_datetime)
-      - platform: time
-        at:
-          - input_datetime.prizemi_michal_weekday_start
-          - input_datetime.prizemi_michal_weekday_end
-          - input_datetime.prizemi_michal_weekend_start
-          - input_datetime.prizemi_michal_weekend_end
+      - platform: time                                        # Časový trigger pro „teď je start/konec okna“
+        at:                                                   # Podporuje přímo entity input_datetime (time / date_time)
+          - input_datetime.prizemi_michal_weekday_start       # Pracovní dny – start okna
+          - input_datetime.prizemi_michal_weekday_end         # Pracovní dny – konec okna
+          - input_datetime.prizemi_michal_weekend_start       # Víkend – start okna
+          - input_datetime.prizemi_michal_weekend_end         # Víkend – konec okna
 
-      # ▶️ Někdo upravil časy / povolení rozvrhu
-      - platform: state
+      - platform: state                                       # Změna parametrů rozvrhu → přepočti a aplikuj
         entity_id:
           - input_datetime.prizemi_michal_weekday_start
           - input_datetime.prizemi_michal_weekday_end
           - input_datetime.prizemi_michal_weekend_start
           - input_datetime.prizemi_michal_weekend_end
-          - input_boolean.schedule_enable_prizemi_michal
+          - input_boolean.schedule_enable_prizemi_michal      # Zap/Vyp rozvrhu pro zónu
 
-      # ▶️ Uživatel změnil setpoint na hlavici (abychom uměli hned zareagovat, pokud jsme „uvnitř okna“)
-      - platform: state
+      - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
         entity_id: climate.danfoss_etrv0103
         attribute: temperature
 
-    # 📦 Pomocné proměnné – vyber správné časy podle dne + načti ECO/poslední KOMFORT
+    # 📦 Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"
-      last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(21.5) }}"
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"              # ECO teplota (fallback 18.0)
+      last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"  # Poslední komfort (fallback 22)
 
-      start: >
+      start: >                                                                            # Vyber správný START dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.prizemi_michal_weekday_start') }}
         {% else %}
           {{ states('input_datetime.prizemi_michal_weekend_start') }}
         {% endif %}
-      end: >
+      end: >                                                                              # Vyber správný KONEC dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.prizemi_michal_weekday_end') }}
         {% else %}
           {{ states('input_datetime.prizemi_michal_weekend_end') }}
         {% endif %}
-      now_hms: "{{ now().strftime('%H:%M:%S') }}"
+      now_hms: "{{ now().strftime('%H:%M:%S') }}"                                         # Aktuální čas jako HH:MM:SS
 
-      # 🧮 Jsme uvnitř okna? (řeší i přes půlnoc)
+      # Jsme uvnitř okna? Bezpečně řeší i interval přes půlnoc (start > end)
       in_window: >
         {% set s = start %}
         {% set e = end %}
@@ -66,37 +67,37 @@ automation:
           {{ (n >= s) or (n < e) }}
         {% endif %}
 
-    # ✅ Rozvrh této zóny musí být povolen
+    # ✅ Rozvrh musí být zapnutý (globální enable pro zónu)
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_prizemi_michal
         state: "on"
 
-    # ▶️ Jednorázová akce podle toho, kde právě jsme vzhledem k oknu
+    # ▶️ Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
       - choose:
-          # 🟢 Uvnitř okna → komfortní teplota
+          # 🟢 Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"
+                value_template: "{{ in_window }}"                                          # True → jsme v okně
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103 }
-                data: { hvac_mode: heat }
+                target: { entity_id: climate.danfoss_etrv0103 }                           # Cílová hlavice
+                data: { hvac_mode: heat }                                                 # Režim vytápění
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103 }
                 data:
-                  temperature: "{{ last_comfort }}"
-              - service: logbook.log
+                  temperature: "{{ last_comfort }}"                                       # Nastav uložený komfort
+              - service: logbook.log                                                      # Zápis do logbooku pro audit
                 data:
                   name: "Rozvrh Přízemí"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                   entity_id: climate.danfoss_etrv0103
 
-          # 🌿 Mimo okno → ECO teplota
+          # 🌿 Mimo okno → nastav ECO
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}"
+                value_template: "{{ not in_window }}"                                      # False → mimo okno
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103 }
@@ -104,7 +105,7 @@ automation:
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103 }
                 data:
-                  temperature: "{{ eco_temp }}"
+                  temperature: "{{ eco_temp }}"                                           # Nastav ECO teplotu
               - service: logbook.log
                 data:
                   name: "Rozvrh Přízemí"

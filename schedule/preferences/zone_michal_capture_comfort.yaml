@@ -41,3 +41,8 @@ automation:
           entity_id: input_number.prizemi_michal_last_comfort  # Cílový helper (komfortní teplota)
         data:
           value: "{{ new_set }}"                               # Hodnota = aktuálně nastavená teplota
+      - service: logbook.log
+        data:
+          name: "Přízemí Michal"
+          message: "Uložena komfortní teplota: {{ new_set }} °C"
+          entity_id: climate.danfoss_etrv0103

@@ -2,10 +2,10 @@
 # 🧲 2. patro – Máma: zachytávání poslední KOMFORTNÍ teploty
 # ---------------------------------------------------------------------
 # 🔍 Cíl:
-# Tato automatizace sleduje, kdy Michal ručně (nebo přes rozvrh)
+# Tato automatizace sleduje, kdy Máma ručně (nebo přes rozvrh)
 # změní teplotu na hlavici. Pokud nová hodnota odpovídá komfortnímu
 # režimu (tj. je vyšší než ECO teplota), uloží se do helperu
-# `input_number.prizemi_michal_last_comfort`.
+# `capture_last_comfort_2p_mama`.
 #
 # ➕ Díky tomu se při návratu z ECO módu (např. po odchodu nebo v noci)
 # může automaticky obnovit právě ta poslední komfortní teplota,
@@ -41,3 +41,8 @@ automation:
           entity_id: input_number.2p_mama_last_comfort     # Cílový helper (komfortní teplota)
         data:
           value: "{{ new_set }}"                           # Hodnota = aktuálně nastavená teplota
+      - service: logbook.log
+        data:
+          name: "2P Máma"
+          message: "Uložena komfortní teplota: {{ new_set }} °C"
+          entity_id: climate.danfoss_etrv0103_2

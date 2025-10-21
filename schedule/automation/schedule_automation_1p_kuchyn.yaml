@@ -1,53 +1,62 @@
 # =====================================================================
-# 🕒 ROZVRH – 1. patro (Kuchyň) – inteligentní spouštění
-# - Uvnitř okna → poslední komfortní (input_number.1p_kuchyn_last_comfort)
-# - Mimo okno   → ECO (input_number.eco_temp_default)
-# - Spouští se jen při změně (čas, rozvrh, ruční setpoint)
+# ROZVRH – 1. patro (Kuchyň) – inteligentní spouštění
+# ---------------------------------------------------------------------
+# Cíl:
+# Spínat komfort/ECO jen ve chvíli, kdy dojde ke SKUTEČNÉ změně
+# (čas start/konec, úprava rozvrhu, ruční změna setpointu), a tím
+# udržet hlavice klidné a logy čisté.
+#
+# Uvnitř okna: obnov poslední KOMFORT (input_number.prizemi_michal_last_comfort)
+#    Mimo okno:   nastav ECO (input_number.eco_temp_default)
 # =====================================================================
 
 automation:
-  - alias: "Rozvrh 1P Kuchyň – inteligentní spouštění"
-    id: schedule_1p_kuchyn_smart
-    mode: restart
-    initial_state: true
+  - alias: "Rozvrh 1P Kuchyň – inteligentní spouštění"        # Název automatizace v UI
+    id: schedule_1p_kuchyn_smart                              # Stabilní ID (pro odkazy, scény, editory)
+    mode: restart                                             # Při nové události restartuj běh (vyhne se závodům)
+    initial_state: true                                       # Aktivní po restartu HA
 
+        # 🔔 Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
-      - platform: time
-        at:
-          - input_datetime.kuchyn_weekday_start
-          - input_datetime.kuchyn_weekday_end
-          - input_datetime.kuchyn_weekend_start
-          - input_datetime.kuchyn_weekend_end
-      - platform: state
+      - platform: time                                        # Časový trigger pro „teď je start/konec okna“
+        at:                                                   # Podporuje přímo entity input_datetime (time / date_time)
+          - input_datetime.kuchyn_weekday_start               # Pracovní dny – start okna
+          - input_datetime.kuchyn_weekday_end                 # Pracovní dny – konec okna
+          - input_datetime.kuchyn_weekend_start               # Víkend – start okna
+          - input_datetime.kuchyn_weekend_end                 # Víkend – konec okna
+
+      - platform: state                                       # Změna parametrů rozvrhu → přepočti a aplikuj
         entity_id:
           - input_datetime.kuchyn_weekday_start
           - input_datetime.kuchyn_weekday_end
           - input_datetime.kuchyn_weekend_start
           - input_datetime.kuchyn_weekend_end
-          - input_boolean.schedule_enable_1p_kuchyn
-      - platform: state
+          - input_boolean.schedule_enable_1p_kuchyn           # Zap/Vyp rozvrhu pro zónu
+
+      - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
         entity_id: climate.1_patro_kuchyn
         attribute: temperature
 
+    # 📦 Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"
-      last_comfort: "{{ states('input_number.1p_kuchyn_last_comfort') | float(21.5) }}"
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"            # ECO teplota (fallback 18.0)
+      last_comfort: "{{ states('input_number.1p_kuchyn_last_comfort') | float(22) }}"  # Poslední komfort (fallback 22)
 
-      start: >
+      start: >                                                                         # Vyber správný START dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.kuchyn_weekday_start') }}
         {% else %}
           {{ states('input_datetime.kuchyn_weekend_start') }}
         {% endif %}
-      end: >
+      end: >                                                                           # Vyber správný KONEC dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.kuchyn_weekday_end') }}
         {% else %}
           {{ states('input_datetime.kuchyn_weekend_end') }}
         {% endif %}
-      now_hms: "{{ now().strftime('%H:%M:%S') }}"
+      now_hms: "{{ now().strftime('%H:%M:%S') }}"                                      # Aktuální čas jako HH:MM:SS
 
-      # 🧮 Jsme uvnitř okna? (řeší i přes půlnoc)
+      # 🧮 Jsme uvnitř okna? Bezpečně řeší i interval přes půlnoc (start > end)
       in_window: >
         {% set s = start %}
         {% set e = end %}
@@ -58,35 +67,37 @@ automation:
           {{ (n >= s) or (n < e) }}
         {% endif %}
 
+    # ✅ Rozvrh musí být zapnutý (globální enable pro zónu)
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_kuchyn
         state: "on"
 
+    # ▶️ Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
       - choose:
-
-          # 🟢 KOMFORTNÍ OKNO
+          # 🟢 Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"
+                value_template: "{{ in_window }}"                                         # True → jsme v okně
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.1_patro_kuchyn }
-                data: { hvac_mode: heat }
+                target: { entity_id: climate.1_patro_kuchyn }                             # Cílová hlavice
+                data: { hvac_mode: heat }                                                 # Režim vytápění
               - service: climate.set_temperature
                 target: { entity_id: climate.1_patro_kuchyn }
                 data:
-                  temperature: "{{ last_comfort }}"
-              - service: logbook.log
+                  temperature: "{{ last_comfort }}"                                       # Nastav uložený komfort
+              - service: logbook.log                                                      # Zápis do logbooku pro audit
                 data:
                   name: "Rozvrh 1P Kuchyň"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                   entity_id: climate.1_patro_kuchyn
 
+          # 🌿 Mimo okno → nastav ECO
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}"
+                value_template: "{{ not in_window }}"                                     # False → mimo okno
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.1_patro_kuchyn }
@@ -94,36 +105,9 @@ automation:
               - service: climate.set_temperature
                 target: { entity_id: climate.1_patro_kuchyn }
                 data:
-                  temperature: "{{ eco_temp }}"
+                  temperature: "{{ eco_temp }}"                                           # Nastav ECO teplotu
               - service: logbook.log
                 data:
                   name: "Rozvrh 1P Kuchyň"
                   message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
                   entity_id: climate.1_patro_kuchyn
-
-# =====================================================================
-# 💾 CAPTURE – ulož poslední KOMFORT pro 1. patro (Kuchyň)
-# - Uloží se POUZE hodnoty nad ECO (aby ECO nepřepsalo komfort)
-# =====================================================================
-  - alias: "1P Kuchyň – uložit poslední komfort"
-    id: capture_1p_kuchyn_last_comfort
-    mode: queued
-    trigger:
-      - platform: state
-        entity_id: climate.1_patro_kuchyn
-        attribute: temperature
-    condition:
-      - condition: template
-        value_template: >
-          {{ state_attr('climate.1_patro_kuchyn', 'temperature') | float(0)
-             > (states('input_number.eco_temp_default') | float(18)) + 0.2 }}
-    action:
-      - service: input_number.set_value
-        target:
-          entity_id: input_number.1p_kuchyn_last_comfort
-        data:
-          value: "{{ state_attr('climate.1_patro_kuchyn', 'temperature') | float(21.5) }}"
-      - service: logbook.log
-        data:
-          name: "1P Kuchyň"
-          message: "Uložena komfortní teplota: {{ state_attr('climate.1_patro_kuchyn', 'temperature') }} °C"
