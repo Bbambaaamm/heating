@@ -33,28 +33,31 @@ automation:
           - input_datetime.prizemi_michal_weekend_end
           - input_boolean.schedule_enable_prizemi_michal      # Zap/Vyp rozvrhu pro zónu
 
+      - platform: state                                       # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
+        entity_id: input_number.prizemi_michal_last_comfort
+
       - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
         entity_id: climate.danfoss_etrv0103
         attribute: temperature
 
     # 📦 Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"              # ECO teplota (fallback 18.0)
-      last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"  # Poslední komfort (fallback 22)
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"                  # ECO teplota (fallback 18.0)
+      last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"   # Poslední komfort (fallback 22)
 
-      start: >                                                                            # Vyber správný START dle dne v týdnu
+      start: >                                                                                # Vyber správný START dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.prizemi_michal_weekday_start') }}
         {% else %}
           {{ states('input_datetime.prizemi_michal_weekend_start') }}
         {% endif %}
-      end: >                                                                              # Vyber správný KONEC dle dne v týdnu
+      end: >                                                                                  # Vyber správný KONEC dle dne v týdnu
         {% if now().isoweekday() in [1,2,3,4,5] %}
           {{ states('input_datetime.prizemi_michal_weekday_end') }}
         {% else %}
           {{ states('input_datetime.prizemi_michal_weekend_end') }}
         {% endif %}
-      now_hms: "{{ now().strftime('%H:%M:%S') }}"                                         # Aktuální čas jako HH:MM:SS
+      now_hms: "{{ now().strftime('%H:%M:%S') }}"                                             # Aktuální čas jako HH:MM:SS
 
       # Jsme uvnitř okna? Bezpečně řeší i interval přes půlnoc (start > end)
       in_window: >
@@ -75,20 +78,35 @@ automation:
 
     # ▶️ Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
+      # ⏱️ Debounce: pokud to spustila hlavice, chvilku počkej,
+      # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ trigger.platform == 'state'
+                     and trigger.entity_id == 'climate.danfoss_etrv0103' }}
+            sequence:
+              - delay: "00:00:01"                                                              # zpoždění 1 s při triggeru z hlavice
+
       - choose:
           # 🟢 Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"                                          # True → jsme v okně
+                value_template: "{{ in_window }}"                                              # True → jsme v okně
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103 }                           # Cílová hlavice
-                data: { hvac_mode: heat }                                                 # Režim vytápění
+                target: { entity_id: climate.danfoss_etrv0103 }                               # Cílová hlavice
+                data: { hvac_mode: heat }                                                     # Režim vytápění
+              - condition: template                                                           # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                value_template: >
+                  {{ ((state_attr('climate.danfoss_etrv0103','temperature') | float)
+                      - (last_comfort | float)) | abs > 0.1 }}
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103 }
                 data:
-                  temperature: "{{ last_comfort }}"                                       # Nastav uložený komfort
-              - service: logbook.log                                                      # Zápis do logbooku pro audit
+                  temperature: "{{ last_comfort }}"                                           # Nastav uložený komfort
+              - service: logbook.log                                                          # Zápis do logbooku pro audit
                 data:
                   name: "Rozvrh Přízemí"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
@@ -97,15 +115,19 @@ automation:
           # 🌿 Mimo okno → nastav ECO
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}"                                      # False → mimo okno
+                value_template: "{{ not in_window }}"                                          # False → mimo okno
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103 }
                 data: { hvac_mode: heat }
+              - condition: template                                                           # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                value_template: >
+                  {{ ((state_attr('climate.danfoss_etrv0103','temperature') | float)
+                      - (eco_temp | float)) | abs > 0.1 }}
               - service: climate.set_temperature
                 target: { entity_id: climate.danfoss_etrv0103 }
                 data:
-                  temperature: "{{ eco_temp }}"                                           # Nastav ECO teplotu
+                  temperature: "{{ eco_temp }}"                                               # Nastav ECO teplotu
               - service: logbook.log
                 data:
                   name: "Rozvrh Přízemí"
