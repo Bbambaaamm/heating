@@ -1,15 +1,14 @@
 # =====================================================================
-# 💾 Přízemí – Michal: poslední komfortní teplota (perzistentní „sejf“)
-# - Do této hodnoty se ukládá naposledy použitá KOMFORTNÍ teplota
-# - ECO teploty se NEukládají (aby nepřepsaly komfortní hodnotu)
+# Přízemí – Michal: poslední komfortní teplota (perzistentní „sejf“)
+# Ukládá naposledy použitou KOMFORTNÍ teplotu (ECO se neukládají)
 # =====================================================================
 
 input_number:
   prizemi_michal_last_comfort:
-    name: "Přízemí Michal – poslední komfortní teplota"
-    min: 10
-    max: 30
-    step: 0.5
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer
-    initial: 21.5   # výchozí, dokud se poprvé něco neuloží
+    name: "Přízemí Michal – poslední komfortní teplota"  # Název v UI
+    min: 10                                              # Minimální povolená teplota (°C)
+    max: 30                                              # Maximální povolená teplota (°C)
+    step: 0.5                                            # Krok při změně hodnoty
+    unit_of_measurement: "°C"                            # Jednotka měření
+    icon: mdi:thermometer                              # Ikona v UI
+    initial: 22                                          # Výchozí hodnota, dokud se neuloží první komfort
