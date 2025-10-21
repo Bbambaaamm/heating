@@ -1,5 +1,5 @@
 # =====================================================================
-# 🧲 Přízemí – Michal: zachytávání poslední KOMFORTNÍ teploty
+# Přízemí Michal: zachytávání poslední KOMFORTNÍ teploty
 # ---------------------------------------------------------------------
 # 🔍 Cíl:
 # Tato automatizace sleduje, kdy Michal ručně (nebo přes rozvrh)
@@ -13,42 +13,31 @@
 # =====================================================================
 
 automation:
-  - alias: "Zachytni poslední komfort – Přízemí Michal"
-    id: prizemi_michal_capture_last_comfort
-    mode: restart
-    initial_state: true
+  - alias: "Zachytni poslední komfort – Přízemí Michal"     # Název automatizace
+    id: prizemi_michal_capture_last_comfort                 # Jednoznačné ID pro systém
+    mode: restart                                           # Restartne běh při nové změně
+    initial_state: true                                     # Automatizace je aktivní po restartu HA
 
-    # 🔔 Spouštěč:
-    # Sleduje změny atributu `temperature` na hlavici Danfoss.
-    # Jakmile uživatel (nebo automatizace) změní žádanou teplotu,
-    # automatizace se spustí.
+    # Spouštěč: reaguje na změnu žádané teploty na hlavici
     trigger:
-      - platform: state
-        entity_id: climate.danfoss_etrv0103
-        attribute: temperature
+      - platform: state                                     # Sleduje změnu stavu/atributu
+        entity_id: climate.danfoss_etrv0103                 # Cílová hlavice (Michal – přízemí)
+        attribute: temperature                              # Sledujeme atribut „temperature“ (žádaná teplota)
 
-    # 📦 Proměnné:
-    # `new_set` → nová žádaná teplota na hlavici.
-    # `eco` → hodnota ECO teploty z globálního helperu (typicky 18 °C).
+    # Proměnné pro výpočet
     variables:
-      new_set: "{{ state_attr('climate.danfoss_etrv0103', 'temperature') | float(0) }}"
-      eco: "{{ states('input_number.eco_temp_default') | float(18) }}"
+      new_set: "{{ state_attr('climate.danfoss_etrv0103', 'temperature') | float(0) }}"  # Nově nastavená teplota
+      eco: "{{ states('input_number.eco_temp_default') | float(18) }}"                    # ECO teplota z globálního helperu
 
-    # ✅ Podmínka:
-    # Uloží se jen teplota, která je o něco vyšší než ECO (např. > 18.2 °C),
-    # aby se neukládaly hodnoty z ECO režimu nebo drobné přechody.
+    # Podmínka: ukládá se pouze komfortní teplota (větší než ECO + 0.2 °C)
     condition:
       - condition: template
-        value_template: "{{ new_set >= (eco + 0.2) }}"
+        value_template: "{{ new_set >= (eco + 0.2) }}"        # Hystereze 0.2 °C brání falešným přechodům
 
-    # 💾 Akce:
-    # Zapisuje zachycenou komfortní teplotu do helperu
-    # `input_number.prizemi_michal_last_comfort`.
-    # Tato hodnota se pak může použít při návratu z ECO.
+    # Akce: uloží poslední komfortní teplotu do helperu
     action:
-      - service: input_number.set_value
+      - service: input_number.set_value                       # Zápis hodnoty do input_number
         target:
-          entity_id: input_number.prizemi_michal_last_comfort
+          entity_id: input_number.prizemi_michal_last_comfort  # Cílový helper (komfortní teplota)
         data:
-          value: "{{ new_set }}"
-
+          value: "{{ new_set }}"                               # Hodnota = aktuálně nastavená teplota
