@@ -170,20 +170,66 @@ input_datetime:
   # ── 2. patro – Máma ────────────────────────────────────────────────
   # ==============================================================================================================================================================================
 
-  mama_weekday_start:
-    name: "2. patro Máma – Po–Pá začátek"
+  2p_mama_monday_start:
+    name: "2. patro Máma – Pondělí začátek"
     has_date: false
     has_time: true
-  mama_weekday_end:
-    name: "2. patro Máma – Po–Pá konec"
+  2p_mama_monday_end:
+    name: "2. patro Máma – Pondělí konec"
     has_date: false
     has_time: true
-  mama_weekend_start:
-    name: "2. patro Máma – So–Ne začátek"
+
+  2p_mama_tuesday_start:
+    name: "2. patro Máma – Úterý začátek"
     has_date: false
     has_time: true
-  mama_weekend_end:
-    name: "2. patro Máma – So–Ne konec"
+  2p_mama_tuesday_end:
+    name: "2. patro Máma – Úterý konec"
+    has_date: false
+    has_time: true
+
+  2p_mama_wednesday_start:
+    name: "2. patro Máma – Středa začátek"
+    has_date: false
+    has_time: true
+  2p_mama_wednesday_end:
+    name: "2. patro Máma – Středa konec"
+    has_date: false
+    has_time: true
+
+  2p_mama_thursday_start:
+    name: "2. patro Máma – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  2p_mama_thursday_end:
+    name: "2. patro Máma – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  2p_mama_friday_start:
+    name: "2. patro Máma – Pátek začátek"
+    has_date: false
+    has_time: true
+  2p_mama_friday_end:
+    name: "2. patro Máma – Pátek konec"
+    has_date: false
+    has_time: true
+
+  2p_mama_saturday_start:
+    name: "2. patro Máma – Sobota začátek"
+    has_date: false
+    has_time: true
+  2p_mama_saturday_end:
+    name: "2. patro Máma – Sobota konec"
+    has_date: false
+    has_time: true
+
+  2p_mama_sunday_start:
+    name: "2. patro Máma – Neděle začátek"
+    has_date: false
+    has_time: true
+  2p_mama_sunday_end:
+    name: "2. patro Máma – Neděle konec"
     has_date: false
     has_time: true
 

@@ -224,10 +224,8 @@ automation:
     alias: "Rozvrh: 2. patro Máma – START komfortního okna"
     mode: restart
     trigger:
-      - platform: time
-        at: input_datetime.mama_weekday_start                  # start Po–Pá
-      - platform: time
-        at: input_datetime.mama_weekend_start                  # start So–Ne
+      - platform: template
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"    # start Po,út,st,čt,pá,so,ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
@@ -244,10 +242,8 @@ automation:
     alias: "Rozvrh: 2. patro Máma – KONEC komfortního okna → útlum"
     mode: restart
     trigger:
-      - platform: time
-        at: input_datetime.mama_weekday_end                    # konec Po–Pá
-      - platform: time
-        at: input_datetime.mama_weekend_end                    # konec So–Ne
+      - platform: template
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"    # start Po,út,st,čt,pá,so,ne
     condition:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
