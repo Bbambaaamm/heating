@@ -1,8 +1,6 @@
 # =====================================================================
 # 📅 SCHEDULE HELPERS – uživatelské nastavení rozvrhu v UI (pro každou zónu)
 # - schedule_enable_* … zda rozvrh pro zónu platí
-# - weekday_*         … start/stop pro Po–Pá
-# - weekend_*         … start/stop pro So–Ne
 # Pozn.: časové pomocníky nezpůsobují akci sami o sobě; logiku řeší schedule_engine.yaml
 # =====================================================================
 
