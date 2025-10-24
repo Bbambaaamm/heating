@@ -1,0 +1,35 @@
+utility_meter:
+  heating_gas_daily:
+    source: sensor.boiler_gasmeterheat
+    cycle: daily
+  heating_gas_monthly:
+    source: sensor.boiler_gasmeterheat
+    cycle: monthly
+
+  ww_gas_daily:
+    source: sensor.boiler_wwgasmeter
+    cycle: daily
+  ww_gas_monthly:
+    source: sensor.boiler_wwgasmeter
+    cycle: monthly
+
+  total_energy_daily:
+    source: sensor.boiler_nrgtotal
+    cycle: daily
+  total_energy_monthly:
+    source: sensor.boiler_nrgtotal
+    cycle: monthly
+
+  heating_energy_daily:
+    source: sensor.boiler_nrgheat
+    cycle: daily
+  heating_energy_monthly:
+    source: sensor.boiler_nrgheat
+    cycle: monthly
+
+  ww_energy_daily:
+    source: sensor.boiler_nrgww
+    cycle: daily
+  ww_energy_monthly:
+    source: sensor.boiler_nrgww
+    cycle: monthly
