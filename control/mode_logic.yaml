@@ -35,8 +35,8 @@ automation:
     mode: restart # Restart = vždy reaguje na poslední změnu
 
     # 🛎️ Spouštěč: změna režimu topení
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id: input_select.topny_rezim
 
     action:
@@ -47,10 +47,10 @@ automation:
                 entity_id: input_select.topny_rezim
                 state: "Off"
             sequence:
-              - service: switch.turn_off # Vypni relé kotle
+              - action: switch.turn_off # Vypni relé kotle
                 target:
                   entity_id: switch.kotel_rele
-              - service: logbook.log # Zaznamenej událost
+              - action: logbook.log # Zaznamenej událost
                 data:
                   name: "Topení – režimy"
                   message: "Režim přepnut na Off → kotel vypnut."
@@ -62,7 +62,7 @@ automation:
                 entity_id: input_select.topny_rezim
                 state: "Auto"
             sequence:
-              - service: logbook.log
+              - action: logbook.log
                 data:
                   name: "Topení – režimy"
                   message: "Režim Auto → používají se účinné prahy z mode_engine."
@@ -74,7 +74,7 @@ automation:
                 entity_id: input_select.topny_rezim
                 state: "Eco"
             sequence:
-              - service: logbook.log
+              - action: logbook.log
                 data:
                   name: "Topení – režimy"
                   message: "Režim Eco → přísnější účinné prahy (mode_engine)."
@@ -86,7 +86,7 @@ automation:
                 entity_id: input_select.topny_rezim
                 state: "Boost"
             sequence:
-              - service: logbook.log
+              - action: logbook.log
                 data:
                   name: "Topení – režimy"
                   message: "Režim Boost → uvolněné účinné prahy + časování (mode_engine)."

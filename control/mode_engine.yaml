@@ -56,10 +56,9 @@
 # =====================================================================
 
 template:
-
   # ── BOOST aktivní? ──────────────────────────────────────────────────
   - binary_sensor:
-      - name: "kotel_boost_active"                                     # Stav: Boost zapnutý
+      - name: "kotel_boost_active" # Stav: Boost zapnutý
         unique_id: kotel_boost_active
         state: >
           {% set mode  = states('input_select.topny_rezim') %}         # Aktuální režim
@@ -71,7 +70,7 @@ template:
 
   # ── Blokace kotle (Off / master OFF) ────────────────────────────────
   - binary_sensor:
-      - name: "kotel_mode_off_block"                                   # True = nesmí se spínat
+      - name: "kotel_mode_off_block" # True = nesmí se spínat
         unique_id: kotel_mode_off_block
         state: >
           {{ is_state('input_select.topny_rezim','Off')                # Režim Off
@@ -138,34 +137,40 @@ template:
 # 🤖 AUTOMATIZACE PRO BOOST
 # =====================================================================
 automation:
-
   # ▶️ Start Boostu – z režimu nebo tlačítkem
   - id: heating_boost_start
     alias: "Topení: start Boostu (nastav boost_until)"
-    mode: restart                                                       # Nový podnět ruší předchozí běh
-    trigger:
-      - platform: state
+    mode: restart # Nový podnět ruší předchozí běh
+
+    # 🛎️ Spouštěče
+    triggers:
+      - trigger: state
         entity_id: input_select.topny_rezim
-        to: "Boost"                                                     # Přepnuto na Boost
-      - platform: state
+        to: "Boost" # Přepnuto na Boost
+      - trigger: state
         entity_id: input_boolean.boost_now
-        to: "on"                                                        # Ruční „Boost nyní“
+        to: "on" # Ruční „Boost nyní“
+    
+    # ⚙️ Akce
     action:
       - variables:
           minutes: "{{ states('input_number.boost_minutes') | int(60) }}" # Doba trvání
-      - service: input_datetime.set_datetime
+      
+      - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
-          datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}"  # Teď + minutes
+          datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}" # Teď + minutes
 
   # ⏹ Konec Boostu – automaticky zhasni tlačítko po vypršení
   - id: heating_boost_auto_clear_button
     alias: "Topení: po vypršení Boostu vypnout tlačítko"
-    mode: queued                                                        # Bez kolizí při opakování
-    trigger:
-      - platform: time_pattern
-        minutes: "/1"                                                   # Kontrola každou minutu
+    mode: queued # Bez kolizí při opakování
+
+    # 🛎️ Spouštěče
+    triggers:
+      - trigger: time_pattern
+        minutes: "/1" # Kontrola každou minutu
     condition:
       - condition: template
         value_template: >
@@ -173,6 +178,6 @@ automation:
           {% set uts   = as_timestamp(until, default=0) %}
           {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}  # Boost prošel?
     action:
-      - service: input_boolean.turn_off
+      - action: input_boolean.turn_off
         target:
-          entity_id: input_boolean.boost_now                            # Synchronizace UI se stavem
+          entity_id: input_boolean.boost_now # Synchronizace UI se stavem

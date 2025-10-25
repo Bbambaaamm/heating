@@ -19,8 +19,8 @@ automation:
     initial_state: true # Automatizace je aktivní po restartu HA
 
     # Spouštěč: reaguje na změnu žádané teploty na hlavici
-    trigger:
-      - platform: state # Sleduje změnu stavu/atributu
+    triggers:
+      - trigger: state # Sleduje změnu stavu/atributu
         entity_id: climate.1p_jidelna # Cílová hlavice (Michal – přízemí)
         attribute: temperature # Sledujeme atribut „temperature“ (žádaná teplota)
 
@@ -41,14 +41,14 @@ automation:
         value_template: >
           {{ ((states('input_number.1p_jidelna_last_comfort') | float) - (new_set | float)) | abs > 0.1 }}
 
-      - service: input_number.set_value # Zápis hodnoty do input_number (uložení nové komfortní teploty)
+      - action: input_number.set_value # Zápis hodnoty do input_number (uložení nové komfortní teploty)
         target:
           entity_id: input_number.1p_jidelna_last_comfort # Cílový helper (komfortní teplota)
         data:
           value: "{{ new_set }}" # Hodnota = aktuálně nastavená teplota
 
       # 🪶 Logování pro přehled (uložení nové komfortní teploty do Logbooku)
-      - service: logbook.log
+      - action: logbook.log
         data:
           name: "1.patro Kuchyň" # Název v logu
           message: "Uložena komfortní teplota: {{ new_set }} °C" # Zpráva do Logbooku

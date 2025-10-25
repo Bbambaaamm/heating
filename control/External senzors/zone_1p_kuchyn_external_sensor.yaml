@@ -54,7 +54,7 @@ automation:
               {{ temp is not none and -40 < temp < 60 }}
             sequence:
               # 🔸 Odeslání teploty do entity hlavice Danfoss
-              - service: number.set_value
+              - action: number.set_value
                 target:
                   entity_id: number.1p_jidelna_senzor_externi_teploty
                 data:

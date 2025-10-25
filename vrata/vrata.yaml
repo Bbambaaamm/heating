@@ -25,15 +25,15 @@ cover:
 
         # Všechna tři tlačítka posílají jeden pulz (toggle) na původní cover
         open_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
         close_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
         stop_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
 
@@ -41,6 +41,6 @@ script:
   vrata_stop:
     alias: Vrata – STOP
     sequence:
-      - service: cover.stop_cover
+      - action: cover.stop_cover
         target:
           entity_id: cover.vrata_ui

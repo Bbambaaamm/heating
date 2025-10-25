@@ -16,12 +16,12 @@ automation:
   # =====================================================================
   # ▶️ ZÓNA: Přízemí – Michal
   # =====================================================================
-  - id: zona_prizemi_michal_capture_setpoint                     # Unikátní ID automace
-    alias: "Zóna – Přízemí Michal: zachyť změnu setpointu"       # Popis pro UI
-    mode: restart                                                # Při opakovaném triggeru restartuj akci
-    trigger:
+  - id: zona_prizemi_michal_capture_setpoint # Unikátní ID automace
+    alias: "Zóna – Přízemí Michal: zachyť změnu setpointu" # Popis pro UI
+    mode: restart # Při opakovaném triggeru restartuj akci
+    triggers:
       # Spoušť: při jakékoliv změně entity climate.prizemi_michal
-      - platform: state
+      - trigger: state
         entity_id: climate.prizemi_michal
     variables:
       # Ulož novou cílovou teplotu z atributu 'temperature'
@@ -32,27 +32,26 @@ automation:
         value_template: "{{ new_sp > 0 }}"
     action:
       # Zapiš novou hodnotu do příslušného input_number helperu
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
           entity_id: input_number.zona_prizemi_michal_user_set_temp
           value: "{{ new_sp }}"
 
-  - id: zona_prizemi_michal_init_on_start                        # Druhá automace: inicializace po startu
+  - id: zona_prizemi_michal_init_on_start # Druhá automace: inicializace po startu
     alias: "Zóna – Přízemí Michal: init helperu po startu"
-    mode: single                                                 # Spustí se jednou
-    trigger:
-      - platform: homeassistant
-        event: start                                             # Při startu HA
+    mode: single # Spustí se jednou
+    triggers:
+      - trigger: homeassistant
+        event: start # Při startu HA
     action:
-      - delay: "00:00:05"                                        # Počkej 5 s, než se načtou climate entity
+      - delay: "00:00:05" # Počkej 5 s, než se načtou climate entity
       - variables:
           # Načti aktuální teplotu z hlavice nebo použij 22 °C jako default
           sp: "{{ state_attr('climate.prizemi_michal','temperature') | float(22.0) }}"
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
           entity_id: input_number.zona_prizemi_michal_user_set_temp
           value: "{{ sp }}"
-
 
   # =====================================================================
   # ▶️ ZÓNA: 1. patro – Kuchyň (Jídelna)
@@ -60,35 +59,34 @@ automation:
   - id: zona_1p_jidelna_capture_setpoint
     alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
     mode: restart
-    trigger:
-      - platform: state
-        entity_id: climate.1p_jidelna                            # Sleduj změnu hlavice
+    triggers:
+      - trigger: state
+        entity_id: climate.1p_jidelna # Sleduj změnu hlavice
     variables:
-      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"  # Nový setpoint
+      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}" # Nový setpoint
     condition:
       - condition: template
-        value_template: "{{ new_sp > 0 }}"                       # Vynech neplatné hodnoty
+        value_template: "{{ new_sp > 0 }}" # Vynech neplatné hodnoty
     action:
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
-          entity_id: input_number.zona_1p_jidelna_user_set_temp   # Ulož do helperu
+          entity_id: input_number.zona_1p_jidelna_user_set_temp # Ulož do helperu
           value: "{{ new_sp }}"
 
   - id: zona_1p_jidelna_init_on_start
     alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
     mode: single
-    trigger:
-      - platform: homeassistant
+    triggers:
+      - trigger: homeassistant
         event: start
     action:
-      - delay: "00:00:05"                                        # Počkej na načtení entity
+      - delay: "00:00:05" # Počkej na načtení entity
       - variables:
           sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(22.0) }}"
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
           entity_id: input_number.zona_1p_jidelna_user_set_temp
           value: "{{ sp }}"
-
 
   # =====================================================================
   # ▶️ ZÓNA: 2. patro – Máma
@@ -96,31 +94,31 @@ automation:
   - id: zona_2p_mama_capture_setpoint
     alias: "Zóna – 2. patro Máma: zachyť změnu setpointu"
     mode: restart
-    trigger:
-      - platform: state
-        entity_id: climate.2p_mama                               # Sleduj změnu hlavice
+    triggers:
+      - trigger: state
+        entity_id: climate.2p_mama # Sleduj změnu hlavice
     variables:
-      new_sp: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}"  # Nový setpoint
+      new_sp: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}" # Nový setpoint
     condition:
       - condition: template
-        value_template: "{{ new_sp > 0 }}"                       # Ošetři nuly a unknown
+        value_template: "{{ new_sp > 0 }}" # Ošetři nuly a unknown
     action:
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
-          entity_id: input_number.zona_2p_mama_user_set_temp      # Zapiš hodnotu do helperu
+          entity_id: input_number.zona_2p_mama_user_set_temp # Zapiš hodnotu do helperu
           value: "{{ new_sp }}"
 
   - id: zona_2p_mama_init_on_start
     alias: "Zóna – 2. patro Máma: init helperu po startu"
     mode: single
-    trigger:
-      - platform: homeassistant
+    triggers:
+      - trigger: homeassistant
         event: start
     action:
-      - delay: "00:00:05"                                        # Počkej 5 s po startu
+      - delay: "00:00:05" # Počkej 5 s po startu
       - variables:
           sp: "{{ state_attr('climate.2p_mama','temperature') | float(22.0) }}"
-      - service: input_number.set_value
+      - action: input_number.set_value
         data:
           entity_id: input_number.zona_2p_mama_user_set_temp
           value: "{{ sp }}"
