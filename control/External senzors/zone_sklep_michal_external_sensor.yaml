@@ -1,0 +1,62 @@
+# =====================================================================
+# 🌡️ EXTERNÍ SENZOR – sklep Michal
+# ---------------------------------------------------------------------
+# Účel:
+# - Předává aktuální teplotu z externího senzoru (mi_air_purifier_2h_teplota)
+#   do hlavice Danfoss (entita number.sklep_michal_senzor_externi_teploty).
+# - Vyžaduje, aby v hlavici bylo aktivní:
+#   "Upřednostnit externí teplotní senzor" = ON
+#
+# Odolnosti:
+# - Znovuposlání po startu Home Assistantu (zajišťuje obnovu hodnoty po restartu)
+# - Periodický refresh každých 10 minut (pojistka pro případ, že se trigger neaktivuje)
+# - Ochrana proti chybným / nedefinovaným hodnotám (unknown, NaN, mimo rozsah)
+# =====================================================================
+
+automation:
+  - alias: "Danfoss sklep Michal – přeposlat teplotu z externího senzoru" # Název automatizace viditelný v UI
+    id: danfoss_sklep_michal_external_temp_forward # Jednoznačné ID automatizace pro konfiguraci a sledování
+    mode: queued # Zajistí sekvenční zpracování fronty (předchází přerušení)
+
+    trigger:
+      # 🔹 Spouštěč 1: při změně hodnoty externího senzoru
+      - platform: state
+        entity_id: sensor.mi_air_purifier_2h_teplota
+
+      # 🔹 Spouštěč 2: po startu Home Assistantu – zajišťuje, že po restartu
+      #      se hlavici znovu odešle aktuální teplota (hodnota se totiž neuchovává)
+      - platform: homeassistant
+        event: start
+
+      # 🔹 Spouštěč 3: pojistka – každých 10 minut pošle hodnotu znovu,
+      #      i když se teplota nezměnila (např. u stabilních hodnot)
+      - platform: time_pattern
+        minutes: "/10"
+
+    action:
+      # =================================================================
+      # 🧩 PŘÍPRAVA PROMĚNNÝCH
+      # - raw  = textová hodnota senzoru (např. "21.7")
+      # - temp = převedená číselná hodnota teploty (float)
+      # =================================================================
+      - variables:
+          raw: "{{ states('sensor.mi_air_purifier_2h_teplota') }}"
+          temp: "{{ raw | float(none) }}"
+
+      # =================================================================
+      # 🧩 PODMÍNĚNÉ ZPRACOVÁNÍ
+      # - Ověří, že hodnota je definovaná (není None)
+      # - Je v reálném rozsahu (-40 až +60 °C)
+      # - Pokud ano → pošle hodnotu hlavici
+      # =================================================================
+      - choose:
+          - conditions: >
+              {{ temp is not none and -40 < temp < 60 }}
+            sequence:
+              # 🔸 Odeslání teploty do entity hlavice Danfoss
+              - service: number.set_value
+                target:
+                  entity_id: number.sklep_michal_senzor_externi_teploty
+                data:
+                  value: "{{ temp }}"
+        default: [] # Pokud hodnota není platná, neprovede se nic (žádná akce)
