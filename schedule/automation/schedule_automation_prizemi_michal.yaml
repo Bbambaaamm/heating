@@ -124,8 +124,8 @@ automation:
                 value_template: "{{ in_window }}" # True → jsme v okně
             sequence:
               - action: climate.set_hvac_mode
-                target: { entity_id: climate.prizemi_michal } # Cílová hlavice
-                data: { hvac_mode: heat } # Režim vytápění
+                target: {entity_id: climate.prizemi_michal } # Cílová hlavice
+                data: {hvac_mode: heat } # Režim vytápění
               - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
                 value_template: >
                   {{ ((state_attr('climate.prizemi_michal','temperature') | float)

@@ -1,35 +1,35 @@
-# ==========================================================================================================================================
+# ==============================================================================
 # MODE_ENGINE.YAML – GLOBÁLNÍ ŘÍZENÍ REŽIMŮ TOPENÍ
-# ==========================================================================================================================================
+# ==============================================================================
 # CÍL:
 # Tento modul řídí **globální režimy topení** a určuje účinné prahy,
 # které používá logika kotle (`kotel_control.yaml`). Zajišťuje dynamickou
 # úpravu chování systému podle režimu (Auto / Eco / Boost / Off) a
 # aktivaci Boostu na omezený čas.
-# ==========================================================================================================================================
+# ==============================================================================
 
 template:
 
-# ── BOOST aktivní? ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  # ── BOOST aktivní? ──────────────────────────────────────────────────────────
   - binary_sensor:
-      - name: "kotel_boost_active"                                                      # Stav: Boost zapnutý
+      - name: "kotel_boost_active"                                    # Stav: Boost zapnutý
         unique_id: kotel_boost_active
         state: >
-          {% set mode  = states('input_select.topny_rezim') %}                          # Aktuální režim
-          {% set bn    = is_state('input_boolean.boost_now','on') %}                    # Tlačítko Boost
-          {% set until = states('input_datetime.boost_until') %}                        # Čas do kdy platí
+          {% set mode  = states('input_select.topny_rezim') %}        # Aktuální režim
+          {% set bn    = is_state('input_boolean.boost_now','on') %}  # Tlačítko Boost
+          {% set until = states('input_datetime.boost_until') %}      # Čas do kdy platí
           {% set nowts = now().timestamp() %}
           {% set uts   = as_timestamp(until, default=0) %}
-          {{ mode == 'Boost' or bn or (nowts < uts) }}                                  # Aktivní, pokud aspoň jedna podmínka
+          {{ mode == 'Boost' or bn or (nowts < uts) }}                # Aktivní, pokud aspoň jedna podmínka
 
 
-# ── Blokace kotle (Off / master OFF) ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  # ── Blokace kotle (Off / master OFF) ────────────────────────────────────────
   - binary_sensor:
-      - name: "kotel_mode_off_block"                                                    # True = nesmí se spínat
+      - name: "kotel_mode_off_block"                                    # True = nesmí se spínat
         unique_id: kotel_mode_off_block
         state: >
           {{ is_state('input_select.topny_rezim','Off')
-             or is_state('input_boolean.topny_system_enable','off') }}                  # Master vypnut
+             or is_state('input_boolean.topny_system_enable','off') }}  # Master vypnut
 
 
   # ── ÚČINNÉ PRAHY dle režimu ─────────────────────────────────────────
@@ -39,9 +39,9 @@ template:
         state: >
           {% set mode = states('input_select.topny_rezim') %}
           {% set base = states('input_number.kotel_min_active_zones') | int(0) %}
-          {% if mode == 'Eco' %}                                                        # Přísnější v Eco
+          {% if mode == 'Eco' %}                                                  # Přísnější v Eco
             {{ [1, base + 1] | max }}
-          {% elif mode == 'Boost' %}                                                    # Uvolněné v Boost
+          {% elif mode == 'Boost' %}                                              # Uvolněné v Boost
             1
           {% else %}  {# Auto i Off #}
             {{ base }}
@@ -53,9 +53,9 @@ template:
         state: >
           {% set mode = states('input_select.topny_rezim') %}
           {% set base = states('input_number.kotel_min_avg_demand_pct') | int(0) %}
-          {% if mode == 'Eco' %}                                                        # +10 % v Eco
+          {% if mode == 'Eco' %}                                                    # +10 % v Eco
             {{ [0, base + 10] | max }}
-          {% elif mode == 'Boost' %}                                                    # 0 % v Boost
+          {% elif mode == 'Boost' %}                                                # 0 % v Boost
             0
           {% else %}
             {{ base }}
@@ -67,9 +67,9 @@ template:
         state: >
           {% set mode = states('input_select.topny_rezim') %}
           {% set base = states('input_number.kotel_on_delay_sec') | int(0) %}
-          {% if mode == 'Eco' %}                                                        # +30 s v Eco
+          {% if mode == 'Eco' %}                                                    # +30 s v Eco
             {{ base + 30 }}
-          {% elif mode == 'Boost' %}                                                    # 0 s v Boost
+          {% elif mode == 'Boost' %}                                                # 0 s v Boost
             0
           {% else %}
             {{ base }}
@@ -81,9 +81,9 @@ template:
         state: >
           {% set mode = states('input_select.topny_rezim') %}
           {% set base = states('input_number.kotel_off_delay_sec') | int(0) %}
-          {% if mode == 'Eco' %}                                                        # +60 s v Eco
+          {% if mode == 'Eco' %}                                                    # +60 s v Eco
             {{ base + 60 }}
-          {% elif mode == 'Boost' %}                                                    # min 300 s doběh v Boost
+          {% elif mode == 'Boost' %}                                                # min 300 s doběh v Boost
             {{ [base, 300] | max }}
           {% else %}
             {{ base }}

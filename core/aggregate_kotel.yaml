@@ -83,4 +83,3 @@ template:
           {% endif %}
           {{ (demands | max) if (demands|count) > 0 else 0 }}
           # pokud je aspoň 1 aktivní zóna → vrať maximum ze seznamu; jinak 0
-  
