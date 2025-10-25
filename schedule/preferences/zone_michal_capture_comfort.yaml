@@ -13,26 +13,26 @@
 # =====================================================================
 
 automation:
-  - alias: "Zachytni poslední komfort – Přízemí Michal"     # Název automatizace
-    id: prizemi_michal_capture_last_comfort                 # Jednoznačné ID pro systém
-    mode: restart                                           # Restartne běh při nové změně
-    initial_state: true                                     # Automatizace je aktivní po restartu HA
+  - alias: "Zachytni poslední komfort – Přízemí Michal" # Název automatizace
+    id: prizemi_michal_capture_last_comfort # Jednoznačné ID pro systém
+    mode: restart # Restartne běh při nové změně
+    initial_state: true # Automatizace je aktivní po restartu HA
 
     # Spouštěč: reaguje na změnu žádané teploty na hlavici
     trigger:
-      - platform: state                                     # Sleduje změnu stavu/atributu
-        entity_id: climate.danfoss_etrv0103                 # Cílová hlavice (Michal – přízemí)
-        attribute: temperature                              # Sledujeme atribut „temperature“ (žádaná teplota)
+      - platform: state # Sleduje změnu stavu/atributu
+        entity_id: climate.prizemi_michal # Cílová hlavice (Michal – přízemí)
+        attribute: temperature # Sledujeme atribut „temperature“ (žádaná teplota)
 
     # Proměnné pro výpočet
     variables:
-      new_set: "{{ state_attr('climate.danfoss_etrv0103', 'temperature') | float(0) }}"   # Nově nastavená teplota
-      eco: "{{ states('input_number.eco_temp_default') | float(18) }}"                    # ECO teplota z globálního helperu
-        
+      new_set: "{{ state_attr('climate.prizemi_michal', 'temperature') | float(0) }}" # Nově nastavená teplota
+      eco: "{{ states('input_number.eco_temp_default') | float(18) }}" # ECO teplota z globálního helperu
+
     # Podmínka: ukládá se pouze komfortní teplota (větší než ECO + 0.2 °C)
     condition:
       - condition: template
-        value_template: "{{ new_set >= (eco + 0.2) }}"        # Hystereze 0.2 °C brání falešným přechodům
+        value_template: "{{ new_set >= (eco + 0.2) }}" # Hystereze 0.2 °C brání falešným přechodům
 
     # Akce: uloží poslední komfortní teplotu do helperu
     action:
@@ -41,15 +41,15 @@ automation:
         value_template: >
           {{ ((states('input_number.prizemi_michal_last_comfort') | float) - (new_set | float)) | abs > 0.1 }}
 
-      - service: input_number.set_value                       # Zápis hodnoty do input_number (uložení nové komfortní teploty)
+      - service: input_number.set_value # Zápis hodnoty do input_number (uložení nové komfortní teploty)
         target:
-          entity_id: input_number.prizemi_michal_last_comfort  # Cílový helper (komfortní teplota)
+          entity_id: input_number.prizemi_michal_last_comfort # Cílový helper (komfortní teplota)
         data:
-          value: "{{ new_set }}"                               # Hodnota = aktuálně nastavená teplota
+          value: "{{ new_set }}" # Hodnota = aktuálně nastavená teplota
 
       # 🪶 Logování pro přehled (uložení nové komfortní teploty do Logbooku)
       - service: logbook.log
         data:
-          name: "Přízemí Michal"                               # Název v logu
-          message: "Uložena komfortní teplota: {{ new_set }} °C"  # Zpráva do Logbooku
-          entity_id: climate.danfoss_etrv0103                  # K jaké entitě se vztahuje
+          name: "Přízemí Michal" # Název v logu
+          message: "Uložena komfortní teplota: {{ new_set }} °C" # Zpráva do Logbooku
+          entity_id: climate.prizemi_michal # K jaké entitě se vztahuje

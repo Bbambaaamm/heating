@@ -8,7 +8,7 @@
 
 automation:
   # ───────────────────────────────────────────────────────────────────
-  # ▶️ Přízemí – Michal (climate.danfoss_etrv0103)
+  # ▶️ Přízemí – Michal (climate.prizemi_michal)
   # ───────────────────────────────────────────────────────────────────
   - id: zona_prizemi_michal_capture_setpoint
     alias: "Zóna – Přízemí Michal: zachyť změnu setpointu"
@@ -16,9 +16,9 @@ automation:
     trigger:
       # Trigguj při jakékoliv změně (včetně atributů); filtrujeme v akci.
       - platform: state
-        entity_id: climate.danfoss_etrv0103
+        entity_id: climate.prizemi_michal
     variables:
-      new_sp: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(0) }}"
+      new_sp: "{{ state_attr('climate.prizemi_michal','temperature') | float(0) }}"
     condition:
       - condition: template
         value_template: "{{ new_sp > 0 }}"
@@ -38,7 +38,7 @@ automation:
       # počkej chvilku, ať se climate stihne načíst
       - delay: "00:00:05"
       - variables:
-          sp: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(22.0) }}"
+          sp: "{{ state_attr('climate.prizemi_michal','temperature') | float(22.0) }}"
       - service: input_number.set_value
         data:
           entity_id: input_number.zona_prizemi_michal_user_set_temp
@@ -80,16 +80,16 @@ automation:
           value: "{{ sp }}"
 
   # ───────────────────────────────────────────────────────────────────
-  # ▶️ 2. patro – Máma (climate.danfoss_etrv0103_2)
+  # ▶️ 2. patro – Máma (climate.2p_mama)
   # ───────────────────────────────────────────────────────────────────
   - id: zona_2p_mama_capture_setpoint
     alias: "Zóna – 2. patro Máma: zachyť změnu setpointu"
     mode: restart
     trigger:
       - platform: state
-        entity_id: climate.danfoss_etrv0103_2
+        entity_id: climate.2p_mama
     variables:
-      new_sp: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(0) }}"
+      new_sp: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}"
     condition:
       - condition: template
         value_template: "{{ new_sp > 0 }}"
@@ -108,7 +108,7 @@ automation:
     action:
       - delay: "00:00:05"
       - variables:
-          sp: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(22.0) }}"
+          sp: "{{ state_attr('climate.2p_mama','temperature') | float(22.0) }}"
       - service: input_number.set_value
         data:
           entity_id: input_number.zona_2p_mama_user_set_temp

@@ -35,8 +35,8 @@ automation:
           is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}" # stav rozvrhu: komfort ano/ne
           comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}" # komfortní teplota
           eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(19) }}" # ECO teplota
-          current: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(0) }}" # aktuální nastavená teplota
-          hvac: "{{ states('climate.danfoss_etrv0103') | lower }}" # aktuální režim (heat/off)
+          current: "{{ state_attr('climate.prizemi_michal','temperature') | float(0) }}" # aktuální nastavená teplota
+          hvac: "{{ states('climate.prizemi_michal') | lower }}" # aktuální režim (heat/off)
           target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
 
       - condition: template
@@ -48,14 +48,14 @@ automation:
                 value_template: "{{ hvac != 'heat' }}" # pokud není zapnut režim topení
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103 }
+                target: { entity_id: climate.prizemi_michal }
                 data: { hvac_mode: heat } # přepni hlavici do režimu topení
 
       - condition: template
         value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, pokud se teplota opravdu liší
 
       - service: climate.set_temperature
-        target: { entity_id: climate.danfoss_etrv0103 } # cílová hlavice (Michal – přízemí)
+        target: { entity_id: climate.prizemi_michal } # cílová hlavice (Michal – přízemí)
         data: { temperature: "{{ target_temp }}" } # nastav cílovou teplotu
 
       - service: logbook.log
@@ -65,7 +65,7 @@ automation:
             Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
             {{ target_temp }} °C
             [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
-          entity_id: climate.danfoss_etrv0103 # sváže záznam s hlavicí
+          entity_id: climate.prizemi_michal # sváže záznam s hlavicí
 
   # =====================================================================
   # ── 1. patro – Kuchyň ────────────────────────────────────────────────
@@ -147,8 +147,8 @@ automation:
           is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}" # stav rozvrhu (komfort/ECO)
           comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}" # komfortní teplota
           eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(19) }}" # ECO teplota
-          current: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(0) }}" # aktuální setpoint
-          hvac: "{{ states('climate.danfoss_etrv0103_2') | lower }}" # aktuální režim hlavice
+          current: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}" # aktuální setpoint
+          hvac: "{{ states('climate.2p_mama') | lower }}" # aktuální režim hlavice
           target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
 
       - condition: template
@@ -160,14 +160,14 @@ automation:
                 value_template: "{{ hvac != 'heat' }}" # nastav režim heat, pokud není aktivní
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103_2 }
+                target: { entity_id: climate.2p_mama }
                 data: { hvac_mode: heat }
 
       - condition: template
         value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, když se teplota liší
 
       - service: climate.set_temperature
-        target: { entity_id: climate.danfoss_etrv0103_2 } # cílová hlavice (2. patro – máma)
+        target: { entity_id: climate.2p_mama } # cílová hlavice (2. patro – máma)
         data: { temperature: "{{ target_temp }}" }
 
       - service: logbook.log
@@ -177,4 +177,4 @@ automation:
             Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
             {{ target_temp }} °C
             [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
-          entity_id: climate.danfoss_etrv0103_2
+          entity_id: climate.2p_mama

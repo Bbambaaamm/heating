@@ -155,7 +155,7 @@ automation:
     action:
       - service: script.schedule_set_zone_comfort
         data:
-          climate_entity: climate.danfoss_etrv0103 # cílová hlavice
+          climate_entity: climate.prizemi_michal # cílová hlavice
           last_user_temp_sensor: sensor.last_user_temp_prizemi_michal
 
   - id: sched_prizemi_michal_end
@@ -173,7 +173,7 @@ automation:
     action:
       - service: script.schedule_set_zone_setback
         data:
-          climate_entity: climate.danfoss_etrv0103
+          climate_entity: climate.prizemi_michal
 
   # ==============================================================================================================================================================================
   # 1. PATRO – KUCHYŇ
@@ -233,7 +233,7 @@ automation:
     action:
       - service: script.schedule_set_zone_comfort
         data:
-          climate_entity: climate.danfoss_etrv0103_2
+          climate_entity: climate.2p_mama
           last_user_temp_sensor: sensor.last_user_temp_2p_mama
 
   - id: sched_2p_mama_end
@@ -251,4 +251,4 @@ automation:
     action:
       - service: script.schedule_set_zone_setback
         data:
-          climate_entity: climate.danfoss_etrv0103_2
+          climate_entity: climate.2p_mama

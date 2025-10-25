@@ -11,10 +11,10 @@
 # =====================================================================
 
 automation:
-  - alias: "Rozvrh 2P Máma – inteligentní spouštění"          # Název automatizace v UI
-    id: schedule_2p_mama_smart                                #Stabilní ID (pro odkazy, scény, editory)
-    mode: restart                                             # Při nové události restartuj běh (vyhne se závodům)
-    initial_state: true                                       # Aktivní po restartu HA
+  - alias: "Rozvrh 2P Máma – inteligentní spouštění" # Název automatizace v UI
+    id: schedule_2p_mama_smart #Stabilní ID (pro odkazy, scény, editory)
+    mode: restart # Při nové události restartuj běh (vyhne se závodům)
+    initial_state: true # Aktivní po restartu HA
 
     # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
     trigger:
@@ -53,19 +53,19 @@ automation:
           - input_datetime.2p_mama_sunday_end
           - input_boolean.schedule_enable_2p_mama
 
-      - platform: state                                       # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
+      - platform: state # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
         entity_id: input_number.2p_mama_last_comfort
 
-      - platform: state                                       # Ruční změna setpointu na hlavici → reaguj dle okna
-        entity_id: climate.danfoss_etrv0103_2
+      - platform: state # Ruční změna setpointu na hlavici → reaguj dle okna
+        entity_id: climate.2p_mama
         attribute: temperature
 
     # Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}"              # ECO teplota (fallback 18.0)
-      last_comfort: "{{ states('input_number.2p_mama_last_comfort') | float(22) }}"      # Poslední komfort (fallback 22)
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}" # ECO teplota (fallback 18.0)
+      last_comfort: "{{ states('input_number.2p_mama_last_comfort') | float(22) }}" # Poslední komfort (fallback 22)
 
-      start: >                                                                                # Vyber správný START dle dne v týdnu
+      start: > # Vyber správný START dle dne v týdnu
         {% set d = now().weekday() %}  {# 0=Po .. 6=Ne #}
         {% if   d == 0 %} {{ states('input_datetime.2p_mama_monday_start') }}
         {% elif d == 1 %} {{ states('input_datetime.2p_mama_tuesday_start') }}
@@ -76,7 +76,7 @@ automation:
         {% else %}         {{ states('input_datetime.2p_mama_sunday_start') }}
         {% endif %}
 
-      end: >                                                                                  # Vyber správný KONEC dle dne v týdnu
+      end: > # Vyber správný KONEC dle dne v týdnu
         {% set d = now().weekday() %}
         {% if   d == 0 %} {{ states('input_datetime.2p_mama_monday_end') }}
         {% elif d == 1 %} {{ states('input_datetime.2p_mama_tuesday_end') }}
@@ -86,8 +86,7 @@ automation:
         {% elif d == 5 %} {{ states('input_datetime.2p_mama_saturday_end') }}
         {% else %}         {{ states('input_datetime.2p_mama_sunday_end') }}
         {% endif %}
-      now_hms: "{{ now().strftime('%H:%M:%S') }}"                                             # Aktuální čas jako HH:MM:SS
-
+      now_hms: "{{ now().strftime('%H:%M:%S') }}" # Aktuální čas jako HH:MM:SS
       # Jsme uvnitř okna? Bezpečně řeší i interval přes půlnoc (start > end)
       in_window: >
         {% set s = start %}
@@ -114,51 +113,51 @@ automation:
               - condition: template
                 value_template: >
                   {{ trigger.platform == 'state'
-                     and trigger.entity_id == 'climate.danfoss_etrv0103_2' }}
+                     and trigger.entity_id == 'climate.2p_mama' }}
             sequence:
-              - delay: "00:00:01"                                                              # zpoždění 1 s při triggeru z hlavice
+              - delay: "00:00:01" # zpoždění 1 s při triggeru z hlavice
 
       - choose:
           # Uvnitř okna → nastav poslední KOMFORT
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"                                          # True → jsme v okně
+                value_template: "{{ in_window }}" # True → jsme v okně
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103_2 }                          # Cílová hlavice
-                data: { hvac_mode: heat }                                                  # Režim vytápění
-              - condition: template                                                        # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                target: { entity_id: climate.2p_mama } # Cílová hlavice
+                data: { hvac_mode: heat } # Režim vytápění
+              - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
                 value_template: >
-                  {{ ((state_attr('climate.danfoss_etrv0103_2','temperature') | float)
+                  {{ ((state_attr('climate.2p_mama','temperature') | float)
                       - (last_comfort | float)) | abs > 0.1 }}
               - service: climate.set_temperature
-                target: { entity_id: climate.danfoss_etrv0103_2 }
+                target: { entity_id: climate.2p_mama }
                 data:
-                  temperature: "{{ last_comfort }}"                                        # Nastav uložený komfort
-              - service: logbook.log                                                       # Zápis do logbooku pro audit
+                  temperature: "{{ last_comfort }}" # Nastav uložený komfort
+              - service: logbook.log # Zápis do logbooku pro audit
                 data:
                   name: "Rozvrh 2P Máma"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
-                  entity_id: climate.danfoss_etrv0103_2
+                  entity_id: climate.2p_mama
 
           # 🌿 MIMO OKNO
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}"                                      # False → mimo okno
+                value_template: "{{ not in_window }}" # False → mimo okno
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.danfoss_etrv0103_2 }
+                target: { entity_id: climate.2p_mama }
                 data: { hvac_mode: heat }
-              - condition: template                                                           # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+              - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
                 value_template: >
-                  {{ ((state_attr('climate.danfoss_etrv0103_2','temperature') | float)
+                  {{ ((state_attr('climate.2p_mama','temperature') | float)
                       - (eco_temp | float)) | abs > 0.1 }}
               - service: climate.set_temperature
-                target: { entity_id: climate.danfoss_etrv0103_2 }
+                target: { entity_id: climate.2p_mama }
                 data:
-                  temperature: "{{ eco_temp }}"                                           # Nastav ECO teplotu
+                  temperature: "{{ eco_temp }}" # Nastav ECO teplotu
               - service: logbook.log
                 data:
                   name: "Rozvrh 1P Kuchyň"
                   message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
-                  entity_id: climate.danfoss_etrv0103_2
+                  entity_id: climate.2p_mama

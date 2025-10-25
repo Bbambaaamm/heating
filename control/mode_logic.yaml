@@ -32,7 +32,7 @@ automation:
   - alias: "Topení – logika režimů (čistá)"
     id: heating_mode_logic_clean
     description: "Reaguje na změnu režimu. Pro Off vypne kotel; ostatní režimy pouze loguje."
-    mode: restart                                                     # Restart = vždy reaguje na poslední změnu
+    mode: restart # Restart = vždy reaguje na poslední změnu
 
     # 🛎️ Spouštěč: změna režimu topení
     trigger:
@@ -41,21 +41,20 @@ automation:
 
     action:
       - choose:
-
           # 🔻 REŽIM OFF → okamžité vypnutí kotle
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
                 state: "Off"
             sequence:
-              - service: switch.turn_off                               # Vypni relé kotle
+              - service: switch.turn_off # Vypni relé kotle
                 target:
-                  entity_id: switch.aqara_lumi_switch_acn047_spinac
-              - service: logbook.log                                   # Zaznamenej událost
+                  entity_id: switch.kotel_rele
+              - service: logbook.log # Zaznamenej událost
                 data:
                   name: "Topení – režimy"
                   message: "Režim přepnut na Off → kotel vypnut."
-                  entity_id: switch.aqara_lumi_switch_acn047_spinac
+                  entity_id: switch.kotel_rele
 
           # 🔸 REŽIM AUTO → standardní provoz
           - conditions:

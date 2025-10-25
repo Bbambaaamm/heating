@@ -6,23 +6,22 @@
 # =====================================================================
 
 template:
-
   # ---- Senzory (požadavek) ---------------------------------------------------
   - sensor:
-      - name: "zona_prizemi_michal_demand"      # 0–100 % požadavku
+      - name: "zona_prizemi_michal_demand" # 0–100 % požadavku
         unit_of_measurement: "%"
         state_class: measurement
-        state: "{{ state_attr('climate.danfoss_etrv0103', 'pi_heating_demand') | int(0) }}"
+        state: "{{ state_attr('climate.prizemi_michal', 'pi_heating_demand') | int(0) }}"
 
   # ---- Binární senzory (okno + aktivita) ------------------------------------
   - binary_sensor:
-      - name: "zona_prizemi_michal_okno_otevrene"   # on = okno otevřené
+      - name: "zona_prizemi_michal_okno_otevrene" # on = okno otevřené
         device_class: opening
         state: >
-          {% set s = states('sensor.danfoss_etrv0103_detekovano_otevrene_okno') %}
+          {% set s = states('sensor.prizemi_michal_detekovano_otevrene_okno') %}
           {{ s is not string or s|lower != 'closed' }}
 
-      - name: "zona_prizemi_michal_aktivni"         # on = reálná poptávka zóny
+      - name: "zona_prizemi_michal_aktivni" # on = reálná poptávka zóny
         state: >
           {{ (states('sensor.zona_prizemi_michal_demand')|int(0) > 0)
              and (not is_state('binary_sensor.zona_prizemi_michal_okno_otevrene','on')) }}
