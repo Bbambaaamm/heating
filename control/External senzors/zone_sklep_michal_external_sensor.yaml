@@ -18,22 +18,22 @@ automation:
     id: danfoss_sklep_michal_external_temp_forward # Jednoznačné ID automatizace pro konfiguraci a sledování
     mode: queued # Zajistí sekvenční zpracování fronty (předchází přerušení)
 
-    trigger:
+    triggers:
       # 🔹 Spouštěč 1: při změně hodnoty externího senzoru
-      - platform: state
+      - trigger: state
         entity_id: sensor.mi_air_purifier_2h_teplota
 
       # 🔹 Spouštěč 2: po startu Home Assistantu – zajišťuje, že po restartu
       #      se hlavici znovu odešle aktuální teplota (hodnota se totiž neuchovává)
-      - platform: homeassistant
+      - trigger: homeassistant
         event: start
 
       # 🔹 Spouštěč 3: pojistka – každých 10 minut pošle hodnotu znovu,
       #      i když se teplota nezměnila (např. u stabilních hodnot)
-      - platform: time_pattern
+      - trigger: time_pattern
         minutes: "/10"
 
-    action:
+    actions:
       # =================================================================
       # 🧩 PŘÍPRAVA PROMĚNNÝCH
       # - raw  = textová hodnota senzoru (např. "21.7")
@@ -54,7 +54,7 @@ automation:
               {{ temp is not none and -40 < temp < 60 }}
             sequence:
               # 🔸 Odeslání teploty do entity hlavice Danfoss
-              - service: number.set_value
+              - action: number.set_value
                 target:
                   entity_id: number.sklep_michal_senzor_externi_teploty
                 data:

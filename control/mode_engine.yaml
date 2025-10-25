@@ -143,17 +143,17 @@ automation:
   - id: heating_boost_start
     alias: "Topení: start Boostu (nastav boost_until)"
     mode: restart                                                       # Nový podnět ruší předchozí běh
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id: input_select.topny_rezim
         to: "Boost"                                                     # Přepnuto na Boost
-      - platform: state
+      - trigger: state
         entity_id: input_boolean.boost_now
         to: "on"                                                        # Ruční „Boost nyní“
-    action:
+    actions:
       - variables:
           minutes: "{{ states('input_number.boost_minutes') | int(60) }}" # Doba trvání
-      - service: input_datetime.set_datetime
+      - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
@@ -163,8 +163,8 @@ automation:
   - id: heating_boost_auto_clear_button
     alias: "Topení: po vypršení Boostu vypnout tlačítko"
     mode: queued                                                        # Bez kolizí při opakování
-    trigger:
-      - platform: time_pattern
+    triggers:
+      - trigger: time_pattern
         minutes: "/1"                                                   # Kontrola každou minutu
     condition:
       - condition: template
@@ -172,7 +172,7 @@ automation:
           {% set until = states('input_datetime.boost_until') %}
           {% set uts   = as_timestamp(until, default=0) %}
           {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}  # Boost prošel?
-    action:
-      - service: input_boolean.turn_off
+    actions:
+      - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now                            # Synchronizace UI se stavem

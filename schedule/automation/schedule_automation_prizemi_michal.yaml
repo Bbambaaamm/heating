@@ -17,8 +17,8 @@ automation:
     initial_state: true # Aktivní po restartu HA
 
     # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
-    trigger:
-      - platform: time
+    triggers:
+      - trigger: time
         at:
           - input_datetime.prizemi_michal_monday_start
           - input_datetime.prizemi_michal_monday_end
@@ -35,7 +35,7 @@ automation:
           - input_datetime.prizemi_michal_sunday_start
           - input_datetime.prizemi_michal_sunday_end
 
-      - platform: state
+      - trigger: state
         entity_id:
           - input_datetime.prizemi_michal_monday_start
           - input_datetime.prizemi_michal_monday_end
@@ -53,10 +53,10 @@ automation:
           - input_datetime.prizemi_michal_sunday_end
           - input_boolean.schedule_enable_prizemi_michal
 
-      - platform: state
+      - trigger: state
         entity_id: input_number.prizemi_michal_last_comfort
 
-      - platform: state
+      - trigger: state
         entity_id: climate.prizemi_michal
         attribute: temperature
 
@@ -105,14 +105,14 @@ automation:
         state: "on"
 
     # Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
-    action:
+    actions:
       # Debounce: pokud to spustila hlavice, chvilku počkej,
       # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
       - choose:
           - conditions:
               - condition: template
                 value_template: >
-                  {{ trigger.platform == 'state'
+                  {{ trigger.trigger == 'state'
                      and trigger.entity_id == 'climate.prizemi_michal' }}
             sequence:
               - delay: "00:00:01" # zpoždění 1 s při triggeru z hlavice
@@ -123,18 +123,18 @@ automation:
               - condition: template
                 value_template: "{{ in_window }}" # True → jsme v okně
             sequence:
-              - service: climate.set_hvac_mode
+              - action: climate.set_hvac_mode
                 target: { entity_id: climate.prizemi_michal } # Cílová hlavice
                 data: { hvac_mode: heat } # Režim vytápění
               - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
                 value_template: >
                   {{ ((state_attr('climate.prizemi_michal','temperature') | float)
                       - (last_comfort | float)) | abs > 0.1 }}
-              - service: climate.set_temperature
+              - action: climate.set_temperature
                 target: { entity_id: climate.prizemi_michal }
                 data:
                   temperature: "{{ last_comfort }}" # Nastav uložený komfort
-              - service: logbook.log # Zápis do logbooku pro audit
+              - action: logbook.log # Zápis do logbooku pro audit
                 data:
                   name: "Rozvrh Přízemí"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
@@ -145,18 +145,18 @@ automation:
               - condition: template
                 value_template: "{{ not in_window }}" # False → mimo okno
             sequence:
-              - service: climate.set_hvac_mode
+              - action: climate.set_hvac_mode
                 target: { entity_id: climate.prizemi_michal }
                 data: { hvac_mode: heat }
               - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
                 value_template: >
                   {{ ((state_attr('climate.prizemi_michal','temperature') | float)
                       - (eco_temp | float)) | abs > 0.1 }}
-              - service: climate.set_temperature
+              - action: climate.set_temperature
                 target: { entity_id: climate.prizemi_michal }
                 data:
                   temperature: "{{ eco_temp }}" # Nastav ECO teplotu
-              - service: logbook.log
+              - action: logbook.log
                 data:
                   name: "Rozvrh Přízemí"
                   message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"

@@ -15,10 +15,10 @@ input_select:
   topny_rezim:
     name: "Topení – režim"
     options:
-      - Auto     # standardní provoz (prah z policy_config.yaml)
-      - Eco      # úspornější prahy (zvýší požadavky na zapnutí)
-      - Boost    # uvolněné prahy + dočasné „top víc/rychleji“
-      - Off      # úplné vypnutí (blokuje spínání kotle)
+      - "Auto"     # standardní provoz (prah z policy_config.yaml)
+      - "Eco"      # úspornější prahy (zvýší požadavky na zapnutí)
+      - "Boost"    # uvolněné prahy + dočasné „top víc/rychleji“
+      - "Off"      # úplné vypnutí (blokuje spínání kotle)
     icon: mdi:home-thermometer-outline
     initial: Auto
 
