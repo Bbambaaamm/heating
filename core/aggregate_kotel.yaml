@@ -1,28 +1,54 @@
 # =====================================================================
-# 📊 AGREGACE pro kotel
-# - kolik zón chce teplo (aktivních)
-# - průměrná poptávka aktivních zón (%)
-# - maximální poptávka napříč zónami (%)
-# - Snadno rozšiřitelné: přidej sem další zónu do seznamů.
+# 🧠 SOUBOR: /config/heating/metrics/kotel_aggregates.yaml
+# =====================================================================
+# 📊 ÚČEL:
+#   Agregační metriky pro řízení kotle napříč zónami:
+#     1) kotel_aktivni_zony_pocet  … kolik zón aktuálně skutečně „chce teplo“
+#     2) kotel_poptavka_prumer     … průměrná poptávka (%) všech AKTIVNÍCH zón
+#     3) kotel_poptavka_max        … maximální poptávka (%) napříč zónami
+#
+# 🧩 POUŽITÍ:
+#   - Logika spínání kotle, hystereze, throttling sepnutí/vypnutí
+#   - Vizuální panely v Grafaně / HA (Stat, Gauge, Time-series)
+#
+# ➕ ROZŠIŘITELNOST:
+#   - Pro přidání zóny doplň 2 senzory: `binary_sensor.zona_<nazev>_aktivni`
+#     a `sensor.zona_<nazev>_demand` a přidej ji do seznamů níže.
+#
+# 📌 KONVENCE:
+#   - `*_aktivni` je binární „žádám teplo“; `*_demand` je 0–100 % (int)
+#   - `state_class: measurement` u procent je vhodné pro časové agregace
 # =====================================================================
 
 template:
   - sensor:
-      - name: "kotel_aktivni_zony_pocet"
-        unit_of_measurement: "zón"
-        state: >
-          {% set zs = [
-            is_state('binary_sensor.zona_prizemi_michal_aktivni','on'),
-            is_state('binary_sensor.zona_1p_jidelna_aktivni','on'),
-            is_state('binary_sensor.zona_2p_mama_aktivni','on')
-          ] %}
-          {{ zs | select('equalto', true) | list | count }}
 
-      - name: "kotel_poptavka_prumer"
-        unit_of_measurement: "%"
-        state_class: measurement
-        state: >
-          {% set demands = [] %}
+      # ---------------------------------------------------------------
+      # 1) Počet AKTIVNÍCH zón – kolik zón právě žádá teplo
+      # ---------------------------------------------------------------
+      - name: "kotel_aktivni_zony_pocet"                           # čitelný název senzoru
+        unique_id: kotel_aktivni_zony_pocet                         # stabilní ID (pro GUI, historii)
+        unit_of_measurement: "zón"                                  # jednotka: počet zón
+        icon: mdi:numeric                                          # decentní ikona počítadla
+        state: >                                                   # Jinja výpočet stavu (int)
+          {% set zs = [
+            is_state('binary_sensor.zona_prizemi_michal_aktivni','on'),   # zóna: přízemí Michal
+            is_state('binary_sensor.zona_1p_jidelna_aktivni','on'),       # zóna: 1. patro Jídelna
+            is_state('binary_sensor.zona_2p_mama_aktivni','on')           # zóna: 2. patro Máma
+          ] %}
+          {{ zs | select('equalto', true) | list | count }}         # spočti True → kolik zón je aktivních
+
+      # ---------------------------------------------------------------
+      # 2) Průměrná poptávka AKTIVNÍCH zón (v %)
+      #    - z neaktivních zón se nepočítá (správná interpretace průměru)
+      # ---------------------------------------------------------------
+      - name: "kotel_poptavka_prumer"                              # čitelný název senzoru
+        unique_id: kotel_poptavka_prumer                            # stabilní ID
+        unit_of_measurement: "%"                                    # jednotka: procenta
+        state_class: measurement                                    # vhodné pro statistiky/aggregace
+        icon: mdi:percent                                          # ikona „%“
+        state: >                                                   # Jinja výpočet stavu (float/0–100)
+          {% set demands = [] %}                                    # akumulační seznam poptávek aktivních zón
           {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on') %}
             {% set demands = demands + [ states('sensor.zona_prizemi_michal_demand')|int(0) ] %}
           {% endif %}
@@ -33,12 +59,19 @@ template:
             {% set demands = demands + [ states('sensor.zona_2p_mama_demand')|int(0) ] %}
           {% endif %}
           {{ (demands | sum / (demands|count)) | round(1) if (demands|count) > 0 else 0 }}
+          # pokud existuje aspoň 1 aktivní zóna → spočti průměr a zaokrouhli na 0.1; jinak vrať 0
 
-      - name: "kotel_poptavka_max"
-        unit_of_measurement: "%"
-        state_class: measurement
-        state: >
-          {% set demands = [] %}
+      # ---------------------------------------------------------------
+      # 3) Maximální poptávka napříč zónami (v %)
+      #    - vhodné pro „rychlé rozhodnutí“ (např. modulace výkonu)
+      # ---------------------------------------------------------------
+      - name: "kotel_poptavka_max"                                 # čitelný název senzoru
+        unique_id: kotel_poptavka_max                               # stabilní ID
+        unit_of_measurement: "%"                                    # jednotka: procenta
+        state_class: measurement                                    # vhodné pro statistiky/aggregace
+        icon: mdi:chart-bell-curve                                 # ikona „maximum/špička“
+        state: >                                                   # Jinja výpočet stavu (int/0–100)
+          {% set demands = [] %}                                    # akumulace poptávek z aktivních zón
           {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on') %}
             {% set demands = demands + [ states('sensor.zona_prizemi_michal_demand')|int(0) ] %}
           {% endif %}
@@ -49,3 +82,4 @@ template:
             {% set demands = demands + [ states('sensor.zona_2p_mama_demand')|int(0) ] %}
           {% endif %}
           {{ (demands | max) if (demands|count) > 0 else 0 }}
+          # pokud je aspoň 1 aktivní zóna → vrať maximum ze seznamu; jinak 0
