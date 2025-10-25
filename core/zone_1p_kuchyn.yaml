@@ -22,7 +22,7 @@ template:
       - name: "zona_1p_jidelna_demand"                          # Název senzoru
         unit_of_measurement: "%"                                # Jednotka měření – procenta
         state_class: measurement                                # Typ měření (kvůli historii/statistice)
-        state: "{{ state_attr('climate.1p_jidelna', 'pi_heating_demand') | int(0) }}"  
+        state: "{{ state_attr('climate.1p_jidelna', 'pi_heating_demand') | int(0) }}"
         # Čte atribut 'pi_heating_demand' z hlavice climate.1p_jidelna (Danfoss TRV)
         # a převede ho na celé číslo; pokud není k dispozici, vrátí 0.
 
