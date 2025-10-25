@@ -1,37 +1,51 @@
 # =====================================================================
-# 🧩 Helpers – poslední uživatelsky nastavená teplota pro každou zónu
-# - Tyto input_number se automaticky udržují automatikou v souboru
-#   follow_user_capture.yaml (když kdokoliv změní teplotu na hlavici/HA).
-# - Scheduler/rozvrh pak může „komfort“ vždy brát z těchto hodnot.
+# 🧩 HELPERS – Poslední uživatelsky nastavená teplota pro každou zónu
+# ---------------------------------------------------------------------
+# 🎯 Cíl:
+# - Udržovat přehled o poslední teplotě, kterou uživatel nastavil
+#   na hlavici (climate.*) nebo přes UI Home Assistantu.
+# - Tyto hodnoty se aktualizují automaticky pomocí automatiky
+#   ve `follow_user_capture.yaml`.
+#
+# 💡 Použití:
+# - Slouží jako "komfortní" cílová teplota pro rozvrh (scheduler).
+# - Rozvrh vždy čerpá aktuální komfortní hodnotu z těchto helperů,
+#   i po restartu HA nebo změně režimu.
 # =====================================================================
 
-input_number:
-  # 🏠 Přízemí – Michal
-  zona_prizemi_michal_user_set_temp:
-    name: "Přízemí Michal – poslední teplota"
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer
-    min: 5
-    max: 35
-    step: 0.1
-    initial: 22.0 # jen seed; hned se přepíše automatikou
+input_number:                                                  # Definice skupiny pomocníků typu číslo (input_number)
+  # -------------------------------------------------------------------
+  # 🏠 PŘÍZEMÍ – MICHAL
+  # -------------------------------------------------------------------
+  zona_prizemi_michal_user_set_temp:                           # Unikátní ID helperu pro přízemí
+    name: "Přízemí Michal – poslední teplota"                  # Název zobrazovaný v UI
+    unit_of_measurement: "°C"                                  # Jednotka měření – stupně Celsia
+    icon: mdi:thermometer                                      # Ikona teploměru pro přehlednost v Lovelace
+    min: 5                                                     # Minimální povolená hodnota
+    max: 35                                                    # Maximální povolená hodnota
+    step: 0.1                                                  # Krok při změně teploty (přesnost na 0,1 °C)
+    initial: 22.0                                              # Výchozí hodnota po startu (pouze seed, hned se přepíše)
 
-  # 🥘 1. patro – Kuchyň (teď 1 hlavice)
-  zona_1p_jidelna_user_set_temp:
-    name: "1. patro Kuchyň – poslední teplota"
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer
-    min: 5
-    max: 35
-    step: 0.1
-    initial: 22.0
+  # -------------------------------------------------------------------
+  # 🥘 1. PATRO – KUCHYŇ (aktuálně sdílené s jídelnou)
+  # -------------------------------------------------------------------
+  zona_1p_jidelna_user_set_temp:                               # Helper pro zónu 1. patro – Kuchyň
+    name: "1. patro Kuchyň – poslední teplota"                 # Název v UI
+    unit_of_measurement: "°C"                                  # Jednotka Celsia
+    icon: mdi:thermometer                                      # Ikona teploměru
+    min: 5                                                     # Minimální hodnota
+    max: 35                                                    # Maximální hodnota
+    step: 0.1                                                  # Krok nastavení
+    initial: 22.0                                              # Výchozí seed; automatika jej po startu nahradí
 
-  # 👩 2. patro – Máma
-  zona_2p_mama_user_set_temp:
-    name: "2. patro Máma – poslední teplota"
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer
-    min: 5
-    max: 35
-    step: 0.1
-    initial: 22.0
+  # -------------------------------------------------------------------
+  # 👩 2. PATRO – MÁMA
+  # -------------------------------------------------------------------
+  zona_2p_mama_user_set_temp:                                  # Helper pro zónu 2. patro – Máma
+    name: "2. patro Máma – poslední teplota"                   # Název v UI
+    unit_of_measurement: "°C"                                  # Jednotka
+    icon: mdi:thermometer                                      # Ikona teploměru
+    min: 5                                                     # Minimální hodnota
+    max: 35                                                    # Maximální hodnota
+    step: 0.1                                                  # Krok nastavení
+    initial: 22.0                                              # Počáteční seed hodnota

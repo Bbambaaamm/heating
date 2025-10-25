@@ -1,67 +1,77 @@
 # =====================================================================
 # 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
-# - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
-#   zapíšeme ji do příslušného input_number.*_user_set_temp.
-# - Při startu HA provedeme inicializaci (vezmeme aktuální setpoint).
-# - Důraz na robustnost: hlídáme „unknown/unavailable“ a nuly.
+# ---------------------------------------------------------------------
+# 🎯 Cíl:
+# - Sleduje změnu cílové teploty (setpoint) u všech hlavic (climate.*)
+# - Každou změnu uloží do příslušného input_number.*_user_set_temp
+# - Po startu Home Assistantu provede inicializaci (načtení výchozího setpointu)
+# - Ošetřuje neplatné hodnoty („unknown“, „unavailable“, nuly)
+#
+# 💡 Důvod:
+# - Udržuje „poslední uživatelskou“ teplotu i při přepnutí režimů (Auto/Eco/Boost)
+# - Umožňuje obnovit komfortní teplotu po změně režimu nebo restartu HA
 # =====================================================================
 
 automation:
-  # ───────────────────────────────────────────────────────────────────
-  # ▶️ Přízemí – Michal (climate.prizemi_michal)
-  # ───────────────────────────────────────────────────────────────────
-  - id: zona_prizemi_michal_capture_setpoint
-    alias: "Zóna – Přízemí Michal: zachyť změnu setpointu"
-    mode: restart
+  # =====================================================================
+  # ▶️ ZÓNA: Přízemí – Michal
+  # =====================================================================
+  - id: zona_prizemi_michal_capture_setpoint                     # Unikátní ID automace
+    alias: "Zóna – Přízemí Michal: zachyť změnu setpointu"       # Popis pro UI
+    mode: restart                                                # Při opakovaném triggeru restartuj akci
     trigger:
-      # Trigguj při jakékoliv změně (včetně atributů); filtrujeme v akci.
+      # Spoušť: při jakékoliv změně entity climate.prizemi_michal
       - platform: state
         entity_id: climate.prizemi_michal
     variables:
+      # Ulož novou cílovou teplotu z atributu 'temperature'
       new_sp: "{{ state_attr('climate.prizemi_michal','temperature') | float(0) }}"
     condition:
+      # Zkontroluj, že hodnota je větší než 0 (ignoruj unknown/0)
       - condition: template
         value_template: "{{ new_sp > 0 }}"
     action:
+      # Zapiš novou hodnotu do příslušného input_number helperu
       - service: input_number.set_value
         data:
           entity_id: input_number.zona_prizemi_michal_user_set_temp
           value: "{{ new_sp }}"
 
-  - id: zona_prizemi_michal_init_on_start
+  - id: zona_prizemi_michal_init_on_start                        # Druhá automace: inicializace po startu
     alias: "Zóna – Přízemí Michal: init helperu po startu"
-    mode: single
+    mode: single                                                 # Spustí se jednou
     trigger:
       - platform: homeassistant
-        event: start
+        event: start                                             # Při startu HA
     action:
-      # počkej chvilku, ať se climate stihne načíst
-      - delay: "00:00:05"
+      - delay: "00:00:05"                                        # Počkej 5 s, než se načtou climate entity
       - variables:
+          # Načti aktuální teplotu z hlavice nebo použij 22 °C jako default
           sp: "{{ state_attr('climate.prizemi_michal','temperature') | float(22.0) }}"
       - service: input_number.set_value
         data:
           entity_id: input_number.zona_prizemi_michal_user_set_temp
           value: "{{ sp }}"
 
-  # ───────────────────────────────────────────────────────────────────
-  # ▶️ 1. patro – Kuchyň (climate.1p_jidelna)
-  # ───────────────────────────────────────────────────────────────────
+
+  # =====================================================================
+  # ▶️ ZÓNA: 1. patro – Kuchyň (Jídelna)
+  # =====================================================================
   - id: zona_1p_jidelna_capture_setpoint
     alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
     mode: restart
     trigger:
       - platform: state
-        entity_id: climate.1p_jidelna
+        entity_id: climate.1p_jidelna                            # Sleduj změnu hlavice
     variables:
-      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"
+      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"  # Nový setpoint
     condition:
       - condition: template
-        value_template: "{{ new_sp > 0 }}"
+        value_template: "{{ new_sp > 0 }}"                       # Vynech neplatné hodnoty
     action:
       - service: input_number.set_value
         data:
-          entity_id: input_number.zona_1p_jidelna_user_set_temp
+          entity_id: input_number.zona_1p_jidelna_user_set_temp   # Ulož do helperu
           value: "{{ new_sp }}"
 
   - id: zona_1p_jidelna_init_on_start
@@ -71,7 +81,7 @@ automation:
       - platform: homeassistant
         event: start
     action:
-      - delay: "00:00:05"
+      - delay: "00:00:05"                                        # Počkej na načtení entity
       - variables:
           sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(22.0) }}"
       - service: input_number.set_value
@@ -79,24 +89,25 @@ automation:
           entity_id: input_number.zona_1p_jidelna_user_set_temp
           value: "{{ sp }}"
 
-  # ───────────────────────────────────────────────────────────────────
-  # ▶️ 2. patro – Máma (climate.2p_mama)
-  # ───────────────────────────────────────────────────────────────────
+
+  # =====================================================================
+  # ▶️ ZÓNA: 2. patro – Máma
+  # =====================================================================
   - id: zona_2p_mama_capture_setpoint
     alias: "Zóna – 2. patro Máma: zachyť změnu setpointu"
     mode: restart
     trigger:
       - platform: state
-        entity_id: climate.2p_mama
+        entity_id: climate.2p_mama                               # Sleduj změnu hlavice
     variables:
-      new_sp: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}"
+      new_sp: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}"  # Nový setpoint
     condition:
       - condition: template
-        value_template: "{{ new_sp > 0 }}"
+        value_template: "{{ new_sp > 0 }}"                       # Ošetři nuly a unknown
     action:
       - service: input_number.set_value
         data:
-          entity_id: input_number.zona_2p_mama_user_set_temp
+          entity_id: input_number.zona_2p_mama_user_set_temp      # Zapiš hodnotu do helperu
           value: "{{ new_sp }}"
 
   - id: zona_2p_mama_init_on_start
@@ -106,7 +117,7 @@ automation:
       - platform: homeassistant
         event: start
     action:
-      - delay: "00:00:05"
+      - delay: "00:00:05"                                        # Počkej 5 s po startu
       - variables:
           sp: "{{ state_attr('climate.2p_mama','temperature') | float(22.0) }}"
       - service: input_number.set_value
