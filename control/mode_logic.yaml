@@ -1,26 +1,40 @@
 # =====================================================================
 # 🧠 SOUBOR: /config/heating/control/mode_logic.yaml
 # =====================================================================
-# 🎛️ Logika přepínání režimů topení (Auto / Eco / Boost / Off)
-# -------------------------------------------------------------
-# Co TENTO soubor dělá:
-#  - Sleduje změnu input_select.topny_rezim
-#  - Pro "Off" okamžitě vypne relé kotle (Aqara T2)
-#  - Zapíše událost do Logbooku pro přehled
+# 🎛️ LOGIKA REŽIMŮ TOPENÍ (Auto / Eco / Boost / Off)
+# ---------------------------------------------------------------------
+# 📌 CÍL:
+# Tento modul zajišťuje základní logiku přepínání režimů topení.
+# Reaguje na změnu `input_select.topny_rezim` a podle toho:
+#   🔹 Při „Off“ okamžitě vypne kotel (relé Aqara T2)
+#   🔹 U ostatních režimů pouze zaznamená změnu do Logbooku
 #
-# Co TENTO soubor NEDĚLÁ (záměrně):
-#  - Neovládá žádný binary_sensor (nejde to) – blokace Off se dělá v mode_engine.yaml
-#  - Nepřepisuje prahy input_number.kotel_min_* – účinné prahy počítá mode_engine.yaml
-#  - Neřeší Boost tlačítko / časování – to je v mode_engine.yaml (aby nebyly duplicity)
+# ⚙️ FUNKCE:
+# - Sleduje změny režimu (Auto / Eco / Boost / Off)
+# - U režimu Off zajistí okamžité vypnutí kotle
+# - Pro všechny režimy zapisuje přehledné události do Logbooku
+#
+# 🚫 Co tento soubor NEDĚLÁ:
+# - Neřídí žádné binary sensory (blokace je v `mode_engine.yaml`)
+# - Nepočítá účinné prahy (`effective_*` – řeší `mode_engine.yaml`)
+# - Neřeší Boost logiku / časování (`boost_now`, `boost_until`)
+#
+# 🔗 NAPOJENÍ:
+# - `mode_engine.yaml` → vypočítává prahy a blokace
+# - `kotel_control.yaml` → používá tyto prahy pro spínání kotle
+#
+# 📘 STANDARD:
+# - Všechny reakce čistě na úrovni přepínače režimu
+# - Logbook používán pro auditní a diagnostické účely
 # =====================================================================
 
 automation:
   - alias: "Topení – logika režimů (čistá)"
     id: heating_mode_logic_clean
-    description: "Reaguje na změnu režimu. Pro Off vypne kotel; ostatní režimy nechává na mode_engine."
-    mode: restart
+    description: "Reaguje na změnu režimu. Pro Off vypne kotel; ostatní režimy pouze loguje."
+    mode: restart                                                     # Restart = vždy reaguje na poslední změnu
 
-    # 🛎️ Spouštěč: kdykoli se změní zvolený režim (Auto / Eco / Boost / Off)
+    # 🛎️ Spouštěč: změna režimu topení
     trigger:
       - platform: state
         entity_id: input_select.topny_rezim
@@ -28,31 +42,22 @@ automation:
     action:
       - choose:
 
-          # ========================================================
-          # 🔻 REŽIM OFF – kompletní vypnutí topení
-          #  - Okamžitě vypne Aqara T2 relé (kotel)
-          #  - Blokace kotle se současně projeví i v binary_sensor.kotel_mode_off_block
-          #    (ten se vyhodnocuje v mode_engine.yaml z režimu a master přepínače)
-          # ========================================================
+          # 🔻 REŽIM OFF → okamžité vypnutí kotle
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
                 state: "Off"
             sequence:
-              - service: switch.turn_off
+              - service: switch.turn_off                               # Vypni relé kotle
                 target:
                   entity_id: switch.aqara_lumi_switch_acn047_spinac
-
-              - service: logbook.log
+              - service: logbook.log                                   # Zaznamenej událost
                 data:
                   name: "Topení – režimy"
                   message: "Režim přepnut na Off → kotel vypnut."
                   entity_id: switch.aqara_lumi_switch_acn047_spinac
 
-          # ========================================================
-          # 🔸 REŽIM AUTO – standardní provoz
-          #  - Nic aktivně nenastavujeme: účinné prahy řeší mode_engine.yaml
-          # ========================================================
+          # 🔸 REŽIM AUTO → standardní provoz
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -64,10 +69,7 @@ automation:
                   message: "Režim Auto → používají se účinné prahy z mode_engine."
                   entity_id: input_select.topny_rezim
 
-          # ========================================================
-          # 🌿 REŽIM ECO – úspornější
-          #  - Nic aktivně nenastavujeme: zpřísnění prahů řeší mode_engine.yaml
-          # ========================================================
+          # 🌿 REŽIM ECO → úspornější režim
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -79,10 +81,7 @@ automation:
                   message: "Režim Eco → přísnější účinné prahy (mode_engine)."
                   entity_id: input_select.topny_rezim
 
-          # ========================================================
-          # ⚡ REŽIM BOOST – krátkodobé „přitop“
-          #  - Nic aktivně nenastavujeme: boost_until a auto-ukončení řeší mode_engine.yaml
-          # ========================================================
+          # ⚡ REŽIM BOOST → krátkodobé „přitop“
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim

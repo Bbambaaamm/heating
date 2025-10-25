@@ -14,7 +14,7 @@ input_boolean:
     initial: on
 
   # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
-  schedule_enable_1p_kuchyn:
+  schedule_enable_1p_jidelna:
     name: "Rozvrh – 1. patro Kuchyň+Jídelna zapnuto"
     icon: mdi:calendar-clock
     initial: on
@@ -28,7 +28,6 @@ input_boolean:
 # ==============================================================================================================================================================================
 
 input_datetime:
-
   # ==============================================================================================================================================================================
   # ── Přízemí – Michal ────────────────────────────────────────────────
   # ==============================================================================================================================================================================
@@ -96,70 +95,69 @@ input_datetime:
     has_date: false
     has_time: true
 
-
   # ==============================================================================================================================================================================
   # ── 1. patro – Kuchyň+Jídelna ──────────────────────────────────────
   # ==============================================================================================================================================================================
 
-  1_patro_kuchyn_monday_start:
+  1p_jidelna_monday_start:
     name: "1. patro Kuchyň+Jídelna – Pondělí začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_monday_end:
+  1p_jidelna_monday_end:
     name: "1. patro Kuchyň+Jídelna – Pondělí konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_tuesday_start:
+  1p_jidelna_tuesday_start:
     name: "1. patro Kuchyň+Jídelna – Úterý začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_tuesday_end:
+  1p_jidelna_tuesday_end:
     name: "1. patro Kuchyň+Jídelna – Úterý konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_wednesday_start:
+  1p_jidelna_wednesday_start:
     name: "1. patro Kuchyň+Jídelna – Středa začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_wednesday_end:
+  1p_jidelna_wednesday_end:
     name: "1. patro Kuchyň+Jídelna – Středa konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_thursday_start:
+  1p_jidelna_thursday_start:
     name: "1. patro Kuchyň+Jídelna – Čtvrtek začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_thursday_end:
+  1p_jidelna_thursday_end:
     name: "1. patro Kuchyň+Jídelna – Čtvrtek konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_friday_start:
+  1p_jidelna_friday_start:
     name: "1. patro Kuchyň+Jídelna – Pátek začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_friday_end:
+  1p_jidelna_friday_end:
     name: "1. patro Kuchyň+Jídelna – Pátek konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_saturday_start:
+  1p_jidelna_saturday_start:
     name: "1. patro Kuchyň+Jídelna – Sobota začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_saturday_end:
+  1p_jidelna_saturday_end:
     name: "1. patro Kuchyň+Jídelna – Sobota konec"
     has_date: false
     has_time: true
 
-  1_patro_kuchyn_sunday_start:
+  1p_jidelna_sunday_start:
     name: "1. patro Kuchyň+Jídelna – Neděle začátek"
     has_date: false
     has_time: true
-  1_patro_kuchyn_sunday_end:
+  1p_jidelna_sunday_end:
     name: "1. patro Kuchyň+Jídelna – Neděle konec"
     has_date: false
     has_time: true

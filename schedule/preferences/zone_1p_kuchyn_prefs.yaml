@@ -4,11 +4,11 @@
 # =====================================================================
 
 input_number:
-  1p_kuchyn_last_comfort:
-    name: "1. patro Kuchyň – poslední komfortní teplota"  # Název v UI
-    min: 10                                               # Minimální povolená teplota (°C)
-    max: 30                                               # Maximální povolená teplota (°C)
-    step: 0.5                                             # Krok při změně hodnoty
-    unit_of_measurement: "°C"                             # Jednotka měření
-    icon: mdi:thermometer                               # Ikona v UI
-    initial: 22                                         # Výchozí hodnota, dokud se neuloží první komfort
+  1p_jidelna_last_comfort:
+    name: "1. patro Kuchyň – poslední komfortní teplota" # Název v UI
+    min: 10 # Minimální povolená teplota (°C)
+    max: 30 # Maximální povolená teplota (°C)
+    step: 0.5 # Krok při změně hodnoty
+    unit_of_measurement: "°C" # Jednotka měření
+    icon: mdi:thermometer # Ikona v UI
+    initial: 22 # Výchozí hodnota, dokud se neuloží první komfort

@@ -7,7 +7,6 @@
 # =====================================================================
 
 automation:
-
   # ───────────────────────────────────────────────────────────────────
   # ▶️ Přízemí – Michal (climate.danfoss_etrv0103)
   # ───────────────────────────────────────────────────────────────────
@@ -46,26 +45,26 @@ automation:
           value: "{{ sp }}"
 
   # ───────────────────────────────────────────────────────────────────
-  # ▶️ 1. patro – Kuchyň (climate.1_patro_kuchyn)
+  # ▶️ 1. patro – Kuchyň (climate.1p_jidelna)
   # ───────────────────────────────────────────────────────────────────
-  - id: zona_1p_kuchyn_capture_setpoint
+  - id: zona_1p_jidelna_capture_setpoint
     alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
     mode: restart
     trigger:
       - platform: state
-        entity_id: climate.1_patro_kuchyn
+        entity_id: climate.1p_jidelna
     variables:
-      new_sp: "{{ state_attr('climate.1_patro_kuchyn','temperature') | float(0) }}"
+      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"
     condition:
       - condition: template
         value_template: "{{ new_sp > 0 }}"
     action:
       - service: input_number.set_value
         data:
-          entity_id: input_number.zona_1p_kuchyn_user_set_temp
+          entity_id: input_number.zona_1p_jidelna_user_set_temp
           value: "{{ new_sp }}"
 
-  - id: zona_1p_kuchyn_init_on_start
+  - id: zona_1p_jidelna_init_on_start
     alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
     mode: single
     trigger:
@@ -74,10 +73,10 @@ automation:
     action:
       - delay: "00:00:05"
       - variables:
-          sp: "{{ state_attr('climate.1_patro_kuchyn','temperature') | float(22.0) }}"
+          sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(22.0) }}"
       - service: input_number.set_value
         data:
-          entity_id: input_number.zona_1p_kuchyn_user_set_temp
+          entity_id: input_number.zona_1p_jidelna_user_set_temp
           value: "{{ sp }}"
 
   # ───────────────────────────────────────────────────────────────────

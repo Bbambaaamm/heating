@@ -1,8 +1,44 @@
 # =====================================================================
-# 🔌 KOTEL – PRAHY + ŘÍZENÍ RELÉ (Aqara T2)                           # Hlavní modul: prahování + bezpečné spínání relé kotle
-# - Zapnout: master ON ∧ režim ≠ Off ∧ (min. aktivních zón) ∧ (min. průměrná poptávka)
-# - Vypnout: master OFF ∨ režim Off ∨ (práhy nesplněny)
-# - Anti-cycling: on/off delay + re-check po zpoždění                   # Omezí cvakání relé a zbytečné cyklování kotle
+# 🔥 KOTEL_CONTROL.YAML – ŘÍZENÍ KOTLE PODLE POLITIKY TOPENÍ
+# =====================================================================
+# 📌 CÍL:
+# Tento modul zajišťuje **automatické řízení kotle (Aqara T2)** podle
+# poptávky zón, režimu topení a konfigurovaných prahů. Chrání systém
+# proti častému spínání a zajišťuje efektivní provoz s ohledem na režimy:
+#   - **Auto**  → používá standardní prahy z policy_config.yaml
+#   - **Eco**   → vyšší prahy = kotel spíná méně často
+#   - **Boost** → prahy jsou uvolněny, kotel topí prioritně
+#   - **Off**   → úplná blokace spínání (kotel vždy vypnut)
+#
+# ⚙️ FUNKCE:
+# 1️⃣ Sleduje počet aktivních topných zón (`sensor.kotel_aktivni_zony_pocet`)
+# 2️⃣ Sleduje průměrnou poptávku zón (`sensor.kotel_poptavka_prumer`)
+# 3️⃣ Vyhodnocuje splnění minimálních prahů:
+#     - `input_number.kotel_min_active_zones`
+#     - `input_number.kotel_min_avg_demand_pct`
+# 4️⃣ Pokud jsou prahy splněny a systém není blokován:
+#     🔹 Sepne Aqara T2 relé → zapne kotel
+# 5️⃣ Pokud prahy přestanou platit nebo je aktivní blokace:
+#     🔻 Po zpoždění vypne kotel (anti-cycling)
+#
+# 🕒 ANTI-CYCLING:
+#   - `input_number.kotel_on_delay_sec`  → zpoždění před zapnutím
+#   - `input_number.kotel_off_delay_sec` → zpoždění před vypnutím
+#
+# 🧩 VSTUPNÍ ENTITY:
+#   - input_boolean.topny_system_enable
+#   - input_select.topny_rezim
+#   - input_boolean.boost_now
+#   - input_datetime.boost_until
+#   - input_number.kotel_min_active_zones
+#   - input_number.kotel_min_avg_demand_pct
+#   - input_number.kotel_on_delay_sec / kotel_off_delay_sec
+#   - sensor.kotel_aktivni_zony_pocet / kotel_poptavka_prumer / kotel_poptavka_max
+#
+# ⚡ VÝSTUP:
+#   - switch.aqara_lumi_switch_acn047_spinac  (hlavní relé kotle)
+#   - binary_sensor.kotel_threshold_*          (stavové senzory prahů)
+#
 # =====================================================================
 
 # -----------------------------

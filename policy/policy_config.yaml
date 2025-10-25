@@ -46,7 +46,7 @@ input_number:
     max: 10
     step: 1
     icon: mdi:numeric
-    initial: 2
+    initial: 1
 
   # ---------------------------------------------------------------
   # ⏱️ Kotel – zpoždění zapnutí (s)

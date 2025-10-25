@@ -12,16 +12,16 @@
 # =====================================================================
 
 automation:
-# =====================================================================
-# ── Přízemí – Michal ─────────────────────────────────────────────────
-# =====================================================================
+  # =====================================================================
+  # ── Přízemí – Michal ─────────────────────────────────────────────────
+  # =====================================================================
   - id: schedule_prizemi_michal_follow
     alias: "Rozvrh: Přízemí Michal → nastav teplotu"
-    mode: restart                                                                             # při nové změně rozvrhu přepiš předchozí běh
+    mode: restart # při nové změně rozvrhu přepiš předchozí běh
     trigger:
-      - platform: state                                                                       # reaguje na zapnutí/vypnutí rozvrhu
+      - platform: state # reaguje na zapnutí/vypnutí rozvrhu
         entity_id: schedule.zona_prizemi_michal_komfort
-      - platform: homeassistant                                                               # po startu HA znovu nastav teplotu
+      - platform: homeassistant # po startu HA znovu nastav teplotu
         event: start
     action:
       - choose:
@@ -29,54 +29,54 @@ automation:
               - condition: template
                 value_template: "{{ trigger.platform == 'homeassistant' }}"
             sequence:
-              - delay: "00:00:03"                                                             # počkej 3 s po startu HA (na načtení entit)
+              - delay: "00:00:03" # počkej 3 s po startu HA (na načtení entit)
 
       - variables:
-          is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}"                # stav rozvrhu: komfort ano/ne
-          comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}"      # komfortní teplota
-          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(19) }}"              # ECO teplota
-          current: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(0) }}"    # aktuální nastavená teplota
-          hvac: "{{ states('climate.danfoss_etrv0103') | lower }}"                            # aktuální režim (heat/off)
-          target_temp: "{{ comfort if is_on else eco }}"                                      # cílová teplota podle rozvrhu
+          is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}" # stav rozvrhu: komfort ano/ne
+          comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(19) }}" # ECO teplota
+          current: "{{ state_attr('climate.danfoss_etrv0103','temperature') | float(0) }}" # aktuální nastavená teplota
+          hvac: "{{ states('climate.danfoss_etrv0103') | lower }}" # aktuální režim (heat/off)
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
 
       - condition: template
-        value_template: "{{ target_temp | float(0) > 0 }}"                                    # kontrola, že cílová teplota není null/0
+        value_template: "{{ target_temp | float(0) > 0 }}" # kontrola, že cílová teplota není null/0
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ hvac != 'heat' }}"                                        # pokud není zapnut režim topení
+                value_template: "{{ hvac != 'heat' }}" # pokud není zapnut režim topení
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103 }
-                data: { hvac_mode: heat }                                                     # přepni hlavici do režimu topení
+                data: { hvac_mode: heat } # přepni hlavici do režimu topení
 
       - condition: template
-        value_template: "{{ (current - target_temp) | abs > 0.1 }}"                           # posílej jen, pokud se teplota opravdu liší
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, pokud se teplota opravdu liší
 
       - service: climate.set_temperature
-        target: { entity_id: climate.danfoss_etrv0103 }                                       # cílová hlavice (Michal – přízemí)
-        data: { temperature: "{{ target_temp }}" }                                            # nastav cílovou teplotu
+        target: { entity_id: climate.danfoss_etrv0103 } # cílová hlavice (Michal – přízemí)
+        data: { temperature: "{{ target_temp }}" } # nastav cílovou teplotu
 
       - service: logbook.log
         data:
-          name: "Rozvrh – Přízemí Michal"                                    # čitelný název v deníku
+          name: "Rozvrh – Přízemí Michal" # čitelný název v deníku
           message: >
             Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
             {{ target_temp }} °C
             [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
-          entity_id: climate.danfoss_etrv0103                                 # sváže záznam s hlavicí
+          entity_id: climate.danfoss_etrv0103 # sváže záznam s hlavicí
 
-# =====================================================================
-# ── 1. patro – Kuchyň ────────────────────────────────────────────────
-# =====================================================================
+  # =====================================================================
+  # ── 1. patro – Kuchyň ────────────────────────────────────────────────
+  # =====================================================================
 
-  - id: schedule_1p_kuchyn_follow
+  - id: schedule_1p_jidelna_follow
     alias: "Rozvrh: 1. patro Kuchyň → nastav teplotu"
     mode: restart
     trigger:
       - platform: state
-        entity_id: schedule.zona_1p_kuchyn_komfort
+        entity_id: schedule.zona_1p_jidelna_komfort
       - platform: homeassistant
         event: start
     action:
@@ -85,33 +85,33 @@ automation:
               - condition: template
                 value_template: "{{ trigger.platform == 'homeassistant' }}"
             sequence:
-              - delay: "00:00:03"                                                             # 3 s po startu HA
+              - delay: "00:00:03" # 3 s po startu HA
 
       - variables:
-          is_on: "{{ is_state('schedule.zona_1p_kuchyn_komfort','on') }}"                     # rozvrh zapnut?
-          comfort: "{{ states('sensor.zona_1p_kuchyn_comfort_temp') | float(22) }}"           # komfortní teplota
-          eco: "{{ states('sensor.zona_1p_kuchyn_eco_temp') | float(19) }}"                   # ECO teplota
-          current: "{{ state_attr('climate.1_patro_kuchyn','temperature') | float(0) }}"      # aktuální teplota
-          hvac: "{{ states('climate.1_patro_kuchyn') | lower }}"                              # režim heat/off
-          target_temp: "{{ comfort if is_on else eco }}"                                      # cílová teplota
+          is_on: "{{ is_state('schedule.zona_1p_jidelna_komfort','on') }}" # rozvrh zapnut?
+          comfort: "{{ states('sensor.zona_1p_jidelna_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(19) }}" # ECO teplota
+          current: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}" # aktuální teplota
+          hvac: "{{ states('climate.1p_jidelna') | lower }}" # režim heat/off
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota
 
       - condition: template
-        value_template: "{{ target_temp | float(0) > 0 }}"                                    # validní hodnota teploty?
+        value_template: "{{ target_temp | float(0) > 0 }}" # validní hodnota teploty?
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ hvac != 'heat' }}"                                        # přepni na topení, pokud není aktivní
+                value_template: "{{ hvac != 'heat' }}" # přepni na topení, pokud není aktivní
             sequence:
               - service: climate.set_hvac_mode
-                target: { entity_id: climate.1_patro_kuchyn }
+                target: { entity_id: climate.1p_jidelna }
                 data: { hvac_mode: heat }
 
       - condition: template
-        value_template: "{{ (current - target_temp) | abs > 0.1 }}"                           # aktualizuj jen, pokud se změnila hodnota
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # aktualizuj jen, pokud se změnila hodnota
 
       - service: climate.set_temperature
-        target: { entity_id: climate.1_patro_kuchyn }                                         # cílová hlavice (1. patro – kuchyň)
+        target: { entity_id: climate.1p_jidelna } # cílová hlavice (1. patro – kuchyň)
         data: { temperature: "{{ target_temp }}" }
 
       - service: logbook.log
@@ -121,11 +121,11 @@ automation:
             Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
             {{ target_temp }} °C
             [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
-          entity_id: climate.1_patro_kuchyn
+          entity_id: climate.1p_jidelna
 
-# =====================================================================
-# ── 2. patro – Máma ──────────────────────────────────────────────────
-# =====================================================================
+  # =====================================================================
+  # ── 2. patro – Máma ──────────────────────────────────────────────────
+  # =====================================================================
 
   - id: schedule_2p_mama_follow
     alias: "Rozvrh: 2. patro Máma → nastav teplotu"
@@ -141,33 +141,33 @@ automation:
               - condition: template
                 value_template: "{{ trigger.platform == 'homeassistant' }}"
             sequence:
-              - delay: "00:00:03"                                                             # 3 s po startu HA
+              - delay: "00:00:03" # 3 s po startu HA
 
       - variables:
-          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}"                       # stav rozvrhu (komfort/ECO)
-          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}"             # komfortní teplota
-          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(19) }}"                     # ECO teplota
-          current: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(0) }}"  # aktuální setpoint
-          hvac: "{{ states('climate.danfoss_etrv0103_2') | lower }}"                          # aktuální režim hlavice
-          target_temp: "{{ comfort if is_on else eco }}"                                      # cílová teplota podle rozvrhu
+          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}" # stav rozvrhu (komfort/ECO)
+          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(19) }}" # ECO teplota
+          current: "{{ state_attr('climate.danfoss_etrv0103_2','temperature') | float(0) }}" # aktuální setpoint
+          hvac: "{{ states('climate.danfoss_etrv0103_2') | lower }}" # aktuální režim hlavice
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
 
       - condition: template
-        value_template: "{{ target_temp | float(0) > 0 }}"                                    # kontrola, že je hodnota platná
+        value_template: "{{ target_temp | float(0) > 0 }}" # kontrola, že je hodnota platná
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ hvac != 'heat' }}"                                        # nastav režim heat, pokud není aktivní
+                value_template: "{{ hvac != 'heat' }}" # nastav režim heat, pokud není aktivní
             sequence:
               - service: climate.set_hvac_mode
                 target: { entity_id: climate.danfoss_etrv0103_2 }
                 data: { hvac_mode: heat }
 
       - condition: template
-        value_template: "{{ (current - target_temp) | abs > 0.1 }}"                           # posílej jen, když se teplota liší
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, když se teplota liší
 
       - service: climate.set_temperature
-        target: { entity_id: climate.danfoss_etrv0103_2 }                                     # cílová hlavice (2. patro – máma)
+        target: { entity_id: climate.danfoss_etrv0103_2 } # cílová hlavice (2. patro – máma)
         data: { temperature: "{{ target_temp }}" }
 
       - service: logbook.log

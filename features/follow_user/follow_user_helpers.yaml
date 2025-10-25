@@ -14,10 +14,10 @@ input_number:
     min: 5
     max: 35
     step: 0.1
-    initial: 22.0   # jen seed; hned se přepíše automatikou
+    initial: 22.0 # jen seed; hned se přepíše automatikou
 
   # 🥘 1. patro – Kuchyň (teď 1 hlavice)
-  zona_1p_kuchyn_user_set_temp:
+  zona_1p_jidelna_user_set_temp:
     name: "1. patro Kuchyň – poslední teplota"
     unit_of_measurement: "°C"
     icon: mdi:thermometer

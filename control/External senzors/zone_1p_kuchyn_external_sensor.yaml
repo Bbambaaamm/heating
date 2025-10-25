@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------
 # Účel:
 # - Předává aktuální teplotu z externího senzoru (tz3000_jidelna)
-#   do hlavice Danfoss (entita number.1_patro_kuchyn_senzor_externi_teploty).
+#   do hlavice Danfoss (entita number.1p_jidelna_senzor_externi_teploty).
 # - Vyžaduje, aby v hlavici bylo aktivní:
 #   "Upřednostnit externí teplotní senzor" = ON
 #
@@ -14,9 +14,9 @@
 # =====================================================================
 
 automation:
-  - alias: "Danfoss 1P Kuchyň – přeposlat teplotu z externího senzoru"  # Název automatizace viditelný v UI
-    id: danfoss_1p_kuchyn_external_temp_forward                         # Jednoznačné ID automatizace pro konfiguraci a sledování
-    mode: queued                                                        # Zajistí sekvenční zpracování fronty (předchází přerušení)
+  - alias: "Danfoss 1P Kuchyň – přeposlat teplotu z externího senzoru" # Název automatizace viditelný v UI
+    id: danfoss_1p_jidelna_external_temp_forward # Jednoznačné ID automatizace pro konfiguraci a sledování
+    mode: queued # Zajistí sekvenční zpracování fronty (předchází přerušení)
 
     trigger:
       # 🔹 Spouštěč 1: při změně hodnoty externího senzoru
@@ -56,7 +56,7 @@ automation:
               # 🔸 Odeslání teploty do entity hlavice Danfoss
               - service: number.set_value
                 target:
-                  entity_id: number.1_patro_kuchyn_senzor_externi_teploty
+                  entity_id: number.1p_jidelna_senzor_externi_teploty
                 data:
                   value: "{{ temp }}"
-        default: []  # Pokud hodnota není platná, neprovede se nic (žádná akce)
+        default: [] # Pokud hodnota není platná, neprovede se nic (žádná akce)
