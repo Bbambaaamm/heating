@@ -82,7 +82,7 @@ automation:
     triggers:
       - trigger: time_pattern
         minutes: "/1"
-    condition:
+    conditions:
       - condition: template
         value_template: >-
           {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
@@ -101,7 +101,6 @@ automation:
         entity_id: binary_sensor.kotel_boost_active
         to: "off"
     actions:
-      # Pokud používáš schedule_engine start/end automace, triggerni jejich END:
       - action: automation.trigger
         target:
           entity_id:

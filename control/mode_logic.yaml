@@ -2,11 +2,6 @@
 # =====================================================================
 # 🧠 SOUBOR: /config/heating/control/mode_logic.yaml
 # =====================================================================
-# 🎛️ LOGIKA REŽIMŮ TOPENÍ (Auto / Eco / Boost / Off)
-# - Reaguje na změnu input_select.topny_rezim
-# - Při Off okamžitě vypne kotel (Aqara T2 relé)
-# - Ostatní režimy pouze loguje (vlastní prahy řeší policy/mode engine)
-# =====================================================================
 
 automation:
   - alias: "Topení – logika režimů (čistá)"
@@ -14,19 +9,16 @@ automation:
     description: "Reaguje na změnu režimu. Pro Off vypne kotel; ostatní režimy pouze loguje."
     mode: restart
 
-    # 🛎️ Spouštěč: změna režimu topení
     triggers:
       - trigger: state
         entity_id: input_select.topny_rezim
 
-    # 🛡️ Odfiltruj plané přechody (když se hodnota nezměnila)
     conditions:
       - condition: template
         value_template: "{{ trigger.from_state is not none and trigger.from_state.state != trigger.to_state.state }}"
 
     actions:
       - choose:
-          # 🔻 REŽIM OFF → okamžité vypnutí kotle
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -40,13 +32,7 @@ automation:
                   name: "Topení – režimy"
                   message: "Režim přepnut na Off → kotel vypnut."
                   entity_id: switch.kotel_rele_spinac
-              # (volitelné) notifikace do mobilu – odkomentuj a nahraď tvým notify targetem
-              # - action: notify.mobile_app_tvuj_telefon
-              #   data:
-              #     title: "Topení vypnuto"
-              #     message: "Režim přepnut na Off → kotel vypnut."
 
-          # 🔸 REŽIM AUTO → standardní provoz (práhy řeší policy/mode engine)
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -58,7 +44,6 @@ automation:
                   message: "Režim Auto → používají se účinné prahy (policy/mode_engine)."
                   entity_id: input_select.topny_rezim
 
-          # 🌿 REŽIM ECO → úspornější režim (přísnější prahy)
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -70,7 +55,6 @@ automation:
                   message: "Režim Eco → přísnější účinné prahy (policy/mode_engine)."
                   entity_id: input_select.topny_rezim
 
-          # ⚡ REŽIM BOOST → krátkodobé „přitop“ (uvolněné prahy + časování)
           - conditions:
               - condition: state
                 entity_id: input_select.topny_rezim
@@ -81,13 +65,3 @@ automation:
                   name: "Topení – režimy"
                   message: "Režim Boost → uvolněné prahy + časování (mode_engine)."
                   entity_id: input_select.topny_rezim
-
-        # 📝 Default: např. návrat z Off do Auto/Eco/Boost — přehledný log
-        default:
-          - condition: template
-            value_template: "{{ trigger.from_state.state == 'Off' and trigger.to_state.state in ['Auto','Eco','Boost'] }}"
-          - action: logbook.log
-            data:
-              name: "Topení – režimy"
-              message: "Režim z Off → {{ trigger.to_state.state }} (kotel může znovu spínat podle policy)."
-              entity_id: input_select.topny_rezim

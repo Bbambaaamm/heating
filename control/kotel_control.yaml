@@ -15,9 +15,9 @@ automation:
     triggers:
       - trigger: state
         entity_id:
-          - binary_sensor.kotel_threshold_any_ok
+          - binary_sensor.kotel_threshold_all_ok        # ← oprava názvu
           - binary_sensor.kotel_mode_off_block
-          - binary_sensor.kotel_boost_active        # ← přidáno: reaguj na Boost
+          - binary_sensor.kotel_boost_active
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
           - input_number.kotel_on_delay_sec
@@ -33,7 +33,7 @@ automation:
         entity_id: binary_sensor.kotel_mode_off_block
         state: "off"
       - condition: state
-        entity_id: binary_sensor.kotel_threshold_any_ok
+        entity_id: binary_sensor.kotel_threshold_all_ok
         state: "on"
 
     actions:
@@ -46,7 +46,7 @@ automation:
         entity_id: binary_sensor.kotel_mode_off_block
         state: "off"
       - condition: state
-        entity_id: binary_sensor.kotel_threshold_any_ok
+        entity_id: binary_sensor.kotel_threshold_all_ok
         state: "on"
       - action: switch.turn_on
         target:
@@ -63,9 +63,9 @@ automation:
     triggers:
       - trigger: state
         entity_id:
-          - binary_sensor.kotel_threshold_any_ok
+          - binary_sensor.kotel_threshold_all_ok        # ← oprava názvu
           - binary_sensor.kotel_mode_off_block
-          - binary_sensor.kotel_boost_active        # ← přidáno: reaguj na Boost konec
+          - binary_sensor.kotel_boost_active
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
           - input_number.kotel_off_delay_sec
@@ -73,7 +73,6 @@ automation:
           - sensor.kotel_poptavka_prumer
           - sensor.kotel_poptavka_max
 
-    # Zde záměrně bez globálních conditions → větve níže řeší scénáře zvlášť
     actions:
       - choose:
           # ⛔ Master OFF
@@ -109,13 +108,13 @@ automation:
           # ⛔ Nesplněné prahy (počet zón / průměrná poptávka)
           - conditions:
               - condition: state
-                entity_id: binary_sensor.kotel_threshold_any_ok
+                entity_id: binary_sensor.kotel_threshold_all_ok
                 state: "off"
             sequence:
               - delay:
                   seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
               - condition: state
-                entity_id: binary_sensor.kotel_threshold_any_ok
+                entity_id: binary_sensor.kotel_threshold_all_ok
                 state: "off"
               - action: switch.turn_off
                 target:

@@ -4,18 +4,6 @@
 # =====================================================================
 # 🧮 EFFECTIVE PRAHY – odvozené z režimu (Auto / Eco / Boost / Off)
 # =====================================================================
-# 🎯 Cíl:
-# Dynamicky přizpůsobit prahy a zpoždění podle aktuálního režimu topení.
-# Tento soubor určuje "efektivní" hodnoty, které používá logika kotle.
-#
-# - V režimu **Off** → prahy nastaveny tak, aby se kotel nikdy nezapnul.
-# - V režimu **Eco** → přísnější prahy (vyšší požadavky).
-# - V režimu **Boost** → uvolněné prahy (rychlejší reakce).
-# - V režimu **Auto** → standardní konfigurované hodnoty.
-#
-# Součástí jsou i binární senzory „splněno/nesplněno“, které určují,
-# zda jsou podmínky pro sepnutí kotle splněny.
-# =====================================================================
 
 template:
 
@@ -23,35 +11,37 @@ template:
   # 🔢 SENZORY – účinné prahy a zpoždění
   # -------------------------------------------------------------------
   - sensor:
-      # → efektivní průměrná poptávka (%) podle režimu
+      # → efektivní průměrná poptávka (%) podle režimu/Boost
       - name: "kotel_effective_min_avg_demand_pct"
         unique_id: kotel_effective_min_avg_demand_pct
         unit_of_measurement: "%"
         state: >-
-          {% set base = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
-          {% set mode = states('input_select.topny_rezim') %}
+          {% set base  = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
           {% if mode == 'Off' %}
             999
+          {% elif boost %}
+            0
           {% elif mode == 'Eco' %}
-            {{ [base + 10, 100] | min }}     # zpřísnit o +10 %
-          {% elif mode == 'Boost' %}
-            {{ [base - 10, 0] | max }}       # povolit o -10 %
+            {{ [base + 10, 100] | min }}
           {% else %}
             {{ base }}
           {% endif %}
 
-      # → efektivní min. aktivních zón podle režimu
+      # → efektivní min. aktivních zón podle režimu/Boost
       - name: "kotel_effective_min_active_zones"
         unique_id: kotel_effective_min_active_zones
         state: >-
-          {% set base = states('input_number.kotel_min_active_zones') | int(2) %}
-          {% set mode = states('input_select.topny_rezim') %}
+          {% set base  = states('input_number.kotel_min_active_zones') | int(2) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
           {% if mode == 'Off' %}
             99
+          {% elif boost %}
+            1
           {% elif mode == 'Eco' %}
-            {{ base + 1 }}                   # zpřísnit o +1
-          {% elif mode == 'Boost' %}
-            {{ [base - 1, 0] | max }}        # povolit o -1
+            {{ base + 1 }}
           {% else %}
             {{ base }}
           {% endif %}
@@ -61,10 +51,10 @@ template:
         unique_id: kotel_effective_on_delay_sec
         unit_of_measurement: "s"
         state: >-
-          {% set base = states('input_number.kotel_on_delay_sec') | int(120) %}
-          {% set mode = states('input_select.topny_rezim') %}
-          {% if mode == 'Boost' %}
-            {{ [base - 60, 0] | max }}       # Boost = kratší zpoždění
+          {% set base  = states('input_number.kotel_on_delay_sec') | int(120) %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
+          {% if boost %}
+            0
           {% else %}
             {{ base }}
           {% endif %}
@@ -74,12 +64,13 @@ template:
         unique_id: kotel_effective_off_delay_sec
         unit_of_measurement: "s"
         state: >-
-          {% set base = states('input_number.kotel_off_delay_sec') | int(300) %}
-          {% set mode = states('input_select.topny_rezim') %}
+          {% set base  = states('input_number.kotel_off_delay_sec') | int(300) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
           {% if mode == 'Eco' %}
-            {{ base + 60 }}                  # Eco = delší doběh
-          {% elif mode == 'Boost' %}
-            {{ [base, 300] | max }}          # Boost = min. 300 s doběh
+            {{ base + 60 }}
+          {% elif boost %}
+            {{ [base, 300] | max }}
           {% else %}
             {{ base }}
           {% endif %}
@@ -104,7 +95,7 @@ template:
           {{ (states('sensor.kotel_poptavka_prumer') | float(0)) >=
              (states('sensor.kotel_effective_min_avg_demand_pct') | float(999)) }}
 
-      # → CELKOVÝ hlavní práh (AND) – musí platit obě podmínky
+      # → CELKOVÝ hlavní práh (AND)
       - name: "kotel_threshold_all_ok"
         unique_id: kotel_threshold_all_ok
         icon: mdi:checkbox-marked-circle
