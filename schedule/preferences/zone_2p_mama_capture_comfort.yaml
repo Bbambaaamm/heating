@@ -26,6 +26,9 @@ automation:
       - condition: template
         value_template: >
           {{ (states('input_number.2p_mama_last_comfort') | float(0) - new_set) | abs > 0.1 }}
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
 
     actions:
       - action: input_number.set_value

@@ -53,27 +53,68 @@ automation:
         data:
           datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}"
 
-  # ⚡ Když Boost přejde na ON → pošli komfort do všech zón
+  # ⚡ Boost ON → nastav komfortní setpointy (poslední komfort + offset)
   - id: heating_boost_apply_comfort_on
-    alias: "Boost: při startu nastav komfort do všech zón"
+    alias: "Boost: při startu nastav komfort do zón"
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: binary_sensor.kotel_boost_active
         to: "on"
+
+    conditions:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+
+    variables:
+      boost_offset: "{{ states('input_number.boost_comfort_offset_c')|float(0) }}"
+      # zde definujeme zóny + jejich "last comfort" helper
+      zones: >
+        {{ [
+          dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort'),
+          dict(name='1. patro – Kuchyň', climate='climate.1p_jidelna',    last='input_number.1p_jidelna_last_comfort'),
+          dict(name='2. patro – Máma',  climate='climate.2p_mama',        last='input_number.2p_mama_last_comfort')
+        ] }}
+
     actions:
-      - action: script.schedule_set_zone_comfort
-        data:
-          climate_entity: climate.prizemi_michal
-          last_user_temp_sensor: sensor.last_user_temp_prizemi_michal
-      - action: script.schedule_set_zone_comfort
-        data:
-          climate_entity: climate.1p_jidelna
-          last_user_temp_sensor: sensor.last_user_temp_1p_jidelna
-      - action: script.schedule_set_zone_comfort
-        data:
-          climate_entity: climate.2p_mama
-          last_user_temp_sensor: sensor.last_user_temp_2p_mama
+      - repeat:
+          for_each: "{{ zones }}"
+          sequence:
+            - variables:
+                climate: "{{ repeat.item.climate }}"
+                last: "{{ repeat.item.last }}"
+                # Základ komfortu: preferuj input_number.*_last_comfort, když by byl unknown → vem aktuální setpoint
+                comfort_base: >-
+                  {% set v = states(last) %}
+                  {% if v not in ['unknown','unavailable',''] %}{{ v|float }}
+                  {% else %}{{ state_attr(climate,'temperature')|float(21) }}
+                  {% endif %}
+                tmin: "{{ state_attr(climate,'min_temp')|float(5) }}"
+                tmax: "{{ state_attr(climate,'max_temp')|float(30) }}"
+                raw_target: "{{ (comfort_base + boost_offset)|float }}"
+                target: >-
+                  {% set x = raw_target|float %}
+                  {% if x < tmin %}{{ tmin }}
+                  {% elif x > tmax %}{{ tmax }}
+                  {% else %}{{ x }}
+                  {% endif %}
+
+            - action: climate.set_temperature
+              target:
+                entity_id: "{{ climate }}"
+              data:
+                temperature: "{{ target|round(1) }}"
+
+            - action: logbook.log
+              data:
+                name: "Boost → {{ repeat.item.name }}"
+                message: "Cíl {{ target|round(1) }} °C (zdroj={{ last }}, offset={{ boost_offset }})"
+                entity_id: "{{ climate }}"
 
   # ⏹ Každou minutu hlídej vypršení → zhasni tlačítko
   - id: heating_boost_auto_clear_button
@@ -92,7 +133,7 @@ automation:
         target:
           entity_id: input_boolean.boost_now
 
-  # 🔁 Když Boost skončí → znovu aplikuj rozvrh (setback/komfort dle okna)
+  # 🔁 Boost OFF → reapply schedule (pokud používáš END akce rozvrhů)
   - id: heating_boost_reapply_schedule_off
     alias: "Boost: po skončení znovu aplikuj rozvrh"
     mode: restart
