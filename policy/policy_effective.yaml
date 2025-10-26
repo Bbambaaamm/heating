@@ -27,15 +27,15 @@ template:
       - name: "kotel_effective_min_avg_demand_pct"
         unique_id: kotel_effective_min_avg_demand_pct
         unit_of_measurement: "%"
-        state: >
+        state: >-
           {% set base = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
           {% set mode = states('input_select.topny_rezim') %}
           {% if mode == 'Off' %}
             999
           {% elif mode == 'Eco' %}
-            {{ [base + 10, 100] | min }}   {# zpřísnit o +10 % #}
+            {{ [base + 10, 100] | min }}     # zpřísnit o +10 %
           {% elif mode == 'Boost' %}
-            {{ [base - 10, 0] | max }}     {# povolit o -10 % #}
+            {{ [base - 10, 0] | max }}       # povolit o -10 %
           {% else %}
             {{ base }}
           {% endif %}
@@ -43,15 +43,15 @@ template:
       # → efektivní min. aktivních zón podle režimu
       - name: "kotel_effective_min_active_zones"
         unique_id: kotel_effective_min_active_zones
-        state: >
+        state: >-
           {% set base = states('input_number.kotel_min_active_zones') | int(2) %}
           {% set mode = states('input_select.topny_rezim') %}
           {% if mode == 'Off' %}
             99
           {% elif mode == 'Eco' %}
-            {{ base + 1 }}                 {# zpřísnit o +1 #}
+            {{ base + 1 }}                   # zpřísnit o +1
           {% elif mode == 'Boost' %}
-            {{ [base - 1, 0] | max }}      {# povolit o -1 #}
+            {{ [base - 1, 0] | max }}        # povolit o -1
           {% else %}
             {{ base }}
           {% endif %}
@@ -59,12 +59,12 @@ template:
       # → efektivní zpoždění zapnutí (ON delay)
       - name: "kotel_effective_on_delay_sec"
         unique_id: kotel_effective_on_delay_sec
-        unit_of_measurement: s
-        state: >
+        unit_of_measurement: "s"
+        state: >-
           {% set base = states('input_number.kotel_on_delay_sec') | int(120) %}
           {% set mode = states('input_select.topny_rezim') %}
           {% if mode == 'Boost' %}
-            {{ [base - 60, 0] | max }}     {# Boost = kratší zpoždění #}
+            {{ [base - 60, 0] | max }}       # Boost = kratší zpoždění
           {% else %}
             {{ base }}
           {% endif %}
@@ -72,12 +72,14 @@ template:
       # → efektivní zpoždění vypnutí (OFF delay)
       - name: "kotel_effective_off_delay_sec"
         unique_id: kotel_effective_off_delay_sec
-        unit_of_measurement: s
-        state: >
+        unit_of_measurement: "s"
+        state: >-
           {% set base = states('input_number.kotel_off_delay_sec') | int(300) %}
           {% set mode = states('input_select.topny_rezim') %}
           {% if mode == 'Eco' %}
-            {{ base + 60 }}                {# Eco = delší doběh #}
+            {{ base + 60 }}                  # Eco = delší doběh
+          {% elif mode == 'Boost' %}
+            {{ [base, 300] | max }}          # Boost = min. 300 s doběh
           {% else %}
             {{ base }}
           {% endif %}
@@ -86,27 +88,27 @@ template:
   # ✅ BINÁRNÍ SENZORY – vyhodnocení prahů
   # -------------------------------------------------------------------
   - binary_sensor:
-      # → je splněn prah „počet aktivních zón“ ?
+      # → Je splněn práh „počet aktivních zón“?
       - name: "kotel_threshold_ok_active_zones"
         unique_id: kotel_threshold_ok_active_zones
         device_class: connectivity
-        state: >
+        state: >-
           {{ (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >=
              (states('sensor.kotel_effective_min_active_zones') | int(99)) }}
 
-      # → je splněn prah „průměrná poptávka“ ?
+      # → Je splněn práh „průměrná poptávka“?
       - name: "kotel_threshold_ok_avg_demand"
         unique_id: kotel_threshold_ok_avg_demand
         device_class: connectivity
-        state: >
+        state: >-
           {{ (states('sensor.kotel_poptavka_prumer') | float(0)) >=
              (states('sensor.kotel_effective_min_avg_demand_pct') | float(999)) }}
 
       # → CELKOVÝ hlavní práh (AND) – musí platit obě podmínky
-      - name: "kotel_threshold_any_ok"
-        unique_id: kotel_threshold_any_ok_v2
+      - name: "kotel_threshold_all_ok"
+        unique_id: kotel_threshold_all_ok
         icon: mdi:checkbox-marked-circle
-        state: >
+        state: >-
           {{ is_state('binary_sensor.kotel_threshold_ok_active_zones','on')
              and is_state('binary_sensor.kotel_threshold_ok_avg_demand','on') }}
         attributes:
@@ -116,6 +118,7 @@ template:
       # → režim OFF = blokace spínání kotle
       - name: "kotel_mode_off_block"
         unique_id: kotel_mode_off_block
-        state: >
+        device_class: problem
+        state: >-
           {{ is_state('input_select.topny_rezim','Off')
              or is_state('input_boolean.topny_system_enable','off') }}

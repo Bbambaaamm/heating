@@ -2,26 +2,6 @@
 # =====================================================================
 # 🧠 SOUBOR: /config/heating/control/kotel_control.yaml
 # =====================================================================
-# 📌 CÍL:
-# Tento modul zajišťuje automatické řízení kotle (Aqara T2) podle
-# poptávky zón, režimu topení a konfigurovaných prahů.
-#
-# 💡 Logika:
-#   - „Zapni kotel“ → když jsou splněny všechny prahy (AND)
-#   - „Vypni kotel“ → když prahy přestanou platit nebo je aktivní blokace
-#   - Zahrnuje anti-cycling zpoždění (ON/OFF delay)
-#
-# 🧩 Vstupy:
-#   - input_boolean.topny_system_enable
-#   - input_select.topny_rezim
-#   - binary_sensor.kotel_threshold_any_ok
-#   - binary_sensor.kotel_mode_off_block
-#   - sensor.kotel_effective_on_delay_sec / off_delay_sec
-#   - sensor.kotel_aktivni_zony_pocet / kotel_poptavka_prumer
-#
-# ⚡ Výstup:
-#   - switch.kotel_rele_spinac (Aqara T2 relé)
-# =====================================================================
 
 automation:
   # ---------------------------------------------------------------
@@ -37,16 +17,15 @@ automation:
         entity_id:
           - binary_sensor.kotel_threshold_any_ok
           - binary_sensor.kotel_mode_off_block
+          - binary_sensor.kotel_boost_active        # ← přidáno: reaguj na Boost
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
-          - input_boolean.boost_now
-          - input_datetime.boost_until
           - input_number.kotel_on_delay_sec
           - sensor.kotel_aktivni_zony_pocet
           - sensor.kotel_poptavka_prumer
           - sensor.kotel_poptavka_max
 
-    condition:
+    conditions:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
@@ -60,21 +39,18 @@ automation:
     actions:
       - delay:
           seconds: "{{ states('sensor.kotel_effective_on_delay_sec') | int(0) }}"
-      - choose:
-          - conditions:
-              - condition: state
-                entity_id: input_boolean.topny_system_enable
-                state: "on"
-              - condition: state
-                entity_id: binary_sensor.kotel_mode_off_block
-                state: "off"
-              - condition: state
-                entity_id: binary_sensor.kotel_threshold_any_ok
-                state: "on"
-            sequence:
-              - action: switch.turn_on
-                target:
-                  entity_id: switch.kotel_rele_spinac
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.kotel_threshold_any_ok
+        state: "on"
+      - action: switch.turn_on
+        target:
+          entity_id: switch.kotel_rele_spinac
 
   # ---------------------------------------------------------------
   # ⏹ VYPNOUT KOTEL
@@ -89,18 +65,16 @@ automation:
         entity_id:
           - binary_sensor.kotel_threshold_any_ok
           - binary_sensor.kotel_mode_off_block
+          - binary_sensor.kotel_boost_active        # ← přidáno: reaguj na Boost konec
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
-          - input_boolean.boost_now
-          - input_datetime.boost_until
           - input_number.kotel_off_delay_sec
           - sensor.kotel_aktivni_zony_pocet
           - sensor.kotel_poptavka_prumer
           - sensor.kotel_poptavka_max
 
-    condition: []
-
-    action:
+    # Zde záměrně bez globálních conditions → větve níže řeší scénáře zvlášť
+    actions:
       - choose:
           # ⛔ Master OFF
           - conditions:
@@ -110,17 +84,14 @@ automation:
             sequence:
               - delay:
                   seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
-              - choose:
-                  - conditions:
-                      - condition: state
-                        entity_id: input_boolean.topny_system_enable
-                        state: "off"
-                    sequence:
-                      - action: switch.turn_off
-                        target:
-                          entity_id: switch.kotel_rele_spinac
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "off"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
 
-          # ⛔ Režim Off
+          # ⛔ Režim Off (blokace)
           - conditions:
               - condition: state
                 entity_id: binary_sensor.kotel_mode_off_block
@@ -128,17 +99,14 @@ automation:
             sequence:
               - delay:
                   seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
-              - choose:
-                  - conditions:
-                      - condition: state
-                        entity_id: binary_sensor.kotel_mode_off_block
-                        state: "on"
-                    sequence:
-                      - action: switch.turn_off
-                        target:
-                          entity_id: switch.kotel_rele_spinac
+              - condition: state
+                entity_id: binary_sensor.kotel_mode_off_block
+                state: "on"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
 
-          # ⛔ Nesplněné prahy
+          # ⛔ Nesplněné prahy (počet zón / průměrná poptávka)
           - conditions:
               - condition: state
                 entity_id: binary_sensor.kotel_threshold_any_ok
@@ -146,12 +114,9 @@ automation:
             sequence:
               - delay:
                   seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
-              - choose:
-                  - conditions:
-                      - condition: state
-                        entity_id: binary_sensor.kotel_threshold_any_ok
-                        state: "off"
-                    sequence:
-                      - action: switch.turn_off
-                        target:
-                          entity_id: switch.kotel_rele_spinac
+              - condition: state
+                entity_id: binary_sensor.kotel_threshold_any_ok
+                state: "off"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
