@@ -1,5 +1,6 @@
+# YAML 2024.10
 # =====================================================================
-# 🎚️ MODE_ENGINE.YAML – GLOBÁLNÍ ŘÍZENÍ REŽIMŮ TOPENÍ
+# 🧠 SOUBOR: /config/heating/control/mode_engine.yaml
 # =====================================================================
 # 📌 CÍL:
 # Tento modul řídí **globální režimy topení** a určuje účinné prahy,

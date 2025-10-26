@@ -1,3 +1,4 @@
+# YAML 2024.10
 # =====================================================================
 # 🧠 SOUBOR: /config/heating/control/mode_logic.yaml
 # =====================================================================
@@ -49,12 +50,12 @@ automation:
             sequence:
               - action: switch.turn_off # Vypni relé kotle
                 target:
-                  entity_id: switch.kotel_rele
+                  entity_id: switch.kotel_rele_spinac
               - action: logbook.log # Zaznamenej událost
                 data:
                   name: "Topení – režimy"
                   message: "Režim přepnut na Off → kotel vypnut."
-                  entity_id: switch.kotel_rele
+                  entity_id: switch.kotel_rele_spinac
 
           # 🔸 REŽIM AUTO → standardní provoz
           - conditions:
