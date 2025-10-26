@@ -1,11 +1,14 @@
+# YAML 2024.10
 # =====================================================================
-# 1. patro – Kuchyň: poslední komfortní teplota (perzistentní „sejf“)
+# 🧠 SOUBOR: /config/heating/schedule/preferences/zone_1p_jidelna_prefs.yaml
+# =====================================================================
+# 1. patro – Jídelna: poslední komfortní teplota (perzistentní „sejf“)
 # Ukládá naposledy použitou KOMFORTNÍ teplotu (ECO se neukládají)
 # =====================================================================
 
 input_number:
   1p_jidelna_last_comfort:
-    name: "1. patro Kuchyň – poslední komfortní teplota" # Název v UI
+    name: "1. patro Jídelna – poslední komfortní teplota" # Název v UI
     min: 10 # Minimální povolená teplota (°C)
     max: 30 # Maximální povolená teplota (°C)
     step: 0.5 # Krok při změně hodnoty

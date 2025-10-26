@@ -1,3 +1,6 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/schedule_helpers.yaml
 # =====================================================================
 # 📅 SCHEDULE HELPERS – uživatelské nastavení rozvrhu v UI (pro každou zónu)
 # - schedule_enable_* … zda rozvrh pro zónu platí

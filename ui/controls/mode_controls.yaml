@@ -1,3 +1,6 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/ui/controls/mode_controls.yaml
 # =====================================================================
 # 🎛️ Režimy systému + Boost (UI kontrolky)
 # - input_select.topny_rezim: Auto / Eco / Boost / Off

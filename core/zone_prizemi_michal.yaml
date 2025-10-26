@@ -1,3 +1,6 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/core/zone_prizemi_michal.yaml
 # =====================================================================
 # 🧩 ZÓNA: Přízemí – Michal
 # - Požadavek (0–100 %) z hlavice Danfoss (pi_heating_demand)

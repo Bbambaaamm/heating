@@ -1,41 +1,44 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/zone_michal_capture_comfort.yaml
+# 🧠 SOUBOR: /config/heating/schedule/preferences/zone_1p_jidelna_capture_comfort.yaml
 # =====================================================================
-# 🧲 Přízemí – Michal: zachytávání poslední KOMFORTNÍ teploty
+# 🧲 1. patro – Jídelna: zachytávání poslední KOMFORTNÍ teploty
 # =====================================================================
 
 automation:
-  - alias: "Zachytni poslední komfort – Přízemí Michal"
-    id: prizemi_michal_capture_last_comfort
+  - alias: "Zachytni poslední komfort – 1. patro Jídelna"
+    id: capture_last_comfort_1p_jidelna
     mode: restart
     initial_state: true
 
     triggers:
       - trigger: state
-        entity_id: climate.prizemi_michal
+        entity_id: climate.1p_jidelna
         attribute: temperature
 
     variables:
-      new_set: "{{ state_attr('climate.prizemi_michal', 'temperature') | float(0) }}"
+      new_set: "{{ state_attr('climate.1p_jidelna', 'temperature') | float(0) }}"
       eco: "{{ states('input_number.eco_temp_default') | float(18) }}"
 
+    # Guardy (správné umístění pro 2024.10)
     conditions:
+      # Ukládat jen komfort (nad ECO + 0.2 °C)
       - condition: template
         value_template: "{{ new_set >= (eco + 0.2) }}"
+      # Ukládat jen při skutečné změně (> 0.1 °C)
       - condition: template
         value_template: >
-          {{ (states('input_number.prizemi_michal_last_comfort') | float(0) - new_set) | abs > 0.1 }}
+          {{ (states('input_number.1p_jidelna_last_comfort') | float(0) - new_set) | abs > 0.1 }}
 
     actions:
       - action: input_number.set_value
         target:
-          entity_id: input_number.prizemi_michal_last_comfort
+          entity_id: input_number.1p_jidelna_last_comfort
         data:
           value: "{{ new_set }}"
 
       - action: logbook.log
         data:
-          name: "Přízemí – Michal"
+          name: "1. patro – Jídelna"
           message: "Uložena komfortní teplota: {{ new_set }} °C"
-          entity_id: climate.prizemi_michal
+          entity_id: climate.1p_jidelna
