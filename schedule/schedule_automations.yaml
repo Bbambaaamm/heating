@@ -37,7 +37,7 @@ automation:
       - variables:
           is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}" # stav rozvrhu: komfort ano/ne
           comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}" # komfortní teplota
-          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(19) }}" # ECO teplota
+          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(15) }}" # ECO teplota
           current: "{{ state_attr('climate.prizemi_michal','temperature') | float(0) }}" # aktuální nastavená teplota
           hvac: "{{ states('climate.prizemi_michal') | lower }}" # aktuální režim (heat/off)
           target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
@@ -93,7 +93,7 @@ automation:
       - variables:
           is_on: "{{ is_state('schedule.zona_1p_jidelna_komfort','on') }}" # rozvrh zapnut?
           comfort: "{{ states('sensor.zona_1p_jidelna_comfort_temp') | float(22) }}" # komfortní teplota
-          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(19) }}" # ECO teplota
+          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(15) }}" # ECO teplota
           current: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}" # aktuální teplota
           hvac: "{{ states('climate.1p_jidelna') | lower }}" # režim heat/off
           target_temp: "{{ comfort if is_on else eco }}" # cílová teplota
@@ -149,7 +149,7 @@ automation:
       - variables:
           is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}" # stav rozvrhu (komfort/ECO)
           comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}" # komfortní teplota
-          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(19) }}" # ECO teplota
+          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(15) }}" # ECO teplota
           current: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}" # aktuální setpoint
           hvac: "{{ states('climate.2p_mama') | lower }}" # aktuální režim hlavice
           target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
