@@ -65,7 +65,7 @@ automation:
 
     # Proměnné – načtení teplot a dynamický výběr časů dle dne
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(18) }}" # ECO teplota (fallback 18.0)
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}" # ECO teplota (fallback 18.0)
       last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}" # Poslední komfort (fallback 22)
 
       start: > # Vyber správný START dle dne v týdnu
