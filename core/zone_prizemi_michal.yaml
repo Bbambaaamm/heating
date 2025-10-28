@@ -1,11 +1,20 @@
 # YAML 2024.10
 # =====================================================================
 # 🧠 SOUBOR: /config/heating/core/zone_prizemi_michal.yaml
-# =====================================================================
+# =========================================
 # 🧩 ZÓNA: Přízemí – Michal
-# - Požadavek (0–100 %) z hlavice Danfoss (pi_heating_demand)
-# - Okno: cokoliv mimo "Closed" bereme jako otevřené
-# - Zóna aktivní jen když chce teplo a není otevřené okno
+# ---------------------------------------------------------------------
+# 🎯 Cíl:
+# - Definuje logiku zóny „Přízemí - Michal“
+# - Sestavuje senzory pro:
+#     • Požadavek na topení (%)
+#     • Detekci otevřeného okna
+#     • Stav „zóna aktivní“ (topí)
+#
+# 💡 Výstupy:
+# - sensor.zona_prizemi_michal_demand → procento topného výkonu hlavice
+# - binary_sensor.zona_prizemi_michal_okno_otevrene → true, pokud je okno otevřené
+# - binary_sensor.zona_prizemi_michal_aktivni → true, pokud zóna skutečně topí
 # =====================================================================
 
 template:
@@ -26,5 +35,5 @@ template:
 
       - name: "zona_prizemi_michal_aktivni" # on = reálná poptávka zóny
         state: >
-          {{ (states('sensor.zona_prizemi_michal_demand')|int(0) > 0)
+          {{ (states('sensor.zona_prizemi_michal_demand')|int(0) > 1)
              and (not is_state('binary_sensor.zona_prizemi_michal_okno_otevrene','on')) }}

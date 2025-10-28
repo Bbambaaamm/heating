@@ -3,14 +3,26 @@
 # 🧠 SOUBOR: /config/heating/core/zone_2p_mama.yaml
 # =====================================================================
 # 🧩 ZÓNA: 2. patro – Máma
+# ---------------------------------------------------------------------
+# 🎯 Cíl:
+# - Definuje logiku zóny „2. patro – Máma“
+# - Sestavuje senzory pro:
+#     • Požadavek na topení (%)
+#     • Detekci otevřeného okna
+#     • Stav „zóna aktivní“ (topí)
+#
+# 💡 Výstupy:
+# - sensor.zona_2p_mama_demand → procento topného výkonu hlavice
+# - binary_sensor.zona_2p_mama_okno_otevrene → true, pokud je okno otevřené
+# - binary_sensor.zona_2p_mama_aktivni → true, pokud zóna skutečně topí
 # =====================================================================
 
 template:
   # ---- Senzory (požadavek) ---------------------------------------------------
   - sensor:
-      - name: "zona_2p_mama_demand"
-        unit_of_measurement: "%"
-        state_class: measurement
+      - name: "zona_2p_mama_demand"     # Název senzoru
+        unit_of_measurement: "%"     # Jednotka měření – procenta
+        state_class: measurement     # Typ měření (kvůli historii/statistice)
         state: "{{ state_attr('climate.2p_mama', 'pi_heating_demand') | int(0) }}"
 
   # ---- Binární senzory (okno + aktivita) ------------------------------------
@@ -23,5 +35,5 @@ template:
 
       - name: "zona_2p_mama_aktivni"
         state: >
-          {{ (states('sensor.zona_2p_mama_demand')|int(0) > 0)
+          {{ (states('sensor.zona_2p_mama_demand')|int(0) > 1)
              and (not is_state('binary_sensor.zona_2p_mama_okno_otevrene','on')) }}

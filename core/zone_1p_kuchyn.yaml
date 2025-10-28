@@ -18,33 +18,22 @@
 # =====================================================================
 
 template:
-  # -------------------------------------------------------------------
-  # 🔸 ŠABLONA: Senzor – Požadavek na topení
-  # -------------------------------------------------------------------
+  # ŠABLONA: Senzor – Požadavek na topení
   - sensor:
       - name: "zona_1p_jidelna_demand"                          # Název senzoru
         unit_of_measurement: "%"                                # Jednotka měření – procenta
         state_class: measurement                                # Typ měření (kvůli historii/statistice)
         state: "{{ state_attr('climate.1p_jidelna', 'pi_heating_demand') | int(0) }}"  
-        # Čte atribut 'pi_heating_demand' z hlavice climate.1p_jidelna (Danfoss TRV)
-        # a převede ho na celé číslo; pokud není k dispozici, vrátí 0.
 
-  # -------------------------------------------------------------------
-  # 🔸 ŠABLONA: Binární senzory – Okno + Aktivita topení
-  # -------------------------------------------------------------------
+  # ŠABLONA: Binární senzory – Okno + Aktivita topení
   - binary_sensor:
       - name: "zona_1p_jidelna_okno_otevrene"                   # Detekce otevřeného okna
         device_class: opening                                   # Typ zařízení (ikona a chování v UI)
         state: >
           {% set s = states('sensor.1p_jidelna_detekovano_otevrene_okno') %}
           {{ s is not string or s|lower != 'closed' }}
-        # Pokud senzor okna nehlásí "closed" → považuje se za otevřené.
-        # Tím se zajistí robustní detekce i při ztrátě signálu nebo neznámém stavu.
 
       - name: "zona_1p_jidelna_aktivni"                         # Zóna aktivní (topení zapnuto)
         state: >
-          {{ (states('sensor.zona_1p_jidelna_demand')|int(0) > 0)
+          {{ (states('sensor.zona_1p_jidelna_demand')|int(0) > 1)
              and (not is_state('binary_sensor.zona_1p_jidelna_okno_otevrene','on')) }}
-        # Zóna je aktivní, pokud:
-        #  - hlavice skutečně topí (demand > 0 %)
-        #  - a zároveň není otevřené okno (blokace topení při otevřeném okně)
