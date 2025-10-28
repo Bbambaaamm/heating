@@ -18,7 +18,7 @@ automation:
 
     variables:
       new_set: "{{ state_attr('climate.2p_mama', 'temperature') | float(0) }}"
-      eco: "{{ states('input_number.eco_temp_default') | float(18) }}"
+      eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
 
     conditions:
       - condition: template
