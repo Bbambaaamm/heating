@@ -237,9 +237,9 @@ input_datetime:
 input_number:
   eco_temp_default:
     name: "ECO teplota (°C)"
-    min: 15
+    min: 10
     max: 22
     step: 0.5
     unit_of_measurement: "°C"
     icon: mdi:leaf
-    initial: 18.0
+    initial: 15.0
