@@ -20,7 +20,6 @@ automation:
       new_set: "{{ state_attr('climate.1p_jidelna', 'temperature') | float(0) }}"
       eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
 
-    # Guardy (správné umístění pro 2024.10)
     conditions:
       # Ukládat jen komfort (nad ECO + 0.2 °C)
       - condition: template

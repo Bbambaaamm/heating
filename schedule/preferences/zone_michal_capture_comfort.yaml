@@ -21,8 +21,10 @@ automation:
       eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
 
     conditions:
+      # Ukládat jen komfort (nad ECO + 0.2 °C)
       - condition: template
         value_template: "{{ new_set >= (eco + 0.2) }}"
+      # Ukládat jen při skutečné změně (> 0.1 °C)
       - condition: template
         value_template: >
           {{ (states('input_number.prizemi_michal_last_comfort') | float(0) - new_set) | abs > 0.1 }}
