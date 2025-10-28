@@ -4,29 +4,32 @@
 # =====================================================================
 
 template:
-
   # ── BOOST aktivní? (režim Boost NEBO tlačítko NEBO do-času) ────────
   - binary_sensor:
       - name: "kotel_boost_active"
         unique_id: kotel_boost_active
         device_class: heat
+
+        # ✅ Senzor je dostupný až když jsou dostupné všechny vstupy
+        availability: >-
+          {{ states('input_select.topny_rezim') not in ['unknown','unavailable','']
+             and states('input_boolean.boost_now') not in ['unknown','unavailable','']
+             and states('input_datetime.boost_until') not in ['unknown','unavailable',''] }}
+
+        # ✅ ON když: režim Boost, tlačítko ON, nebo boost_until v budoucnu
         state: >-
-          {{
-            is_state('input_select.topny_rezim','Boost')
-            or is_state('input_boolean.boost_now','on')
-            or (
-                 states('input_datetime.boost_until') not in ['unknown','unavailable','']
-                 and now() < as_datetime(states('input_datetime.boost_until'))
-               )
-          }}
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set btn  = is_state('input_boolean.boost_now','on') %}
+          {% set uts  = as_timestamp(states('input_datetime.boost_until'), default=0) %}
+          {{ mode == 'Boost' or btn or (now().timestamp() < uts) }}
+
         attributes:
-          until: >-
-            {{ states('input_datetime.boost_until') if
-               states('input_datetime.boost_until') not in ['unknown','unavailable',''] else '' }}
+          until: "{{ states('input_datetime.boost_until') }}"
           remaining_min: >-
-            {% if states('input_datetime.boost_until') not in ['unknown','unavailable',''] %}
-              {{ ((as_datetime(states('input_datetime.boost_until')) - now()).total_seconds() / 60) | round(0) }}
-            {% else %} 0 {% endif %}
+            {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
+            {% set rem = (uts - now().timestamp()) / 60 %}
+            {{ rem|round(0) if rem > 0 else 0 }}
+
 
 # =====================================================================
 # 🤖 AUTOMATIZACE PRO BOOST
