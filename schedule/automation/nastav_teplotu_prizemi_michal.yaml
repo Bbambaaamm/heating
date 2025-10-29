@@ -1,0 +1,70 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/automation/nastav_teplotu_prizemi_michal.yaml
+# =====================================================================
+# ROZVRH – zóny: Přízemí (Michal)
+# ---------------------------------------------------------------------
+# Cíl:
+# Nastavit teplotu hlavic podle rozvrhových entit schedule.*.
+# Spouští se při skutečné změně (schedule on/off) a po startu HA.
+#
+# Uvnitř okna rozvrhu: komfortní teplota (sensor.*_comfort_temp)
+# Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
+# Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
+# neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+
+automation:
+  # =====================================================================
+  # ── Přízemí – Michal ─────────────────────────────────────────────────
+  # =====================================================================
+  - id: schedule_prizemi_michal_follow
+    alias: "Rozvrh: Přízemí Michal → nastav teplotu"
+    mode: restart # při nové změně rozvrhu přepiš předchozí běh
+    triggers:
+      - trigger: state # reaguje na zapnutí/vypnutí rozvrhu
+        entity_id: schedule.zona_prizemi_michal_komfort
+      - trigger: homeassistant # po startu HA znovu nastav teplotu
+        event: start
+    actions:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.platform == 'homeassistant' }}"
+            sequence:
+              - delay: "00:00:03" # počkej 3 s po startu HA (na načtení entit)
+
+      - variables:
+          is_on: "{{ is_state('schedule.zona_prizemi_michal_komfort','on') }}" # stav rozvrhu: komfort ano/ne
+          comfort: "{{ states('sensor.zona_prizemi_michal_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_prizemi_michal_eco_temp') | float(15) }}" # ECO teplota
+          current: "{{ state_attr('climate.prizemi_michal','temperature') | float(0) }}" # aktuální nastavená teplota
+          hvac: "{{ states('climate.prizemi_michal') | lower }}" # aktuální režim (heat/off)
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
+
+      - condition: template
+        value_template: "{{ target_temp | float(0) > 0 }}" # kontrola, že cílová teplota není null/0
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ hvac != 'heat' }}" # pokud není zapnut režim topení
+            sequence:
+              - action: climate.set_hvac_mode
+                target: { entity_id: climate.prizemi_michal }
+                data: { hvac_mode: heat } # přepni hlavici do režimu topení
+
+      - condition: template
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, pokud se teplota opravdu liší
+
+      - action: climate.set_temperature
+        target: { entity_id: climate.prizemi_michal } # cílová hlavice (Michal – přízemí)
+        data: { temperature: "{{ target_temp }}" } # nastav cílovou teplotu
+
+      - action: logbook.log
+        data:
+          name: "Rozvrh – Přízemí Michal" # čitelný název v deníku
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.prizemi_michal # sváže záznam s hlavicí
