@@ -1,8 +1,8 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/schedule_automation_prizemi_michal.yaml
+# 🧠 SOUBOR: /config/heating/schedule/automation/smart/smart_prizemi_michal.yaml
 # =====================================================================
-# ROZVRH – Přízemí (Michal) – inteligentní spouštění
+# ROZVRH – zóna: Přízemí (Michal)
 # ---------------------------------------------------------------------
 # Cíl:
 # Spínat komfort/ECO jen ve chvíli, kdy dojde ke SKUTEČNÉ změně

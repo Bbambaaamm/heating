@@ -1,0 +1,72 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/automation/follow/follow_1p_jidelna.yaml
+# =====================================================================
+# ROZVRH – zóna: 1. patro (Kuchyň)
+# ---------------------------------------------------------------------
+# Cíl:
+# Nastavit teplotu hlavic podle rozvrhových entit schedule.*.
+# Spouští se při skutečné změně (schedule on/off) a po startu HA.
+#
+# Uvnitř okna rozvrhu: komfortní teplota (sensor.*_comfort_temp)
+# Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
+# Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
+# neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+# =====================================================================
+
+automation:
+  # =====================================================================
+  # ── 1. patro – Kuchyň ────────────────────────────────────────────────
+  # =====================================================================
+
+  - id: schedule_1p_jidelna_follow
+    alias: "Rozvrh: 1. patro Kuchyň → nastav teplotu"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: schedule.zona_1p_jidelna_komfort
+      - trigger: homeassistant
+        event: start
+    actions:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.platform == 'homeassistant' }}"
+            sequence:
+              - delay: "00:00:03" # 3 s po startu HA
+
+      - variables:
+          is_on: "{{ is_state('schedule.zona_1p_jidelna_komfort','on') }}" # rozvrh zapnut?
+          comfort: "{{ states('sensor.zona_1p_jidelna_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(15) }}" # ECO teplota
+          current: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}" # aktuální teplota
+          hvac: "{{ states('climate.1p_jidelna') | lower }}" # režim heat/off
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota
+
+      - condition: template
+        value_template: "{{ target_temp | float(0) > 0 }}" # validní hodnota teploty?
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ hvac != 'heat' }}" # přepni na topení, pokud není aktivní
+            sequence:
+              - action: climate.set_hvac_mode
+                target: { entity_id: climate.1p_jidelna }
+                data: { hvac_mode: heat }
+
+      - condition: template
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # aktualizuj jen, pokud se změnila hodnota
+
+      - action: climate.set_temperature
+        target: { entity_id: climate.1p_jidelna } # cílová hlavice (1. patro – kuchyň)
+        data: { temperature: "{{ target_temp }}" }
+
+      - action: logbook.log
+        data:
+          name: "Rozvrh – 1. patro Kuchyň"
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.1p_jidelna

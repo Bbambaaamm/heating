@@ -1,0 +1,45 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/automation/start_end/start_end_1p_jidelna.yaml
+# =====================================================================
+# AUTOMATIZACE – události start/end pro jednotlivé zóny
+# ---------------------------------------------------------------------
+automation:
+  # ==============================================================================================================================================================================
+  # 1. PATRO – Jídelna
+  # ==============================================================================================================================================================================
+
+  - id: sched_1p_jidelna_start
+    alias: "Rozvrh: 1. patro Jídelna – START komfortního okna"
+    mode: restart
+    triggers:
+      - trigger: template
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}" # start Po,út,st,čt,pá,so,ne
+    condition:
+      - condition: state
+        entity_id: input_boolean.schedule_enable_1p_jidelna
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}" # Off = nic nedělej
+    actions:
+      - action: script.schedule_set_zone_comfort
+        data:
+          climate_entity: climate.1p_jidelna
+          last_user_temp_sensor: sensor.last_user_temp_1p_jidelna
+
+  - id: sched_1p_jidelna_end
+    alias: "Rozvrh: 1. patro Jídelna – KONEC komfortního okna → útlum"
+    mode: restart
+    triggers:
+      - trigger: template
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}" # end Po,út,st,čt,pá,so,ne
+    condition:
+      - condition: state
+        entity_id: input_boolean.schedule_enable_1p_jidelna
+        state: "on"
+      - condition: template
+        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}" # Boost má přednost
+    actions:
+      - action: script.schedule_set_zone_setback
+        data:
+          climate_entity: climate.1p_jidelna

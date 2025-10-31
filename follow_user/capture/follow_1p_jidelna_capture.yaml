@@ -1,0 +1,46 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/features/follow_user/capture/follow_1p_jidelna_capture.yaml
+# =====================================================================
+# 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
+# - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
+#   zapíšeme ji do příslušného input_number.*_user_set_temp.
+# - Při startu HA provedeme inicializaci (vezmeme aktuální setpoint).
+# - Důraz na robustnost: hlídáme „unknown/unavailable“ a nuly.
+# =====================================================================
+
+automation:
+  # ───────────────────────────────────────────────────────────────────
+  # ▶️ 1. patro – Jídelna (climate.1p_jidelna)
+  # ───────────────────────────────────────────────────────────────────
+  - id: zona_1p_jidelna_capture_setpoint
+    alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: climate.1p_jidelna
+    variables:
+      new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"
+    condition:
+      - condition: template
+        value_template: "{{ new_sp > 0 }}"
+    actions:
+      - action: input_number.set_value
+        data:
+          entity_id: input_number.zona_1p_jidelna_user_set_temp
+          value: "{{ new_sp }}"
+
+  - id: zona_1p_jidelna_init_on_start
+    alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+    actions:
+      - delay: "00:00:05"
+      - variables:
+          sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(22.0) }}"
+      - action: input_number.set_value
+        data:
+          entity_id: input_number.zona_1p_jidelna_user_set_temp
+          value: "{{ sp }}"

@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/nastav_teplotu_prizemi_michal.yaml
+# 🧠 SOUBOR: /config/heating/schedule/automation/follow/follow_prizemi_michal.yaml
 # =====================================================================
 # ROZVRH – zóny: Přízemí (Michal)
 # ---------------------------------------------------------------------
@@ -12,11 +12,13 @@
 # Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
 # Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
 # neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+# =====================================================================
 
 automation:
   # =====================================================================
   # ── Přízemí – Michal ─────────────────────────────────────────────────
   # =====================================================================
+  
   - id: schedule_prizemi_michal_follow
     alias: "Rozvrh: Přízemí Michal → nastav teplotu"
     mode: restart # při nové změně rozvrhu přepiš předchozí běh

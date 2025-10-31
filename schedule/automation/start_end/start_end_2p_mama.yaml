@@ -1,0 +1,45 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/automation/start_end/start_end_2p_mama.yaml
+# =====================================================================
+# AUTOMATIZACE – události start/end pro jednotlivé zóny
+# ---------------------------------------------------------------------
+automation:
+  # ==============================================================================================================================================================================
+  # 2. PATRO – MÁMA
+  # ==============================================================================================================================================================================
+
+  - id: sched_2p_mama_start
+    alias: "Rozvrh: 2. patro Máma – START komfortního okna"
+    mode: restart
+    triggers:
+      - trigger: template
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}" # start Po,út,st,čt,pá,so,ne
+    condition:
+      - condition: state
+        entity_id: input_boolean.schedule_enable_2p_mama
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}" # Off = nic nedělej
+    actions:
+      - action: script.schedule_set_zone_comfort
+        data:
+          climate_entity: climate.2p_mama
+          last_user_temp_sensor: sensor.last_user_temp_2p_mama
+
+  - id: sched_2p_mama_end
+    alias: "Rozvrh: 2. patro Máma – KONEC komfortního okna → útlum"
+    mode: restart
+    triggers:
+      - trigger: template
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}" # start Po,út,st,čt,pá,so,ne
+    condition:
+      - condition: state
+        entity_id: input_boolean.schedule_enable_2p_mama
+        state: "on"
+      - condition: template
+        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}" # Boost má přednost
+    actions:
+      - action: script.schedule_set_zone_setback
+        data:
+          climate_entity: climate.2p_mama

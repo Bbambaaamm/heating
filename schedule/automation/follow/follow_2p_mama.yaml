@@ -1,0 +1,72 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 SOUBOR: /config/heating/schedule/automation/follow/follow_2p_mama.yaml
+# =====================================================================
+# ROZVRH – zóna: 2. patro (Máma)
+# ---------------------------------------------------------------------
+# Cíl:
+# Nastavit teplotu hlavic podle rozvrhových entit schedule.*.
+# Spouští se při skutečné změně (schedule on/off) a po startu HA.
+#
+# Uvnitř okna rozvrhu: komfortní teplota (sensor.*_comfort_temp)
+# Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
+# Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
+# neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+# =====================================================================
+
+automation:
+  # =====================================================================
+  # ── 2. patro – Máma ──────────────────────────────────────────────────
+  # =====================================================================
+
+  - id: schedule_2p_mama_follow
+    alias: "Rozvrh: 2. patro Máma → nastav teplotu"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: schedule.zona_2p_mama_komfort
+      - trigger: homeassistant
+        event: start
+    action:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.platform == 'homeassistant' }}"
+            sequence:
+              - delay: "00:00:03" # 3 s po startu HA
+
+      - variables:
+          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}" # stav rozvrhu (komfort/ECO)
+          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}" # komfortní teplota
+          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(15) }}" # ECO teplota
+          current: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}" # aktuální setpoint
+          hvac: "{{ states('climate.2p_mama') | lower }}" # aktuální režim hlavice
+          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
+
+      - condition: template
+        value_template: "{{ target_temp | float(0) > 0 }}" # kontrola, že je hodnota platná
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ hvac != 'heat' }}" # nastav režim heat, pokud není aktivní
+            sequence:
+              - action: climate.set_hvac_mode
+                target: { entity_id: climate.2p_mama }
+                data: { hvac_mode: heat }
+
+      - condition: template
+        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, když se teplota liší
+
+      - action: climate.set_temperature
+        target: { entity_id: climate.2p_mama } # cílová hlavice (2. patro – máma)
+        data: { temperature: "{{ target_temp }}" }
+
+      - action: logbook.log
+        data:
+          name: "Rozvrh – 2. patro Máma"
+          message: >
+            Změna podle rozvrhu ({{ 'komfort' if is_on else 'ECO' }}) →
+            {{ target_temp }} °C
+            [zdroj: {{ 'schedule on/off' if trigger.platform == 'state' else 'HA start' }}]
+          entity_id: climate.2p_mama
