@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/zone_1p_jidelna_prefs.yaml
+# 🧠 SOUBOR: /config/heating/schedule/preferences/prefs/zone_1p_jidelna_prefs.yaml
 # =====================================================================
 # 1. patro – Jídelna: poslední komfortní teplota (perzistentní „sejf“)
 # Ukládá naposledy použitou KOMFORTNÍ teplotu (ECO se neukládají)

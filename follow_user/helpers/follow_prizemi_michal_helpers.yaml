@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/features/follow_user/helpers/follow_prizemi_michal_helpers.yaml
+# 🧠 SOUBOR: /config/heating/follow_user/helpers/follow_prizemi_michal_helpers.yaml
 # =====================================================================
 # 🧩 Helpers – poslední uživatelsky nastavená teplota pro každou zónu
 # - Tyto input_number se automaticky udržují automatikou

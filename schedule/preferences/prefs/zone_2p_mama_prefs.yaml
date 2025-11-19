@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/zone_2p_mama_prefs.yaml
+# 🧠 SOUBOR: /config/heating/schedule/preferences/prefs/zone_2p_mama_prefs.yaml
 # =====================================================================
 # 2. patro – Máma: poslední komfortní teplota (perzistentní „sejf“)
 # Ukládá naposledy použitou KOMFORTNÍ teplotu (ECO se neukládají)

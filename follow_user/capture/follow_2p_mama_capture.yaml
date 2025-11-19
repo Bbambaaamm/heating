@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/features/follow_user/capture/follow_2p_mama_capture.yaml
+# 🧠 SOUBOR: /config/heating/follow_user/capture/follow_2p_mama_capture.yaml
 # =====================================================================
 # 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
 # - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
