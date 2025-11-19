@@ -1,3 +1,5 @@
+#/config/heating/ui/dashboards/utility_meter.yaml
+
 utility_meter:
   heating_gas_daily:
     source: sensor.boiler_gasmeterheat

@@ -1,19 +1,39 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 /config/heating/control/mode_auto.yaml – BOOST LOGIKA (only)
+# Soubor   : config/heating/control/mode_auto.yaml
+# Modul    : Topení – logika režimu AUTO (Boost reset, aplikace rozvrhů)
+# Účel     : Při aktivaci režimu Auto zrušit Boost a obnovit rozvrhy
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
 # =====================================================================
 
 automation:
-  # ▶️ AUTO ON → zruš Boost a znovu aplikuj rozvrhy
-  - id: heating_auto_apply_on
-    alias: "Auto: aktivace a návrat k rozvrhům"
+  # ===================================================================
+  # SEKCE: Automatizace – režim AUTO
+  # ===================================================================
+
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Aktivace AUTO → zruš Boost + aplikuj rozvrhy
+  # Logika:
+  # - při přepnutí do režimu Auto (nebo při restartu HA)
+  # - pokud je aktivní Boost → vypne jej
+  # - vynuluje boost_until (pro čistý stav)
+  # - aplikuje plánované rozvrhy pro všechny zóny
+  # -------------------------------------------------------------------
+  - alias: "Auto: aktivace a návrat k rozvrhům"
+    id: heating_auto_apply_on
+    description: >
+      Po přepnutí do režimu Auto zruší aktivní Boost, vynuluje čas boostu
+      a znovu aplikuje rozvrhy všech topných zón.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: input_select.topny_rezim
         to: "Auto"
       - trigger: homeassistant
         event: start
+
     conditions:
       - condition: state
         entity_id: input_select.topny_rezim
@@ -21,8 +41,11 @@ automation:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
+
     actions:
-      # 1) Vypnout Boost, pokud někde zůstal zapnutý
+      # ---------------------------------------------------------------
+      # 1) Zrušit Boost, pokud byl zapnutý
+      # ---------------------------------------------------------------
       - choose:
           - conditions:
               - condition: state
@@ -33,14 +56,18 @@ automation:
                 target:
                   entity_id: input_boolean.boost_now
 
-      # 2) (Volitelné) vynulovat boost_until – není nutné, ale ať je čisto
+      # ---------------------------------------------------------------
+      # 2) Vynulovat boost_until (pro čistý stav)
+      # ---------------------------------------------------------------
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
           datetime: "{{ now().isoformat() }}"
 
+      # ---------------------------------------------------------------
       # 3) Znovu aplikovat rozvrhy ve všech zónách
+      # ---------------------------------------------------------------
       - action: automation.trigger
         target:
           entity_id:
@@ -48,7 +75,9 @@ automation:
             - automation.sched_1p_jidelna_end
             - automation.sched_2p_mama_end
 
-      # 4) Záznam do logbooku
+      # ---------------------------------------------------------------
+      # 4) Zapsat událost do Logbooku
+      # ---------------------------------------------------------------
       - action: logbook.log
         data:
           name: "Topení – režimy"

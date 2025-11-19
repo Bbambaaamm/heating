@@ -1,39 +1,53 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/core/zone_prizemi_michal.yaml
-# =========================================
-# 🧩 ZÓNA: Přízemí – Michal
-# ---------------------------------------------------------------------
-# 🎯 Cíl:
-# - Definuje logiku zóny „Přízemí - Michal“
-# - Sestavuje senzory pro:
-#     • Požadavek na topení (%)
-#     • Detekci otevřeného okna
-#     • Stav „zóna aktivní“ (topí)
-#
-# 💡 Výstupy:
-# - sensor.zona_prizemi_michal_demand → procento topného výkonu hlavice
-# - binary_sensor.zona_prizemi_michal_okno_otevrene → true, pokud je okno otevřené
-# - binary_sensor.zona_prizemi_michal_aktivni → true, pokud zóna skutečně topí
+# Soubor   : config/heating/core/zone_prizemi_michal.yaml
+# Modul    : Zóna – Přízemí Michal
+# Účel     : Logika zóny (poptávka, okno, aktivita topení)
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Výstupy: demand %, okno otevřené, zóna aktivní
 # =====================================================================
 
 template:
-  # ---- Senzory (požadavek) ---------------------------------------------------
+  # ===================================================================
+  # SEKCE: Zóna Přízemí – senzory
+  # ===================================================================
   - sensor:
-      - name: "zona_prizemi_michal_demand" # 0–100 % požadavku
+      # ----------------------------------------------------------------
+      # SENSOR: Požadavek na topení (%)
+      # Logika:
+      # - čte pi_heating_demand z climate.prizemi_michal
+      # - výstup je procento (0–100)
+      # ----------------------------------------------------------------
+      - name: "zona_prizemi_michal_demand"
+        unique_id: zona_prizemi_michal_demand
         unit_of_measurement: "%"
         state_class: measurement
-        state: "{{ state_attr('climate.prizemi_michal', 'pi_heating_demand') | int(0) }}"
+        state: >
+          {{ state_attr('climate.prizemi_michal', 'pi_heating_demand') | int(0) }}
 
-  # ---- Binární senzory (okno + aktivita) ------------------------------------
   - binary_sensor:
-      - name: "zona_prizemi_michal_okno_otevrene" # on = okno otevřené
+      # ----------------------------------------------------------------
+      # SENSOR: Okno otevřené v zóně Přízemí – Michal
+      # Logika:
+      # - čte stav sensor.prizemi_michal_detekovano_otevrene_okno
+      # - pokud není explicitně "closed" → bere se jako otevřeno
+      # ----------------------------------------------------------------
+      - name: "zona_prizemi_michal_okno_otevrene"
+        unique_id: zona_prizemi_michal_okno_otevrene
         device_class: opening
         state: >
           {% set s = states('sensor.prizemi_michal_detekovano_otevrene_okno') %}
           {{ s is not string or s|lower != 'closed' }}
 
-      - name: "zona_prizemi_michal_aktivni" # on = reálná poptávka zóny
+      # ----------------------------------------------------------------
+      # SENSOR: Zóna Přízemí – Michal aktivní (topení skutečně běží)
+      # Logika:
+      # - true, pokud:
+      #   - demand > 1 %
+      #   - a není detekováno otevřené okno
+      # ----------------------------------------------------------------
+      - name: "zona_prizemi_michal_aktivni"
+        unique_id: zona_prizemi_michal_aktivni
         state: >
           {{ (states('sensor.zona_prizemi_michal_demand')|int(0) > 1)
              and (not is_state('binary_sensor.zona_prizemi_michal_okno_otevrene','on')) }}

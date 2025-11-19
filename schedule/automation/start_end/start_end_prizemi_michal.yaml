@@ -1,44 +1,64 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/start_end/start_end_prizemi_michal.yaml
+# Soubor   : config/heating/schedule/automation/start_end/start_end_prizemi_michal.yaml
+# Modul    : Start/End události – Přízemí Michal
+# Účel     : Vyvolání START/END akcí komfortního okna pro zónu Přízemí Michal
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Používá start_time / end_time z centrální logiky rozvrhu
 # =====================================================================
-# AUTOMATIZACE – události start/end pro jednotlivé zóny
-# ---------------------------------------------------------------------
-automation:
-  # ==============================================================================================================================================================================
-  # PŘÍZEMÍ – MICHAL
-  # ==============================================================================================================================================================================
 
+automation:
+  # ===================================================================
+  # SEKCE: Přízemí – Michal → START komfortního okna
+  # ===================================================================
   - id: sched_prizemi_michal_start
     alias: "Rozvrh: Přízemí Michal – START komfortního okna"
+    description: >
+      Spustí komfortní fázi pro zónu Přízemí Michal ve chvíli, kdy
+      aktuální čas (HH:MM) odpovídá vypočtené hodnotě start_time.
     mode: restart
-    triggers:
-      - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}" # start Po,út,st,čt,pá,so,ne
-    condition:
-      - condition: state
-        entity_id: input_boolean.schedule_enable_prizemi_michal
-        state: "on" # rozvrh aktivní
-      - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}" # Off = nic nedělej
-    actions:
-      - action: script.schedule_set_zone_comfort
-        data:
-          climate_entity: climate.prizemi_michal # cílová hlavice
-          last_user_temp_sensor: sensor.last_user_temp_prizemi_michal
 
-  - id: sched_prizemi_michal_end
-    alias: "Rozvrh: Přízemí Michal – KONEC komfortního okna → útlum"
-    mode: restart
     triggers:
       - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}" # end Po,út,st,čt,pá,so,ne
-    condition:
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"
+
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_prizemi_michal
         state: "on"
+      # Režim Off → rozvrh se neaplikuje
       - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}" # Boost má přednost
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+
+    actions:
+      - action: script.schedule_set_zone_comfort
+        data:
+          climate_entity: climate.prizemi_michal
+          last_user_temp_sensor: sensor.last_user_temp_prizemi_michal
+
+  # ===================================================================
+  # SEKCE: Přízemí – Michal → KONEC komfortního okna (útlum/ECO)
+  # ===================================================================
+  - id: sched_prizemi_michal_end
+    alias: "Rozvrh: Přízemí Michal – KONEC komfortního okna → útlum"
+    description: >
+      Ukončí komfortní fázi v zóně Přízemí Michal v čase end_time,
+      pokud je rozvrh povolen a není aktivní Boost (ten má prioritu).
+    mode: restart
+
+    triggers:
+      - trigger: template
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}"
+
+    conditions:
+      - condition: state
+        entity_id: input_boolean.schedule_enable_prizemi_michal
+        state: "on"
+      # Boost blokuje konec komfortního okna rozvrhem
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
+
     actions:
       - action: script.schedule_set_zone_setback
         data:

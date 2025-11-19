@@ -1,15 +1,19 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/follow_user/helpers/follow_2p_mama_helpers.yaml
-# =====================================================================
-# 🧩 Helpers – poslední uživatelsky nastavená teplota pro každou zónu
-# - Tyto input_number se automaticky udržují automatikou
-#   (když kdokoliv změní teplotu na hlavici/HA).
-# - Scheduler/rozvrh pak může „komfort“ vždy brát z těchto hodnot.
+# Soubor   : config/heating/follow_user/helpers/follow_2p_mama_helpers.yaml
+# Modul    : Helpers – poslední uživatelský setpoint (2P Máma)
+# Účel     : Ukládání poslední ručně nastavené teploty hlavice 2P Máma
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Hodnotu udržují automatizace capture_*
 # =====================================================================
 
 input_number:
-  # 👩 2. patro – Máma
+  # -------------------------------------------------------------------
+  # HELPER: Poslední ručně nastavená teplota pro zónu 2. patro Máma
+  # Logika:
+  # - aktualizuje se automaticky podle změn setpointu na hlavici
+  # - Scheduler používá tuto hodnotu jako výchozí komfortní teplotu
+  # -------------------------------------------------------------------
   zona_2p_mama_user_set_temp:
     name: "2. patro Máma – poslední teplota"
     unit_of_measurement: "°C"

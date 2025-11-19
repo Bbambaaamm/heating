@@ -1,22 +1,34 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 /config/heating/control/mode_boost.yaml – BOOST LOGIKA (only)
+# Soubor   : config/heating/control/mode_boost.yaml
+# Modul    : Topení – logika režimu BOOST
+# Účel     : Výpočet stavu Boost, nastavení komfortu a návrat k rozvrhům
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
 # =====================================================================
 
+# =====================================================================
+# TEMPLATE – BOOST STAV
+# =====================================================================
 template:
-  # ── BOOST aktivní? (režim Boost NEBO tlačítko NEBO do-času) ────────
   - binary_sensor:
+      # -----------------------------------------------------------------
+      # SENSOR: Boost aktivní? (režim Boost / tlačítko / čas boost_until)
+      # Logika:
+      # - dostupný jen pokud jsou dostupné všechny vstupy
+      # - ON pokud je režim Boost, tlačítko ON nebo boost_until v budoucnu
+      # -----------------------------------------------------------------
       - name: "kotel_boost_active"
         unique_id: kotel_boost_active
         device_class: heat
 
-        # ✅ Senzor je dostupný až když jsou dostupné všechny vstupy
+        # Senzor je dostupný až když jsou dostupné všechny vstupy
         availability: >-
           {{ states('input_select.topny_rezim') not in ['unknown','unavailable','']
              and states('input_boolean.boost_now') not in ['unknown','unavailable','']
              and states('input_datetime.boost_until') not in ['unknown','unavailable',''] }}
 
-        # ✅ ON když: režim Boost, tlačítko ON, nebo boost_until v budoucnu
+        # ON když: režim Boost, tlačítko ON, nebo boost_until v budoucnu
         state: >-
           {% set mode = states('input_select.topny_rezim') %}
           {% set btn  = is_state('input_boolean.boost_now','on') %}
@@ -30,16 +42,25 @@ template:
             {% set rem = (uts - now().timestamp()) / 60 %}
             {{ rem|round(0) if rem > 0 else 0 }}
 
-
 # =====================================================================
-# 🤖 AUTOMATIZACE PRO BOOST
+# AUTOMATIZACE – BOOST LOGIKA
 # =====================================================================
 automation:
 
-  # ▶️ Start Boostu – z režimu nebo tlačítkem → nastav boost_until
-  - id: heating_boost_start
-    alias: "Topení: start Boostu (nastav boost_until)"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Start Boostu → nastavit boost_until
+  # Logika:
+  # - při přepnutí režimu na Boost nebo stisku tlačítka Boost
+  # - spočítá dobu boostu z input_number.boost_minutes
+  # - nastaví input_datetime.boost_until
+  # -------------------------------------------------------------------
+  - alias: "Topení: start Boostu (nastav boost_until)"
+    id: heating_boost_start
+    description: >
+      Start Boostu z režimu nebo tlačítka. Spočítá dobu boostu v minutách
+      a nastaví čas ukončení do input_datetime.boost_until.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: input_select.topny_rezim
@@ -47,6 +68,9 @@ automation:
       - trigger: state
         entity_id: input_boolean.boost_now
         to: "on"
+
+    conditions: []
+
     actions:
       - variables:
           minutes: "{{ states('input_number.boost_minutes') | int(60) }}"
@@ -56,9 +80,19 @@ automation:
         data:
           datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}"
 
-  # ⚡ Boost ON → nastav komfortní setpointy (poslední komfort + offset)
-  - id: heating_boost_apply_comfort_on
-    alias: "Boost: při startu nastav komfort do zón"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Boost ON → nastavit komfortní setpointy v zónách
+  # Logika:
+  # - při aktivaci Boostu nastaví v zónách komfortní teplotu
+  # - základ je last_comfort nebo aktuální setpoint
+  # - přičte offset z input_number.boost_comfort_offset_c
+  # - ořízne do min/max rozsahu klimatizace
+  # -------------------------------------------------------------------
+  - alias: "Boost: při startu nastav komfort do zón"
+    id: heating_boost_apply_comfort_on
+    description: >
+      Při aktivaci Boostu nastaví komfortní teplotu v jednotlivých zónách
+      podle posledního komfortu a zadaného offsetu.
     mode: restart
 
     triggers:
@@ -76,12 +110,12 @@ automation:
 
     variables:
       boost_offset: "{{ states('input_number.boost_comfort_offset_c')|float(0) }}"
-      # zde definujeme zóny + jejich "last comfort" helper
+      # Zde definujeme zóny + jejich "last comfort" helper
       zones: >
         {{ [
           dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort'),
-          dict(name='1. patro – Kuchyň', climate='climate.1p_jidelna',    last='input_number.1p_jidelna_last_comfort'),
-          dict(name='2. patro – Máma',  climate='climate.2p_mama',        last='input_number.2p_mama_last_comfort')
+          dict(name='1. patro – Kuchyň', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort'),
+          dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort')
         ] }}
 
     actions:
@@ -91,7 +125,8 @@ automation:
             - variables:
                 climate: "{{ repeat.item.climate }}"
                 last: "{{ repeat.item.last }}"
-                # Základ komfortu: preferuj input_number.*_last_comfort, když by byl unknown → vem aktuální setpoint
+                # Základ komfortu: preferuj input_number.*_last_comfort,
+                # když je unknown/unavailable → vezmi aktuální setpoint
                 comfort_base: >-
                   {% set v = states(last) %}
                   {% if v not in ['unknown','unavailable',''] %}{{ v|float }}
@@ -119,31 +154,54 @@ automation:
                 message: "Cíl {{ target|round(1) }} °C (zdroj={{ last }}, offset={{ boost_offset }})"
                 entity_id: "{{ climate }}"
 
-  # ⏹ Každou minutu hlídej vypršení → zhasni tlačítko
-  - id: heating_boost_auto_clear_button
-    alias: "Topení: po vypršení Boostu vypnout tlačítko"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Po vypršení Boostu vypnout tlačítko
+  # Logika:
+  # - každou minutu kontroluje, zda už boost_until vypršel
+  # - pokud ano a tlačítko je stále ON → vypne ho
+  # -------------------------------------------------------------------
+  - alias: "Topení: po vypršení Boostu vypnout tlačítko"
+    id: heating_boost_auto_clear_button
+    description: >
+      Hlídá vypršení času Boostu podle boost_until. Pokud čas vypršel
+      a tlačítko Boost je stále zapnuté, automaticky ho vypne.
     mode: queued
+
     triggers:
       - trigger: time_pattern
         minutes: "/1"
+
     conditions:
       - condition: template
         value_template: >-
           {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
           {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}
+
     actions:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now
 
-  # 🔁 Boost OFF → reapply schedule (pokud používáš END akce rozvrhů)
-  - id: heating_boost_reapply_schedule_off
-    alias: "Boost: po skončení znovu aplikuj rozvrh"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Po skončení Boostu znovu aplikovat rozvrhy
+  # Logika:
+  # - při přechodu kotel_boost_active z ON na OFF
+  # - znovu spustí "END" automatizace všech zón pro návrat k rozvrhům
+  # -------------------------------------------------------------------
+  - alias: "Boost: po skončení znovu aplikuj rozvrh"
+    id: heating_boost_reapply_schedule_off
+    description: >
+      Po skončení Boostu znovu spustí koncové automatizace rozvrhů
+      ve všech zónách, aby se obnovilo plánované řízení teploty.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: binary_sensor.kotel_boost_active
         to: "off"
+
+    conditions: []
+
     actions:
       - action: automation.trigger
         target:

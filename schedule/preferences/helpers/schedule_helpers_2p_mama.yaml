@@ -1,28 +1,33 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/helpers/schedule_helpers_2p_mama.yaml
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_2p_mama.yaml
+# Modul    : Schedule Helpers – 2. patro (Máma)
+# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
 # =====================================================================
-# 📅 SCHEDULE HELPERS – uživatelské nastavení rozvrhu v UI (pro každou zónu)
-# - schedule_enable_* … zda rozvrh pro zónu platí
-# Pozn.: časové pomocníky nezpůsobují akci sami o sobě; logiku řeší schedule_engine.yaml
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - samotné časy nic nespouští → logiku řeší schedule_engine.yaml
 # =====================================================================
 
-# ==============================================================================================================================================================================
 
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
 input_boolean:
-  # ── 2. patro – Máma ────────────────────────────────────────────────
   schedule_enable_2p_mama:
     name: "Rozvrh – 2. patro Máma zapnuto"
     icon: mdi:calendar-clock
     initial: on
 
-# ==============================================================================================================================================================================
 
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
 input_datetime:
-  # ==============================================================================================================================================================================
-  # ── 2. patro – Máma ────────────────────────────────────────────────
-  # ==============================================================================================================================================================================
 
+  # --- Pondělí ---
   2p_mama_monday_start:
     name: "2. patro Máma – Pondělí začátek"
     has_date: false
@@ -32,6 +37,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Úterý ---
   2p_mama_tuesday_start:
     name: "2. patro Máma – Úterý začátek"
     has_date: false
@@ -41,6 +47,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Středa ---
   2p_mama_wednesday_start:
     name: "2. patro Máma – Středa začátek"
     has_date: false
@@ -50,6 +57,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Čtvrtek ---
   2p_mama_thursday_start:
     name: "2. patro Máma – Čtvrtek začátek"
     has_date: false
@@ -59,6 +67,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Pátek ---
   2p_mama_friday_start:
     name: "2. patro Máma – Pátek začátek"
     has_date: false
@@ -68,6 +77,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Sobota ---
   2p_mama_saturday_start:
     name: "2. patro Máma – Sobota začátek"
     has_date: false
@@ -77,6 +87,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Neděle ---
   2p_mama_sunday_start:
     name: "2. patro Máma – Neděle začátek"
     has_date: false

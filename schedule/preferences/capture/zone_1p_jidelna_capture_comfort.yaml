@@ -1,16 +1,18 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/capture/zone_1p_jidelna_capture_comfort.yaml
-# =====================================================================
-# 🧲 1. patro – Jídelna: zachytávání poslední KOMFORTNÍ teploty
+# Soubor   : config/heating/schedule/preferences/capture/zone_1p_jidelna_capture_comfort.yaml
+# Modul    : Zachytávání komfortu – 1. patro (Jídelna)
+# Účel     : Ukládání poslední uživatelsky nastavené komfortní teploty
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
 # =====================================================================
 
 automation:
-  - alias: "Zachytni poslední komfort – 1. patro Jídelna"
-    id: capture_last_comfort_1p_jidelna
+  - id: capture_last_comfort_1p_jidelna
+    alias: "Zachytni poslední komfort – 1. patro Jídelna"
     mode: restart
     initial_state: true
 
+    # Hlavice změnila setpoint → zkontroluj, zda jde o komfort a ulož
     triggers:
       - trigger: state
         entity_id: climate.1p_jidelna
@@ -21,13 +23,17 @@ automation:
       eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
 
     conditions:
-      # Ukládat jen komfort (nad ECO + 0.2 °C)
+      # Komfort = hodnota vyšší než ECO + 0.2 °C
       - condition: template
         value_template: "{{ new_set >= (eco + 0.2) }}"
-      # Ukládat jen při skutečné změně (> 0.1 °C)
+
+      # Uložit pouze pokud došlo ke skutečné změně (> 0.1 °C)
       - condition: template
         value_template: >
-          {{ (states('input_number.1p_jidelna_last_comfort') | float(0) - new_set) | abs > 0.1 }}
+          {{ (states('input_number.1p_jidelna_last_comfort') | float(0)
+              - new_set) | abs > 0.1 }}
+
+      # Při Boostu neukládat, aby se nepoškodil poslední komfort
       - condition: state
         entity_id: binary_sensor.kotel_boost_active
         state: "off"

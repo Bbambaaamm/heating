@@ -1,86 +1,69 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/policy/policy_config.yaml
-# =====================================================================
-# ⚙️ KONFIGUROVATELNÉ PRAHY POLITIKY KOTLE (helpers)
-# ---------------------------------------------------------------------
-# Tento soubor definuje všechny proměnné (helpers), které řídí chování
-# kotle podle požadavků z jednotlivých zón (přízemí, 1. patro, 2. patro).
-#
-# 💡 Uživatel může přímo v UI měnit tyto hodnoty:
-# - minimální průměrnou poptávku aktivních zón (v %)
-# - minimální počet aktivních zón potřebných k zapnutí kotle
-# - zpoždění zapnutí a vypnutí kotle (anti-cycling)
-#
-# 🔹 Všechny tyto hodnoty se později čtou v automatizaci kotle.
-# 🔹 Změna v UI se okamžitě projeví bez restartu Home Assistanta.
+# Soubor   : config/heating/policy/policy_config.yaml
+# Modul    : Konfigurace prahů a zpoždění kotle (policy)
+# Účel     : Definice všech helperů ovlivňujících chování kotle
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Hodnoty jsou editovatelné v UI a používají se v engine/policy
 # =====================================================================
 
 input_number:
 
-  # ---------------------------------------------------------------
-  # 📊 Kotel – minimální průměrná poptávka (%)
-  # Pokud průměrná poptávka zón (např. PID výstupy zón) přesáhne tuto
-  # hodnotu, kotel se může zapnout (pokud splní i ostatní podmínky).
-  # Příklad: Pokud je nastaveno 15 %, kotel se nespustí, dokud
-  # průměrná poptávka všech aktivních zón není > 15 %.
-  # ---------------------------------------------------------------
+  # -------------------------------------------------------------------
+  # HELPER: Minimální průměrná poptávka (%) napříč aktivními zónami
+  # Logika:
+  # - pokud průměrná poptávka aktivních zón překročí tuto hodnotu,
+  #   může být kotel zapnut (pokud splní i ostatní podmínky)
+  # -------------------------------------------------------------------
   kotel_min_avg_demand_pct:
     name: "Kotel – min. průměrná poptávka (%)"
+    unit_of_measurement: "%"
+    icon: mdi:percent
     min: 0
     max: 100
     step: 1
-    unit_of_measurement: "%"
-    icon: mdi:percent
     initial: 15
 
-  # ---------------------------------------------------------------
-  # 🏠 Kotel – minimální počet aktivních zón
-  # Určuje, kolik zón musí být „aktivních“ (tj. chtějí topit), aby se
-  # kotel zapnul. Pomáhá šetřit energii – kotel se nespustí kvůli
-  # jediné zóně, která chce teplo na pár minut.
-  #
-  # Např. hodnota 2 = kotel se zapne pouze pokud chtějí topit
-  # alespoň dvě zóny současně.
-  # ---------------------------------------------------------------
+  # -------------------------------------------------------------------
+  # HELPER: Minimální počet aktivních zón
+  # Logika:
+  # - určuje, kolik zón musí být „aktivních“, aby se kotel mohl zapnout
+  # - zabraňuje spouštění kvůli jediné zóně na krátkou dobu
+  # -------------------------------------------------------------------
   kotel_min_active_zones:
     name: "Kotel – min. počet aktivních zón"
+    icon: mdi:numeric
     min: 0
     max: 10
     step: 1
-    icon: mdi:numeric
     initial: 1
 
-  # ---------------------------------------------------------------
-  # ⏱️ Kotel – zpoždění zapnutí (s)
-  # Anti-cycling parametr: když vznikne požadavek na topení,
-  # kotel se skutečně zapne až po uplynutí této doby (v sekundách),
-  # pokud požadavek stále trvá.
-  #
-  # Zabraňuje častému zapínání/vypínání při krátkodobých výkyvech.
-  # ---------------------------------------------------------------
+  # -------------------------------------------------------------------
+  # HELPER: Zpoždění zapnutí kotle (sekundy)
+  # Logika:
+  # - anti-cycling parametr
+  # - kotel se zapne až po X sekundách od vzniku požadavku, pokud trvá
+  # -------------------------------------------------------------------
   kotel_on_delay_sec:
     name: "Kotel – zpoždění zapnutí (s)"
+    unit_of_measurement: "s"
+    icon: mdi:timer-play
     min: 0
     max: 900
     step: 10
-    unit_of_measurement: s
-    icon: mdi:timer-play
     initial: 120
 
-  # ---------------------------------------------------------------
-  # ⏹️ Kotel – zpoždění vypnutí (s)
-  # Po zániku všech požadavků zón (vše OFF) počká kotel tuto dobu,
-  # než se vypne. Pokud během čekání přijde nový požadavek,
-  # odpočet se zruší.
-  #
-  # Tím se minimalizuje zbytečné vypínání a zapínání kotle.
-  # ---------------------------------------------------------------
+  # -------------------------------------------------------------------
+  # HELPER: Zpoždění vypnutí kotle (sekundy)
+  # Logika:
+  # - po zániku všech požadavků počká X sekund, než kotel vypne
+  # - pokud během čekání přijde nový požadavek, odpočet se zruší
+  # -------------------------------------------------------------------
   kotel_off_delay_sec:
     name: "Kotel – zpoždění vypnutí (s)"
+    unit_of_measurement: "s"
+    icon: mdi:timer-stop
     min: 0
     max: 1800
     step: 10
-    unit_of_measurement: s
-    icon: mdi:timer-stop
     initial: 300

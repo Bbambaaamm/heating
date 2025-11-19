@@ -1,16 +1,18 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/capture/zone_2p_mama_capture_comfort.yaml
-# =====================================================================
-# 🧲 2. patro – Máma: zachytávání poslední KOMFORTNÍ teploty
+# Soubor   : config/heating/schedule/preferences/capture/zone_2p_mama_capture_comfort.yaml
+# Modul    : Zachytávání komfortu – 2. patro (Máma)
+# Účel     : Ukládání poslední uživatelsky nastavené komfortní teploty
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
 # =====================================================================
 
 automation:
-  - alias: "Zachytni poslední komfort – 2. patro Máma"
-    id: capture_last_comfort_2p_mama
+  - id: capture_last_comfort_2p_mama
+    alias: "Zachytni poslední komfort – 2. patro Máma"
     mode: restart
     initial_state: true
 
+    # Hlavice změnila setpoint → zkontroluj, zda jde o komfort a ulož
     triggers:
       - trigger: state
         entity_id: climate.2p_mama
@@ -21,13 +23,17 @@ automation:
       eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
 
     conditions:
-      # Ukládat jen komfort (nad ECO + 0.2 °C)
+      # Komfort = hodnota vyšší než ECO + 0.2 °C
       - condition: template
         value_template: "{{ new_set >= (eco + 0.2) }}"
-      # Ukládat jen při skutečné změně (> 0.1 °C)
+
+      # Uložit pouze při skutečné změně (> 0.1 °C)
       - condition: template
         value_template: >
-          {{ (states('input_number.2p_mama_last_comfort') | float(0) - new_set) | abs > 0.1 }}
+          {{ (states('input_number.2p_mama_last_comfort') | float(0)
+              - new_set) | abs > 0.1 }}
+
+      # Při Boostu neukládat, aby se nepoškodil poslední komfort
       - condition: state
         entity_id: binary_sensor.kotel_boost_active
         state: "off"

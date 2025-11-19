@@ -1,28 +1,33 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/preferences/helpers/schedule_helpers_prizemi_michal.yaml
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_prizemi_michal.yaml
+# Modul    : Schedule Helpers – Přízemí (Michal)
+# Účel     : Pomocné entity pro uživatelské nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
 # =====================================================================
-# 📅 SCHEDULE HELPERS – uživatelské nastavení rozvrhu v UI (pro každou zónu)
-# - schedule_enable_* … zda rozvrh pro zónu platí
-# Pozn.: časové pomocníky nezpůsobují akci sami o sobě; logiku řeší schedule_engine.yaml
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - samotné časy nic nespouští → logiku řeší schedule_engine.yaml
 # =====================================================================
 
-# ==============================================================================================================================================================================
 
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
 input_boolean:
-  # ── Přízemí – Michal ────────────────────────────────────────────────
   schedule_enable_prizemi_michal:
     name: "Rozvrh – Přízemí Michal zapnuto"
     icon: mdi:calendar-clock
     initial: on
 
-# ==============================================================================================================================================================================
 
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
 input_datetime:
-  # ==============================================================================================================================================================================
-  # ── Přízemí – Michal ────────────────────────────────────────────────
-  # ==============================================================================================================================================================================
 
+  # --- Pondělí ---
   prizemi_michal_monday_start:
     name: "Přízemí Michal – Pondělí začátek"
     has_date: false
@@ -32,6 +37,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Úterý ---
   prizemi_michal_tuesday_start:
     name: "Přízemí Michal – Úterý začátek"
     has_date: false
@@ -41,6 +47,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Středa ---
   prizemi_michal_wednesday_start:
     name: "Přízemí Michal – Středa začátek"
     has_date: false
@@ -50,6 +57,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Čtvrtek ---
   prizemi_michal_thursday_start:
     name: "Přízemí Michal – Čtvrtek začátek"
     has_date: false
@@ -59,6 +67,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Pátek ---
   prizemi_michal_friday_start:
     name: "Přízemí Michal – Pátek začátek"
     has_date: false
@@ -68,6 +77,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Sobota ---
   prizemi_michal_saturday_start:
     name: "Přízemí Michal – Sobota začátek"
     has_date: false
@@ -77,6 +87,7 @@ input_datetime:
     has_date: false
     has_time: true
 
+  # --- Neděle ---
   prizemi_michal_sunday_start:
     name: "Přízemí Michal – Neděle začátek"
     has_date: false

@@ -1,44 +1,65 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/start_end/start_end_1p_jidelna.yaml
+# Soubor   : config/heating/schedule/automation/start_end/start_end_1p_jidelna.yaml
+# Modul    : Start/End události – 1. patro Jídelna
+# Účel     : Vyvolání START/END akcí komfortního okna pro 1P Jídelna
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Používá proměnné start_time/end_time z centrální logiky rozvrhu
 # =====================================================================
-# AUTOMATIZACE – události start/end pro jednotlivé zóny
-# ---------------------------------------------------------------------
-automation:
-  # ==============================================================================================================================================================================
-  # 1. PATRO – Jídelna
-  # ==============================================================================================================================================================================
 
+automation:
+  # ===================================================================
+  # SEKCE: 1. patro – Jídelna → START komfortního okna
+  # ===================================================================
   - id: sched_1p_jidelna_start
     alias: "Rozvrh: 1. patro Jídelna – START komfortního okna"
+    description: >
+      Spustí komfortní fázi zóny 1P Jídelna ve chvíli, kdy aktuální čas
+      odpovídá vypočtené hodnotě start_time (pro daný den v týdnu).
     mode: restart
+
     triggers:
       - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}" # start Po,út,st,čt,pá,so,ne
-    condition:
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"
+
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_jidelna
         state: "on"
+      # Režim Off → rozvrhy nic nedělají
       - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}" # Off = nic nedělej
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+
     actions:
       - action: script.schedule_set_zone_comfort
         data:
           climate_entity: climate.1p_jidelna
           last_user_temp_sensor: sensor.last_user_temp_1p_jidelna
 
+  # ===================================================================
+  # SEKCE: 1. patro – Jídelna → KONEC komfortního okna (ECO/útlum)
+  # ===================================================================
   - id: sched_1p_jidelna_end
     alias: "Rozvrh: 1. patro Jídelna – KONEC komfortního okna → útlum"
+    description: >
+      Ukončí komfortní fázi zóny 1P Jídelna ve chvíli, kdy aktuální čas
+      odpovídá vypočtené hodnotě end_time (pro daný den v týdnu).
+      Pokud je aktivní Boost, konec komfortního okna se neaplikuje.
     mode: restart
+
     triggers:
       - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}" # end Po,út,st,čt,pá,so,ne
-    condition:
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}"
+
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_jidelna
         state: "on"
-      - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}" # Boost má přednost
+      # Boost má přednost – během Boostu neukončujeme komfortní režim rozvrhem
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
+
     actions:
       - action: script.schedule_set_zone_setback
         data:

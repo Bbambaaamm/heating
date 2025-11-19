@@ -1,46 +1,77 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/follow_user/capture/follow_1p_jidelna_capture.yaml
-# =====================================================================
-# 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
-# - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
-#   zapíšeme ji do příslušného input_number.*_user_set_temp.
-# - Při startu HA provedeme inicializaci (vezmeme aktuální setpoint).
-# - Důraz na robustnost: hlídáme „unknown/unavailable“ a nuly.
+# Soubor   : config/heating/follow_user/capture/follow_1p_jidelna_capture.yaml
+# Modul    : Zachytávání uživatelských setpointů – 1. patro Jídelna
+# Účel     : Ukládání poslední ručně nastavené teploty z hlavice do helperu
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Sleduje změnu setpointu + inicializace po startu HA
 # =====================================================================
 
 automation:
-  # ───────────────────────────────────────────────────────────────────
-  # ▶️ 1. patro – Jídelna (climate.1p_jidelna)
-  # ───────────────────────────────────────────────────────────────────
-  - id: zona_1p_jidelna_capture_setpoint
-    alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
+  # ===================================================================
+  # SEKCE: Zóna 1P Jídelna – zachytávání setpointu
+  # ===================================================================
+
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Zachytit změnu setpointu na hlavici
+  # Logika:
+  # - reaguje na jakýkoliv state change climate.1p_jidelna
+  # - přečte novou cílovou teplotu (temperature)
+  # - pokud > 0 (platná), uloží do input_number.zona_1p_jidelna_user_set_temp
+  # -------------------------------------------------------------------
+  - alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
+    id: zona_1p_jidelna_capture_setpoint
+    description: >
+      Zachytává každou změnu cílové teploty z hlavice climate.1p_jidelna
+      a ukládá ji jako poslední uživatelský setpoint.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: climate.1p_jidelna
+
     variables:
       new_sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"
-    condition:
+
+    conditions:
       - condition: template
         value_template: "{{ new_sp > 0 }}"
+
     actions:
       - action: input_number.set_value
-        data:
+        target:
           entity_id: input_number.zona_1p_jidelna_user_set_temp
+        data:
           value: "{{ new_sp }}"
 
-  - id: zona_1p_jidelna_init_on_start
-    alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Inicializace helperu po startu HA
+  # Logika:
+  # - po startu HA načte aktuální setpoint z hlavice
+  # - uloží jej do input_number.zona_1p_jidelna_user_set_temp
+  # - malé zpoždění (5s) kvůli inicializaci Zigbee zařízení
+  # -------------------------------------------------------------------
+  - alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
+    id: zona_1p_jidelna_init_on_start
+    description: >
+      Po restartu HA inicializuje poslední uživatelskou teplotu
+      podle aktuální hodnoty hlavice climate.1p_jidelna.
     mode: single
+
     triggers:
       - trigger: homeassistant
         event: start
+
+    conditions: []
+
     actions:
       - delay: "00:00:05"
+
       - variables:
           sp: "{{ state_attr('climate.1p_jidelna','temperature') | float(22.0) }}"
+
       - action: input_number.set_value
-        data:
+        target:
           entity_id: input_number.zona_1p_jidelna_user_set_temp
+        data:
           value: "{{ sp }}"

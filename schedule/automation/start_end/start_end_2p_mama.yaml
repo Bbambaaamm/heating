@@ -1,44 +1,64 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/start_end/start_end_2p_mama.yaml
+# Soubor   : config/heating/schedule/automation/start_end/start_end_2p_mama.yaml
+# Modul    : Start/End události – 2. patro Máma
+# Účel     : Vyvolání START/END akcí komfortního okna pro zónu 2P Máma
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : start_time / end_time se získává z centrální logiky rozvrhu
 # =====================================================================
-# AUTOMATIZACE – události start/end pro jednotlivé zóny
-# ---------------------------------------------------------------------
-automation:
-  # ==============================================================================================================================================================================
-  # 2. PATRO – MÁMA
-  # ==============================================================================================================================================================================
 
+automation:
+  # ===================================================================
+  # SEKCE: 2. patro – Máma → START komfortního okna
+  # ===================================================================
   - id: sched_2p_mama_start
     alias: "Rozvrh: 2. patro Máma – START komfortního okna"
+    description: >
+      Spuštění komfortního okna pro zónu 2P Máma v čase,
+      kdy aktuální HH:MM odpovídá vypočtené hodnotě start_time.
     mode: restart
+
     triggers:
       - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}" # start Po,út,st,čt,pá,so,ne
-    condition:
+        value_template: "{{ now().strftime('%H:%M') == start_time[:5] }}"
+
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
         state: "on"
+      # Režim Off → ignoruje rozvrh
       - condition: template
-        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}" # Off = nic nedělej
+        value_template: "{{ states('input_select.topny_rezim') != 'Off' }}"
+
     actions:
       - action: script.schedule_set_zone_comfort
         data:
           climate_entity: climate.2p_mama
           last_user_temp_sensor: sensor.last_user_temp_2p_mama
 
+  # ===================================================================
+  # SEKCE: 2. patro – Máma → KONEC komfortního okna (útlum/ECO)
+  # ===================================================================
   - id: sched_2p_mama_end
     alias: "Rozvrh: 2. patro Máma – KONEC komfortního okna → útlum"
+    description: >
+      Ukončení komfortního okna pro zónu 2P Máma, pokud čas odpovídá
+      end_time a není aktivní Boost (ten má prioritu).
     mode: restart
+
     triggers:
       - trigger: template
-        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}" # start Po,út,st,čt,pá,so,ne
-    condition:
+        value_template: "{{ now().strftime('%H:%M') == end_time[:5] }}"
+
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_2p_mama
         state: "on"
-      - condition: template
-        value_template: "{{ states('binary_sensor.kotel_boost_active') == 'off' }}" # Boost má přednost
+      # Boost blokuje konec komfortního okna
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
+
     actions:
       - action: script.schedule_set_zone_setback
         data:

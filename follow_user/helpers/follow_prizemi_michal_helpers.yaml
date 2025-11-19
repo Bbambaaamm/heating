@@ -1,15 +1,19 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/follow_user/helpers/follow_prizemi_michal_helpers.yaml
-# =====================================================================
-# 🧩 Helpers – poslední uživatelsky nastavená teplota pro každou zónu
-# - Tyto input_number se automaticky udržují automatikou
-#   (když kdokoliv změní teplotu na hlavici/HA).
-# - Scheduler/rozvrh pak může „komfort“ vždy brát z těchto hodnot.
+# Soubor   : config/heating/follow_user/helpers/follow_prizemi_michal_helpers.yaml
+# Modul    : Helpers – poslední uživatelský setpoint (Přízemí Michal)
+# Účel     : Ukládání poslední ručně nastavené teploty hlavice Přízemí Michal
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Hodnotu spravují automatizace capture_* hned po startu HA
 # =====================================================================
 
 input_number:
-  # 🏠 Přízemí – Michal
+  # -------------------------------------------------------------------
+  # HELPER: Poslední ručně nastavená teplota pro zónu Přízemí – Michal
+  # Logika:
+  # - hodnota je udržována automatizací při každé změně setpointu
+  # - při startu HA proběhne inicializace hodnoty
+  # -------------------------------------------------------------------
   zona_prizemi_michal_user_set_temp:
     name: "Přízemí Michal – poslední teplota"
     unit_of_measurement: "°C"
@@ -17,4 +21,4 @@ input_number:
     min: 5
     max: 35
     step: 0.1
-    initial: 22.0 # jen seed; hned se přepíše automatikou
+    initial: 22.0   # inicializační seed; následně je nahrazeno automatikou

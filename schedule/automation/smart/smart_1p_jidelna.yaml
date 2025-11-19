@@ -1,26 +1,30 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/smart/smart_1p_jidelna.yaml
-# =====================================================================
-# ROZVRH – 1. patro (Kuchyň) – inteligentní spouštění
-# ---------------------------------------------------------------------
-# Cíl:
-# Spínat komfort/ECO jen ve chvíli, kdy dojde ke SKUTEČNÉ změně
-# (čas start/konec, úprava rozvrhu, ruční změna setpointu), a tím
-# udržet hlavice klidné a logy čisté.
-#
-# Uvnitř okna: obnov poslední KOMFORT (input_number.1p_jidelna_last_comfort)
-#    Mimo okno:   nastav ECO (input_number.eco_temp_default)
+# Soubor   : config/heating/schedule/automation/smart/smart_1p_jidelna.yaml
+# Modul    : Rozvrh 1P Kuchyň – inteligentní spouštění
+# Účel     : Chytré spouštění komfort/ECO podle časového okna a last_comfort
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Minimalizuje zbytečné přepisování setpointu a spam v logbooku
 # =====================================================================
 
 automation:
-  - alias: "Rozvrh 1P Kuchyň – inteligentní spouštění" # Název automatizace v UI
-    id: schedule_1p_jidelna_smart # Stabilní ID (pro odkazy, scény, editory)
-    mode: restart # Při nové události restartuj běh (vyhne se závodům)
-    initial_state: true # Aktivní po restartu HA
+  # ===================================================================
+  # SEKCE: Rozvrh 1P Kuchyň – inteligentní spouštění
+  # ===================================================================
+  - alias: "Rozvrh 1P Kuchyň – inteligentní spouštění"
+    id: schedule_1p_jidelna_smart
+    description: >
+      Inteligentně spíná komfortní nebo ECO teplotu v zóně 1P Kuchyň
+      pouze při smysluplných změnách (čas start/konec, úprava rozvrhu,
+      změna last_comfort, ruční zásah do hlavice).
+    mode: restart
+    initial_state: true
 
-    # Spouštěče – reagujeme pouze na smysluplné změny (žádné minuty-tiky)
+    # ---------------------------------------------------------------
+    # TRIGGERY – reagujeme jen na „velké“ změny, ne na minutové tiky
+    # ---------------------------------------------------------------
     triggers:
+      # Časové body: začátky a konce pro každý den v týdnu
       - trigger: time
         at:
           - input_datetime.1p_jidelna_monday_start
@@ -38,6 +42,7 @@ automation:
           - input_datetime.1p_jidelna_sunday_start
           - input_datetime.1p_jidelna_sunday_end
 
+      # Změna nastavení rozvrhu (časy nebo enable flag)
       - trigger: state
         entity_id:
           - input_datetime.1p_jidelna_monday_start
@@ -56,20 +61,25 @@ automation:
           - input_datetime.1p_jidelna_sunday_end
           - input_boolean.schedule_enable_1p_jidelna
 
-      - trigger: state # Změna „poslední komfort“ v HA → aplikuj, pokud jsme v okně
+      # Změna „poslední komfortní teploty“ v HA → reapply, pokud jsme v okně
+      - trigger: state
         entity_id: input_number.1p_jidelna_last_comfort
 
-      - trigger: state # Ruční změna setpointu na hlavici → reaguj dle okna
+      # Ruční změna setpointu na hlavici → reaguj podle toho, zda jsme v okně
+      - trigger: state
         entity_id: climate.1p_jidelna
         attribute: temperature
 
-    # Proměnné – načtení teplot a dynamický výběr časů dle dne
+    # ---------------------------------------------------------------
+    # PROMĚNNÉ – teploty + volba správných časů podle dne v týdnu
+    # ---------------------------------------------------------------
     variables:
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}" # ECO teplota (fallback 15.0)
-      last_comfort: "{{ states('input_number.1p_jidelna_last_comfort') | float(22) }}" # Poslední komfort (fallback 22)
+      eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}"
+      last_comfort: "{{ states('input_number.1p_jidelna_last_comfort') | float(22) }}"
 
-      start: > # Vyber správný START dle dne v týdnu
-        {% set d = now().weekday() %}  {# 0=Po .. 6=Ne #}
+      # Výběr START podle aktuálního dne (0=Po .. 6=Ne)
+      start: >
+        {% set d = now().weekday() %}
         {% if   d == 0 %} {{ states('input_datetime.1p_jidelna_monday_start') }}
         {% elif d == 1 %} {{ states('input_datetime.1p_jidelna_tuesday_start') }}
         {% elif d == 2 %} {{ states('input_datetime.1p_jidelna_wednesday_start') }}
@@ -79,7 +89,8 @@ automation:
         {% else %}         {{ states('input_datetime.1p_jidelna_sunday_start') }}
         {% endif %}
 
-      end: > # Vyber správný KONEC dle dne v týdnu
+      # Výběr END podle aktuálního dne
+      end: >
         {% set d = now().weekday() %}
         {% if   d == 0 %} {{ states('input_datetime.1p_jidelna_monday_end') }}
         {% elif d == 1 %} {{ states('input_datetime.1p_jidelna_tuesday_end') }}
@@ -89,8 +100,10 @@ automation:
         {% elif d == 5 %} {{ states('input_datetime.1p_jidelna_saturday_end') }}
         {% else %}         {{ states('input_datetime.1p_jidelna_sunday_end') }}
         {% endif %}
-      now_hms: "{{ now().strftime('%H:%M:%S') }}" # Aktuální čas jako HH:MM:SS
-      # Jsme uvnitř okna? Bezpečně řeší i interval přes půlnoc (start > end)
+
+      now_hms: "{{ now().strftime('%H:%M:%S') }}"
+
+      # Jsme uvnitř okna? (umí i interval přes půlnoc, když start > end)
       in_window: >
         {% set s = start %}
         {% set e = end %}
@@ -101,26 +114,19 @@ automation:
           {{ (n >= s) or (n < e) }}
         {% endif %}
 
-    # Rozvrh musí být zapnutý (globální enable pro zónu)
-    condition:
+    # ---------------------------------------------------------------
+    # PODMÍNKY – globální enable rozvrhu pro 1P Kuchyň
+    # ---------------------------------------------------------------
+    conditions:
       - condition: state
         entity_id: input_boolean.schedule_enable_1p_jidelna
         state: "on"
 
-    # Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
-    action:
-      # Úvodní audit log každého spuštění
-      - action: logbook.log
-        data:
-          name: "Rozvrh 1P Kuchyň"
-          message: >
-            Trigger={{ trigger.platform }}{% if trigger.entity_id is defined %} | entity={{ trigger.entity_id }}{% endif %}{% if trigger.from_state is defined %} | from={{ trigger.from_state.state }}{% endif %}{% if trigger.to_state is defined %} | to={{ trigger.to_state.state }}{% endif %} |
-            start={{ start }} | end={{ end }} | now={{ now_hms }} | in_window={{ in_window }} |
-            last_comfort={{ last_comfort }} | eco={{ eco_temp }}
-          entity_id: climate.1p_jidelna
-
-      # Debounce: pokud to spustila hlavice, chvilku počkej,
-      # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
+    # ---------------------------------------------------------------
+    # AKCE – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
+    # ---------------------------------------------------------------
+    actions:
+      # Debounce: pokud to spustila hlavice, počkej, aby capture stihl uložit last_comfort
       - choose:
           - conditions:
               - condition: template
@@ -128,90 +134,67 @@ automation:
                   {{ trigger.platform == 'state'
                      and trigger.entity_id == 'climate.1p_jidelna' }}
             sequence:
-              - delay: "00:00:01" # zpoždění 1 s při triggeru z hlavice
-              - action: logbook.log
-                data:
-                  name: "Rozvrh 1P Kuchyň"
-                  message: "Delay 1s po triggeru z hlavice dokončen."
-                  entity_id: climate.1p_jidelna
+              - delay: "00:00:01"
 
       - choose:
-          # Uvnitř okna → nastav poslední KOMFORT
+          # ==========================================================
+          # V OKNĚ → nastav POSLEDNÍ KOMFORT
+          # ==========================================================
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}" # True → jsme v okně
+                value_template: "{{ in_window }}"
             sequence:
-              - action: logbook.log
-                data:
-                  name: "Rozvrh 1P Kuchyň"
-                  message: "Jsme UVNITŘ okna – přepínám na poslední komfort."
-                  entity_id: climate.1p_jidelna
               - action: climate.set_hvac_mode
-                target: { entity_id: climate.1p_jidelna } # Cílová hlavice
-                data: { hvac_mode: heat } # Režim vytápění
-              - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                target:
+                  entity_id: climate.1p_jidelna
+                data:
+                  hvac_mode: heat
+
+              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
+              - condition: template
                 value_template: >
                   {{ ((state_attr('climate.1p_jidelna','temperature') | float)
                       - (last_comfort | float)) | abs > 0.1 }}
+
               - action: climate.set_temperature
-                target: { entity_id: climate.1p_jidelna }
+                target:
+                  entity_id: climate.1p_jidelna
                 data:
-                  temperature: "{{ last_comfort }}" # Nastav uložený komfort
-              - action: logbook.log # Zápis do logbooku pro audit
+                  temperature: "{{ last_comfort }}"
+
+              - action: logbook.log
                 data:
                   name: "Rozvrh 1P Kuchyň"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                   entity_id: climate.1p_jidelna
-              # Pokud guard neprošel (tj. změna ≤ 0.1 °C), zaloguj „skip“
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: >
-                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
-                              - (last_comfort | float)) | abs <= 0.1 }}
-                    sequence:
-                      - action: logbook.log
-                        data:
-                          name: "Rozvrh 1P Kuchyň"
-                          message: "Skip: teplota už odpovídá komfortu (±0.1 °C)."
-                          entity_id: climate.1p_jidelna
 
-          # Mimo okno → nastav ECO
+          # ==========================================================
+          # MIMO OKNO → nastav ECO
+          # ==========================================================
           - conditions:
               - condition: template
-                value_template: "{{ not in_window }}" # False → mimo okno
+                value_template: "{{ not in_window }}"
             sequence:
-              - action: logbook.log
-                data:
-                  name: "Rozvrh 1P Kuchyň"
-                  message: "Jsme MIMO okno – přepínám na ECO."
-                  entity_id: climate.1p_jidelna
               - action: climate.set_hvac_mode
-                target: { entity_id: climate.1p_jidelna }
-                data: { hvac_mode: heat }
-              - condition: template # Guard: nezasahuj, pokud je teplota už stejná (±0.1 °C)
+                target:
+                  entity_id: climate.1p_jidelna
+                data:
+                  hvac_mode: heat
+
+              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
+              - condition: template
                 value_template: >
                   {{ ((state_attr('climate.1p_jidelna','temperature') | float)
                       - (eco_temp | float)) | abs > 0.1 }}
+
               - action: climate.set_temperature
-                target: { entity_id: climate.1p_jidelna }
+                target:
+                  entity_id: climate.1p_jidelna
                 data:
-                  temperature: "{{ eco_temp }}" # Nastav ECO teplotu
+                  temperature: "{{ eco_temp }}"
+
               - action: logbook.log
                 data:
                   name: "Rozvrh 1P Kuchyň"
                   message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
                   entity_id: climate.1p_jidelna
-              # Pokud guard neprošel (tj. změna ≤ 0.1 °C), zaloguj „skip“
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: >
-                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
-                              - (eco_temp | float)) | abs <= 0.1 }}
-                    sequence:
-                      - action: logbook.log
-                        data:
-                          name: "Rozvrh 1P Kuchyň"
-                          message: "Skip: teplota už odpovídá ECO (±0.1 °C)."
-                          entity_id: climate.1p_jidelna

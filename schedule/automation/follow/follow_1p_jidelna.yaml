@@ -1,67 +1,96 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/follow/follow_1p_jidelna.yaml
-# =====================================================================
-# ROZVRH – zóna: 1. patro (Kuchyň)
-# ---------------------------------------------------------------------
-# Cíl:
-# Nastavit teplotu hlavic podle rozvrhových entit schedule.*.
-# Spouští se při skutečné změně (schedule on/off) a po startu HA.
-#
-# Uvnitř okna rozvrhu: komfortní teplota (sensor.*_comfort_temp)
-# Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
-# Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
-# neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+# Soubor   : config/heating/schedule/automation/follow/follow_1p_jidelna.yaml
+# Modul    : Rozvrh – 1. patro Kuchyň (follow)
+# Účel     : Nastavování teploty hlavice podle rozvrhu schedule.*
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Komfort/ECO teploty bere ze sensor.zona_1p_jidelna_*_temp
 # =====================================================================
 
 automation:
-  # =====================================================================
-  # ── 1. patro – Kuchyň ────────────────────────────────────────────────
-  # =====================================================================
+  # ===================================================================
+  # SEKCE: Rozvrh 1P Kuchyň – následování schedule
+  # ===================================================================
 
-  - id: schedule_1p_jidelna_follow
-    alias: "Rozvrh: 1. patro Kuchyň → nastav teplotu"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: 1. patro Kuchyň → nastav teplotu podle rozvrhu
+  # Logika:
+  # - spouští se při změně schedule.zona_1p_jidelna_komfort nebo po startu HA
+  # - pokud je rozvrh ON → nastaví komfortní teplotu
+  # - pokud je rozvrh OFF → nastaví ECO teplotu
+  # - přepne hvac_mode na heat, pokud není aktivní
+  # - updatuje teplotu jen při reálné změně (ochrana proti spamování)
+  # -------------------------------------------------------------------
+  - alias: "Rozvrh: 1. patro Kuchyň → nastav teplotu"
+    id: schedule_1p_jidelna_follow
+    description: >
+      Sleduje rozvrh zóny 1. patro Kuchyň a podle něj nastavuje
+      komfortní nebo ECO teplotu na hlavici climate.1p_jidelna.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: schedule.zona_1p_jidelna_komfort
       - trigger: homeassistant
         event: start
+
+    conditions: []
+
     actions:
+      # Při startu HA počkej 3 s kvůli inicializaci entit
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ trigger.platform == 'homeassistant' }}"
             sequence:
-              - delay: "00:00:03" # 3 s po startu HA
+              - delay: "00:00:03"
 
+      # ---------------------------------------------------------------
+      # 1) PŘÍPRAVA PROMĚNNÝCH
+      # ---------------------------------------------------------------
       - variables:
-          is_on: "{{ is_state('schedule.zona_1p_jidelna_komfort','on') }}" # rozvrh zapnut?
-          comfort: "{{ states('sensor.zona_1p_jidelna_comfort_temp') | float(22) }}" # komfortní teplota
-          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(15) }}" # ECO teplota
-          current: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}" # aktuální teplota
-          hvac: "{{ states('climate.1p_jidelna') | lower }}" # režim heat/off
-          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota
+          is_on: "{{ is_state('schedule.zona_1p_jidelna_komfort','on') }}"
+          comfort: "{{ states('sensor.zona_1p_jidelna_comfort_temp') | float(22) }}"
+          eco: "{{ states('sensor.zona_1p_jidelna_eco_temp') | float(15) }}"
+          current: "{{ state_attr('climate.1p_jidelna','temperature') | float(0) }}"
+          hvac: "{{ states('climate.1p_jidelna') | lower }}"
+          target_temp: "{{ comfort if is_on else eco }}"
 
-      - condition: template
-        value_template: "{{ target_temp | float(0) > 0 }}" # validní hodnota teploty?
+      # Validace cílové teploty
+      - conditions:
+          - condition: template
+            value_template: "{{ target_temp | float(0) > 0 }}"
 
+      # ---------------------------------------------------------------
+      # 2) Přepnutí do režimu topení, pokud není aktivní
+      # ---------------------------------------------------------------
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ hvac != 'heat' }}" # přepni na topení, pokud není aktivní
+                value_template: "{{ hvac != 'heat' }}"
             sequence:
               - action: climate.set_hvac_mode
-                target: { entity_id: climate.1p_jidelna }
-                data: { hvac_mode: heat }
+                target:
+                  entity_id: climate.1p_jidelna
+                data:
+                  hvac_mode: heat
 
-      - condition: template
-        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # aktualizuj jen, pokud se změnila hodnota
+      # ---------------------------------------------------------------
+      # 3) Nastavení cílové teploty, jen pokud se reálně změnila
+      # ---------------------------------------------------------------
+      - conditions:
+          - condition: template
+            value_template: "{{ (current - target_temp) | abs > 0.1 }}"
 
       - action: climate.set_temperature
-        target: { entity_id: climate.1p_jidelna } # cílová hlavice (1. patro – kuchyň)
-        data: { temperature: "{{ target_temp }}" }
+        target:
+          entity_id: climate.1p_jidelna
+        data:
+          temperature: "{{ target_temp }}"
 
+      # ---------------------------------------------------------------
+      # 4) Zápis do logbooku
+      # ---------------------------------------------------------------
       - action: logbook.log
         data:
           name: "Rozvrh – 1. patro Kuchyň"

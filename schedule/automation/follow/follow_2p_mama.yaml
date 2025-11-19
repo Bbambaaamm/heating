@@ -1,67 +1,96 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/automation/follow/follow_2p_mama.yaml
-# =====================================================================
-# ROZVRH – zóna: 2. patro (Máma)
-# ---------------------------------------------------------------------
-# Cíl:
-# Nastavit teplotu hlavic podle rozvrhových entit schedule.*.
-# Spouští se při skutečné změně (schedule on/off) a po startu HA.
-#
-# Uvnitř okna rozvrhu: komfortní teplota (sensor.*_comfort_temp)
-# Mimo okno rozvrhu:   ECO teplota (sensor.*_eco_temp)
-# Pozn.: senzory comfort/eco už obsahují případné ořezy, proto zde
-# neřešíme logiku komfortu/ECO – pouze aplikaci teplot.
+# Soubor   : config/heating/schedule/automation/follow/follow_2p_mama.yaml
+# Modul    : Rozvrh – 2. patro Máma (follow)
+# Účel     : Nastavování teploty hlavice podle rozvrhu schedule.*
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Komfort/ECO teploty bere ze sensor.zona_2p_mama_*_temp
 # =====================================================================
 
 automation:
-  # =====================================================================
-  # ── 2. patro – Máma ──────────────────────────────────────────────────
-  # =====================================================================
+  # ===================================================================
+  # SEKCE: Rozvrh 2P Máma – následování schedule
+  # ===================================================================
 
-  - id: schedule_2p_mama_follow
-    alias: "Rozvrh: 2. patro Máma → nastav teplotu"
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: 2. patro Máma → nastav teplotu podle rozvrhu
+  # Logika:
+  # - spouští se při změně schedule.zona_2p_mama_komfort nebo po startu HA
+  # - pokud je rozvrh ON → nastaví komfortní teplotu
+  # - pokud je rozvrh OFF → nastaví ECO teplotu
+  # - přepne hvac_mode na heat, pokud není aktivní
+  # - updatuje teplotu jen při reálné změně (ochrana proti spamování)
+  # -------------------------------------------------------------------
+  - alias: "Rozvrh: 2. patro Máma → nastav teplotu"
+    id: schedule_2p_mama_follow
+    description: >
+      Sleduje rozvrh zóny 2. patro Máma a podle něj nastavuje
+      komfortní nebo ECO teplotu na hlavici climate.2p_mama.
     mode: restart
+
     triggers:
       - trigger: state
         entity_id: schedule.zona_2p_mama_komfort
       - trigger: homeassistant
         event: start
-    action:
+
+    conditions: []
+
+    actions:
+      # Při startu HA počkej 3 s kvůli inicializaci entit
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ trigger.platform == 'homeassistant' }}"
             sequence:
-              - delay: "00:00:03" # 3 s po startu HA
+              - delay: "00:00:03"
 
+      # ---------------------------------------------------------------
+      # 1) PŘÍPRAVA PROMĚNNÝCH
+      # ---------------------------------------------------------------
       - variables:
-          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}" # stav rozvrhu (komfort/ECO)
-          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}" # komfortní teplota
-          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(15) }}" # ECO teplota
-          current: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}" # aktuální setpoint
-          hvac: "{{ states('climate.2p_mama') | lower }}" # aktuální režim hlavice
-          target_temp: "{{ comfort if is_on else eco }}" # cílová teplota podle rozvrhu
+          is_on: "{{ is_state('schedule.zona_2p_mama_komfort','on') }}"
+          comfort: "{{ states('sensor.zona_2p_mama_comfort_temp') | float(22) }}"
+          eco: "{{ states('sensor.zona_2p_mama_eco_temp') | float(15) }}"
+          current: "{{ state_attr('climate.2p_mama','temperature') | float(0) }}"
+          hvac: "{{ states('climate.2p_mama') | lower }}"
+          target_temp: "{{ comfort if is_on else eco }}"
 
-      - condition: template
-        value_template: "{{ target_temp | float(0) > 0 }}" # kontrola, že je hodnota platná
+      # Validace cílové teploty
+      - conditions:
+          - condition: template
+            value_template: "{{ target_temp | float(0) > 0 }}"
 
+      # ---------------------------------------------------------------
+      # 2) Přepnutí do režimu topení, pokud není aktivní
+      # ---------------------------------------------------------------
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ hvac != 'heat' }}" # nastav režim heat, pokud není aktivní
+                value_template: "{{ hvac != 'heat' }}"
             sequence:
               - action: climate.set_hvac_mode
-                target: { entity_id: climate.2p_mama }
-                data: { hvac_mode: heat }
+                target:
+                  entity_id: climate.2p_mama
+                data:
+                  hvac_mode: heat
 
-      - condition: template
-        value_template: "{{ (current - target_temp) | abs > 0.1 }}" # posílej jen, když se teplota liší
+      # ---------------------------------------------------------------
+      # 3) Nastavení cílové teploty, jen pokud se reálně změnila
+      # ---------------------------------------------------------------
+      - conditions:
+          - condition: template
+            value_template: "{{ (current - target_temp) | abs > 0.1 }}"
 
       - action: climate.set_temperature
-        target: { entity_id: climate.2p_mama } # cílová hlavice (2. patro – máma)
-        data: { temperature: "{{ target_temp }}" }
+        target:
+          entity_id: climate.2p_mama
+        data:
+          temperature: "{{ target_temp }}"
 
+      # ---------------------------------------------------------------
+      # 4) Zápis do logbooku
+      # ---------------------------------------------------------------
       - action: logbook.log
         data:
           name: "Rozvrh – 2. patro Máma"

@@ -1,112 +1,74 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/schedule/schedule_engine.yaml
+# Soubor   : config/heating/schedule/schedule_engine.yaml
+# Modul    : Schedule Engine – sdílená logika rozvrhů (více zón)
+# Účel     : Výpočet komfortního offsetu / setbacku + sdílené skripty
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
 # =====================================================================
-# ROZVRH – SCHEDULE ENGINE (více zón)
-# ---------------------------------------------------------------------
-# Cíl:
-# Přenastavit teploty hlavic podle rozvrhových časů (start/end)
-# a aktuálního topného režimu (Auto / Eco / Boost / Off).
+# 📌 Přehled:
+# - senzory:
+#     • sensor.heating_mode_comfort_offset_c  → offset komfortu dle režimu
+#     • sensor.heating_setback_temp_c         → globální útlumová teplota
+# - skripty:
+#     • script.schedule_set_zone_comfort      → nastaví komfort pro zónu
+#     • script.schedule_set_zone_setback      → nastaví útlum pro zónu
 #
-# Základní logika:
-# - Počítá komfortní teplotu z poslední uživatelské hodnoty (sensor.last_user_temp_*)
-# - Aplikuje offset v režimu Eco (např. –1 °C)
-# - Na konci komfortního okna nastaví útlumovou teplotu (setback)
-#
-# Vstupy:
-# - input_datetime.*_start / *_end (časy rozvrhu)
-# - input_boolean.schedule_enable_* (aktivace rozvrhu)
-# - input_select.topny_rezim (globální režim topení)
-#
-# Výstupy:
-# - climate.* (nastavení teploty hlavic)
+# Použití:
+# - volají je start/end automatizace rozvrhů jednotlivých zón
+# - režim Auto/Eco/Boost/Off se promítá do výpočtu cílové teploty
 # =====================================================================
 
-# ---------------------------------------------------------------------
-# Globální šablony – výpočet komfortního offsetu a útlumové teploty
-# ---------------------------------------------------------------------
 template:
   - sensor:
-      # Offset komfortní teploty podle režimu (Eco snižuje o 1 °C)
+      # ----------------------------------------------------------------
+      # Offset komfortní teploty podle režimu (Eco snižuje komfort)
+      # ----------------------------------------------------------------
       - name: "heating_mode_comfort_offset_c"
         unique_id: heating_mode_comfort_offset_c
         unit_of_measurement: "°C"
-        state: >
+        state: >-
           {% set mode = states('input_select.topny_rezim') %}
-          {{ 1.0 if mode == 'Eco' else 0.0 }}                  # v režimu Eco použij offset 1°C, jinak 0
+          {{ 1.0 if mode == 'Eco' else 0.0 }}
 
+      # ----------------------------------------------------------------
       # Globální útlumová teplota (setback)
+      # ----------------------------------------------------------------
       - name: "heating_setback_temp_c"
         unique_id: heating_setback_temp_c
         unit_of_measurement: "°C"
-        state: "17" # konstantní hodnota (případně změň)
+        state: "17"   # případnou změnu řeš přes UI nebo separátní helper
 
-# ---------------------------------------------------------------------
-# Pomocné skripty – sdílená logika pro komfort a útlum
-# ---------------------------------------------------------------------
+# =====================================================================
+# Skripty – sdílená logika pro komfort a útlum
+# =====================================================================
+
 script:
-  # Nastaví danou zónu na komfortní teplotu
+
+  # -------------------------------------------------------------------
+  # script.schedule_set_zone_comfort
+  # Nastaví danou climate entitu na komfortní teplotu (s ohledem na režim)
+  # -------------------------------------------------------------------
   schedule_set_zone_comfort:
     alias: "Schedule: set zone comfort"
     mode: queued
     fields:
-      climate_entity: # cílová climate.* entita
-        description: "climate.* entita hlavice"
-      last_user_temp_sensor: # zdroj poslední komfortní teploty
-        description: "sensor.last_user_temp_* pro danou zónu"
+      climate_entity:
+        description: "Target climate.* entita hlavice"
+      last_user_temp_sensor:
+        description: "Helper/senzor s poslední komfortní teplotou zóny"
     sequence:
       - variables:
-          mode: "{{ states('input_select.topny_rezim') }}" # aktuální režim topení
-          base: "{{ states(last_user_temp_sensor) | float(21) }}" # výchozí komfort (fallback 21)
-          eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}" # offset v Eco
-          target: > # výsledná cílová teplota
+          mode: "{{ states('input_select.topny_rezim') }}"
+          base: "{{ states(last_user_temp_sensor) | float(21) }}"
+          eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}"
+          target: >-
             {% if mode == 'Eco' %}
               {{ (base - eco_off) | round(1) }}
             {% else %}
               {{ base | round(1) }}
             {% endif %}
 
-      # Přepni na heat jen pokud už není, ať neprovokujeme zbytečné změny režimu
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ states(climate_entity) | lower != 'heat' }}" # není v režimu heat?
-            sequence:
-              - action: climate.set_hvac_mode
-                data:
-                  entity_id: "{{ climate_entity }}" # cílová hlavice
-                  hvac_mode: heat # zapnout topení
-
-      # Guard: nepiš stejnou teplotu znovu (±0.1 °C tolerance)
-      - condition: template
-        value_template: >
-          {{ (state_attr(climate_entity, 'temperature') | float(0) - (target | float(0))) | abs > 0.1 }}
-
-      # Nastav cílovou teplotu
-      - action: climate.set_temperature
-        data:
-          entity_id: "{{ climate_entity }}" # cílová hlavice
-          temperature: "{{ target }}" # vypočtená komfortní teplota
-
-      # Záznam do logbooku – pouze při reálné změně
-      - action: logbook.log
-        data:
-          name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"
-          message: "Rozvrh – nastavena komfortní teplota: {{ target }} °C"
-          entity_id: "{{ climate_entity }}"
-
-  # Nastaví danou zónu na útlumovou teplotu (setback)
-  schedule_set_zone_setback:
-    alias: "Schedule: set zone setback"
-    mode: queued
-    fields:
-      climate_entity:
-        description: "climate.* entita hlavice"
-    sequence:
-      - variables:
-          setback: "{{ states('sensor.heating_setback_temp_c') | float(17) }}" # cílový útlum
-
-      # Přepni na heat jen pokud už není (některé hlavice ignorují set_temperature v off)
+      # Přepnout na heat jen pokud už není, ať zbytečně nehýbeme režimem
       - choose:
           - conditions:
               - condition: template
@@ -117,18 +79,63 @@ script:
                   entity_id: "{{ climate_entity }}"
                   hvac_mode: heat
 
-      # Guard: nepiš stejnou teplotu znovu (±0.1 °C)
+      # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
       - condition: template
-        value_template: >
-          {{ (state_attr(climate_entity, 'temperature') | float(0) - (setback | float(0))) | abs > 0.1 }}
+        value_template: >-
+          {{ (state_attr(climate_entity,'temperature') | float(0)
+              - (target | float(0))) | abs > 0.1 }}
 
-      # Nastav útlumovou teplotu
+      # Nastavení komfortní teploty
+      - action: climate.set_temperature
+        data:
+          entity_id: "{{ climate_entity }}"
+          temperature: "{{ target }}"
+
+      # Logbook – jen při reálné změně
+      - action: logbook.log
+        data:
+          name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"
+          message: "Rozvrh – nastavena komfortní teplota: {{ target }} °C"
+          entity_id: "{{ climate_entity }}"
+
+  # -------------------------------------------------------------------
+  # script.schedule_set_zone_setback
+  # Nastaví danou climate entitu na útlumovou teplotu (setback)
+  # -------------------------------------------------------------------
+  schedule_set_zone_setback:
+    alias: "Schedule: set zone setback"
+    mode: queued
+    fields:
+      climate_entity:
+        description: "Target climate.* entita hlavice"
+    sequence:
+      - variables:
+          setback: "{{ states('sensor.heating_setback_temp_c') | float(17) }}"
+
+      # Některé hlavice ignorují set_temperature v režimu off → hlídej heat
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ states(climate_entity) | lower != 'heat' }}"
+            sequence:
+              - action: climate.set_hvac_mode
+                data:
+                  entity_id: "{{ climate_entity }}"
+                  hvac_mode: heat
+
+      # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
+      - condition: template
+        value_template: >-
+          {{ (state_attr(climate_entity,'temperature') | float(0)
+              - (setback | float(0))) | abs > 0.1 }}
+
+      # Nastavení útlumové teploty
       - action: climate.set_temperature
         data:
           entity_id: "{{ climate_entity }}"
           temperature: "{{ setback }}"
 
-      # Záznam do logbooku – pouze při reálné změně
+      # Logbook – jen při reálné změně
       - action: logbook.log
         data:
           name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"

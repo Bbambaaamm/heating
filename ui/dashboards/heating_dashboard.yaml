@@ -1,13 +1,41 @@
+# =====================================================================
+# Soubor   : config/heating/ui/dashboards/heating_dashboard.yaml
+# Modul    : UI – Dashboard senzory (aktuální teploty zón)
+# Účel     : Poskytnout UI-friendly senzory pro vizualizaci na dashboardu
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# =====================================================================
+# 📌 Obsah:
+#   - Senzory s aktuální teplotou ve všech zónách
+#   - Všechny hodnoty bezpečně ošetřené (float/attr fallback)
+#
+# 📝 Poznámky:
+# - climate.* → current_temperature používáme tam, kde je dostupný
+# - U zóny 1P Kuchyň je použit Zigbee externí senzor (tz3000…)
+# - Všechny výstupy mají jednotku °C
+# =====================================================================
+
+
 template:
   - sensor:
-      - name: "Přízemí Michal pokoj aktuální teplota"
-        unit_of_measurement: "°C"
-        state: "{{ state_attr('climate.prizemi_michal', 'current_temperature') }}"
 
-      - name: "1. patro Kuchyň aktuální teplota"
+      # -----------------------------------------------------------------
+      # 🏠 Přízemí – Michal: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "Přízemí Michal – aktuální teplota"
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.prizemi_michal', 'current_temperature') | float(0) }}"
+
+      # -----------------------------------------------------------------
+      # 🥘 1. patro – Kuchyň: aktuální teplota z externího Zigbee senzoru
+      # -----------------------------------------------------------------
+      - name: "1. patro Kuchyň – aktuální teplota"
         unit_of_measurement: "°C"
         state: "{{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}"
 
-      - name: "2. patro Máma pokoj aktuální teplota"
+      # -----------------------------------------------------------------
+      # 👩 2. patro – Máma: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "2. patro Máma – aktuální teplota"
         unit_of_measurement: "°C"
-        state: "{{ state_attr('climate.2p_mama', 'current_temperature') }}"
+        state: "{{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}"

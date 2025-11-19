@@ -1,39 +1,53 @@
-# YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/core/zone_2p_mama.yaml
-# =====================================================================
-# 🧩 ZÓNA: 2. patro – Máma
-# ---------------------------------------------------------------------
-# 🎯 Cíl:
-# - Definuje logiku zóny „2. patro – Máma“
-# - Sestavuje senzory pro:
-#     • Požadavek na topení (%)
-#     • Detekci otevřeného okna
-#     • Stav „zóna aktivní“ (topí)
-#
-# 💡 Výstupy:
-# - sensor.zona_2p_mama_demand → procento topného výkonu hlavice
-# - binary_sensor.zona_2p_mama_okno_otevrene → true, pokud je okno otevřené
-# - binary_sensor.zona_2p_mama_aktivni → true, pokud zóna skutečně topí
+# Soubor   : config/heating/core/zone_2p_mama.yaml
+# Modul    : Zóna – 2. patro Máma
+# Účel     : Logika zóny (poptávka, okno, aktivita topení)
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Výstupy: demand %, okno otevřené, zóna aktivní
 # =====================================================================
 
 template:
-  # ---- Senzory (požadavek) ---------------------------------------------------
+  # ===================================================================
+  # SEKCE: Zóna 2P Máma – senzory
+  # ===================================================================
   - sensor:
-      - name: "zona_2p_mama_demand"     # Název senzoru
-        unit_of_measurement: "%"     # Jednotka měření – procenta
-        state_class: measurement     # Typ měření (kvůli historii/statistice)
-        state: "{{ state_attr('climate.2p_mama', 'pi_heating_demand') | int(0) }}"
+      # ----------------------------------------------------------------
+      # SENSOR: Požadavek na topení (%)
+      # Logika:
+      # - čte pi_heating_demand z climate.2p_mama
+      # - výstup je procento (0–100)
+      # ----------------------------------------------------------------
+      - name: "zona_2p_mama_demand"
+        unique_id: zona_2p_mama_demand
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >
+          {{ state_attr('climate.2p_mama', 'pi_heating_demand') | int(0) }}
 
-  # ---- Binární senzory (okno + aktivita) ------------------------------------
   - binary_sensor:
+      # ----------------------------------------------------------------
+      # SENSOR: Okno otevřené v zóně 2P Máma
+      # Logika:
+      # - čte stav sensor.2p_mama_detekovano_otevrene_okno
+      # - pokud není explicitně "closed" → bere se jako otevřeno
+      # ----------------------------------------------------------------
       - name: "zona_2p_mama_okno_otevrene"
+        unique_id: zona_2p_mama_okno_otevrene
         device_class: opening
         state: >
           {% set s = states('sensor.2p_mama_detekovano_otevrene_okno') %}
           {{ s is not string or s|lower != 'closed' }}
 
+      # ----------------------------------------------------------------
+      # SENSOR: Zóna 2P Máma aktivní (topení skutečně běží)
+      # Logika:
+      # - true, pokud:
+      #   - demand > 1 %
+      #   - a není detekováno otevřené okno
+      # ----------------------------------------------------------------
       - name: "zona_2p_mama_aktivni"
+        unique_id: zona_2p_mama_aktivni
         state: >
           {{ (states('sensor.zona_2p_mama_demand')|int(0) > 1)
              and (not is_state('binary_sensor.zona_2p_mama_okno_otevrene','on')) }}
