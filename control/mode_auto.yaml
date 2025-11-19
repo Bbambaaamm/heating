@@ -1,0 +1,56 @@
+# YAML 2024.10
+# =====================================================================
+# 🧠 /config/heating/control/mode_engine.yaml – BOOST LOGIKA (only)
+# =====================================================================
+
+automation:
+  # ▶️ AUTO ON → zruš Boost a znovu aplikuj rozvrhy
+  - id: heating_auto_apply_on
+    alias: "Auto: aktivace a návrat k rozvrhům"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_select.topny_rezim
+        to: "Auto"
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: state
+        entity_id: input_select.topny_rezim
+        state: "Auto"
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+    actions:
+      # 1) Vypnout Boost, pokud někde zůstal zapnutý
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.boost_now
+                state: "on"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.boost_now
+
+      # 2) (Volitelné) vynulovat boost_until – není nutné, ale ať je čisto
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boost_until
+        data:
+          datetime: "{{ now().isoformat() }}"
+
+      # 3) Znovu aplikovat rozvrhy ve všech zónách
+      - action: automation.trigger
+        target:
+          entity_id:
+            - automation.sched_prizemi_michal_end
+            - automation.sched_1p_jidelna_end
+            - automation.sched_2p_mama_end
+
+      # 4) Záznam do logbooku
+      - action: logbook.log
+        data:
+          name: "Topení – režimy"
+          message: "Auto → zrušen Boost, rozvrhy znovu aplikovány."
+          entity_id: input_select.topny_rezim

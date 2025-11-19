@@ -109,6 +109,16 @@ automation:
 
     # Akce – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
     action:
+      # Úvodní audit log každého spuštění
+      - action: logbook.log
+        data:
+          name: "Rozvrh 1P Kuchyň"
+          message: >
+            Trigger={{ trigger.platform }}{% if trigger.entity_id is defined %} | entity={{ trigger.entity_id }}{% endif %}{% if trigger.from_state is defined %} | from={{ trigger.from_state.state }}{% endif %}{% if trigger.to_state is defined %} | to={{ trigger.to_state.state }}{% endif %} |
+            start={{ start }} | end={{ end }} | now={{ now_hms }} | in_window={{ in_window }} |
+            last_comfort={{ last_comfort }} | eco={{ eco_temp }}
+          entity_id: climate.1p_jidelna
+
       # Debounce: pokud to spustila hlavice, chvilku počkej,
       # aby capture stihl uložit nový last_comfort (zabrání 23↔22 pendlování)
       - choose:
@@ -119,6 +129,11 @@ automation:
                      and trigger.entity_id == 'climate.1p_jidelna' }}
             sequence:
               - delay: "00:00:01" # zpoždění 1 s při triggeru z hlavice
+              - action: logbook.log
+                data:
+                  name: "Rozvrh 1P Kuchyň"
+                  message: "Delay 1s po triggeru z hlavice dokončen."
+                  entity_id: climate.1p_jidelna
 
       - choose:
           # Uvnitř okna → nastav poslední KOMFORT
@@ -126,6 +141,11 @@ automation:
               - condition: template
                 value_template: "{{ in_window }}" # True → jsme v okně
             sequence:
+              - action: logbook.log
+                data:
+                  name: "Rozvrh 1P Kuchyň"
+                  message: "Jsme UVNITŘ okna – přepínám na poslední komfort."
+                  entity_id: climate.1p_jidelna
               - action: climate.set_hvac_mode
                 target: { entity_id: climate.1p_jidelna } # Cílová hlavice
                 data: { hvac_mode: heat } # Režim vytápění
@@ -142,12 +162,30 @@ automation:
                   name: "Rozvrh 1P Kuchyň"
                   message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                   entity_id: climate.1p_jidelna
+              # Pokud guard neprošel (tj. změna ≤ 0.1 °C), zaloguj „skip“
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
+                              - (last_comfort | float)) | abs <= 0.1 }}
+                    sequence:
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh 1P Kuchyň"
+                          message: "Skip: teplota už odpovídá komfortu (±0.1 °C)."
+                          entity_id: climate.1p_jidelna
 
           # Mimo okno → nastav ECO
           - conditions:
               - condition: template
                 value_template: "{{ not in_window }}" # False → mimo okno
             sequence:
+              - action: logbook.log
+                data:
+                  name: "Rozvrh 1P Kuchyň"
+                  message: "Jsme MIMO okno – přepínám na ECO."
+                  entity_id: climate.1p_jidelna
               - action: climate.set_hvac_mode
                 target: { entity_id: climate.1p_jidelna }
                 data: { hvac_mode: heat }
@@ -164,3 +202,16 @@ automation:
                   name: "Rozvrh 1P Kuchyň"
                   message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
                   entity_id: climate.1p_jidelna
+              # Pokud guard neprošel (tj. změna ≤ 0.1 °C), zaloguj „skip“
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
+                              - (eco_temp | float)) | abs <= 0.1 }}
+                    sequence:
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh 1P Kuchyň"
+                          message: "Skip: teplota už odpovídá ECO (±0.1 °C)."
+                          entity_id: climate.1p_jidelna

@@ -30,7 +30,7 @@ template:
       - name: "zona_2p_mama_okno_otevrene"
         device_class: opening
         state: >
-          {% set s = states('sensor.prizemi_michal_detekovano_otevrene_okno_2') %}
+          {% set s = states('sensor.2p_mama_detekovano_otevrene_okno') %}
           {{ s is not string or s|lower != 'closed' }}
 
       - name: "zona_2p_mama_aktivni"

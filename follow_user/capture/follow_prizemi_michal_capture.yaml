@@ -1,6 +1,6 @@
 # YAML 2024.10
 # =====================================================================
-# 🧠 SOUBOR: /config/heating/features/follow_user/follow_user_capture.yaml
+# 🧠 SOUBOR: /config/heating/follow_user/capture/follow_prizemi_michal_capture.yaml
 # =====================================================================
 # 🔄 Zachytávání „poslední uživatelské teploty“ ze skutečných hlavic
 # - Kdykoliv se změní cílová teplota (setpoint) na climate.*,
