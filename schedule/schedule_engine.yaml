@@ -54,14 +54,14 @@ script:
     fields:
       climate_entity:
         description: "Target climate.* entita hlavice"
-      last_user_temp_sensor:
+      last_comfort_helper:
         description: "Helper/senzor s poslední komfortní teplotou zóny"
     sequence:
       - variables:
           mode: "{{ states('input_select.topny_rezim') }}"
-          base: "{{ states(last_user_temp_sensor) | float(21) }}"
+          base: "{{ states(last_comfort_helper) | float(21) }}"
           eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}"
-          target: >-
+          target: >
             {% if mode == 'Eco' %}
               {{ (base - eco_off) | round(1) }}
             {% else %}
@@ -81,7 +81,7 @@ script:
 
       # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
       - condition: template
-        value_template: >-
+        value_template: >
           {{ (state_attr(climate_entity,'temperature') | float(0)
               - (target | float(0))) | abs > 0.1 }}
 
@@ -125,7 +125,7 @@ script:
 
       # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
       - condition: template
-        value_template: >-
+        value_template: >
           {{ (state_attr(climate_entity,'temperature') | float(0)
               - (setback | float(0))) | abs > 0.1 }}
 
