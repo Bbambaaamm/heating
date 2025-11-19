@@ -4,11 +4,11 @@
 # =====================================================================
 # 🌡️ EXTERNÍ SENZOR – 1. patro Kuchyň
 # ---------------------------------------------------------------------
-# Účel:
+# Účel: 
 # - Předává aktuální teplotu z externího senzoru (tz3000_jidelna)
 #   do hlavice Danfoss (entita number.1p_jidelna_senzor_externi_teploty).
 # - Vyžaduje, aby v hlavici bylo aktivní:
-#   "Upřednostnit externí teplotní senzor" = ON
+#   "Upřednostnit externí teplotní senzor" = ON,
 #
 # Odolnosti:
 # - Znovuposlání po startu Home Assistantu (zajišťuje obnovu hodnoty po restartu)
