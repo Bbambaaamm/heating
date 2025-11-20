@@ -33,7 +33,7 @@ input_select:
       - Auto     # standardní režim
       - Eco      # úsporný režim (vyšší prahy, nižší komfort)
       - Boost    # krátkodobé intenzivní topení
-      - Off      # úplné vypnutí systému
+      - "Off"      # úplné vypnutí systému
 
 
 # =====================================================================
