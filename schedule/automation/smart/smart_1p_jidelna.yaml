@@ -60,6 +60,7 @@ automation:
           - input_datetime.1p_jidelna_sunday_start
           - input_datetime.1p_jidelna_sunday_end
           - input_boolean.schedule_enable_1p_jidelna
+          - input_select.topny_rezim
 
       # Změna „poslední komfortní teploty“ v HA → reapply, pokud jsme v okně
       - trigger: state
@@ -74,6 +75,7 @@ automation:
     # PROMĚNNÉ – teploty + volba správných časů podle dne v týdnu
     # ---------------------------------------------------------------
     variables:
+      mode: "{{ states('input_select.topny_rezim') }}"
       eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}"
       last_comfort: "{{ states('input_number.1p_jidelna_last_comfort') | float(22) }}"
 
@@ -123,7 +125,7 @@ automation:
         state: "on"
 
     # ---------------------------------------------------------------
-    # AKCE – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
+    # AKCE – logika režimů + komfort/ECO podle okna
     # ---------------------------------------------------------------
     actions:
       # Debounce: pokud to spustila hlavice, počkej, aby capture stihl uložit last_comfort
@@ -136,13 +138,17 @@ automation:
             sequence:
               - delay: "00:00:01"
 
+      # Guard: pokud je režim Off → nedělej nic
+      - condition: template
+        value_template: "{{ mode != 'Off' }}"
+
       - choose:
           # ==========================================================
-          # V OKNĚ → nastav POSLEDNÍ KOMFORT
+          # REŽIM ECO → vždy nastav ECO teplotu (ignoruje rozvrhové okno)
           # ==========================================================
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"
+                value_template: "{{ mode == 'Eco' }}"
             sequence:
               - action: climate.set_hvac_mode
                 target:
@@ -150,38 +156,6 @@ automation:
                 data:
                   hvac_mode: heat
 
-              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
-              - condition: template
-                value_template: >
-                  {{ ((state_attr('climate.1p_jidelna','temperature') | float)
-                      - (last_comfort | float)) | abs > 0.1 }}
-
-              - action: climate.set_temperature
-                target:
-                  entity_id: climate.1p_jidelna
-                data:
-                  temperature: "{{ last_comfort }}"
-
-              - action: logbook.log
-                data:
-                  name: "Rozvrh 1P Kuchyň"
-                  message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
-                  entity_id: climate.1p_jidelna
-
-          # ==========================================================
-          # MIMO OKNO → nastav ECO
-          # ==========================================================
-          - conditions:
-              - condition: template
-                value_template: "{{ not in_window }}"
-            sequence:
-              - action: climate.set_hvac_mode
-                target:
-                  entity_id: climate.1p_jidelna
-                data:
-                  hvac_mode: heat
-
-              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
               - condition: template
                 value_template: >
                   {{ ((state_attr('climate.1p_jidelna','temperature') | float)
@@ -196,5 +170,74 @@ automation:
               - action: logbook.log
                 data:
                   name: "Rozvrh 1P Kuchyň"
-                  message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
+                  message: >
+                    ECO {{ eco_temp }} °C (globální režim ECO – rozvrh ignorován)
                   entity_id: climate.1p_jidelna
+
+          # ==========================================================
+          # REŽIM Auto / Boost → klasická logika: komfort v okně, ECO mimo okno
+          # ==========================================================
+          - conditions:
+              - condition: template
+                value_template: "{{ mode != 'Eco' }}"
+            sequence:
+              - choose:
+                  # V OKNĚ → nastav POSLEDNÍ KOMFORT
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ in_window }}"
+                    sequence:
+                      - action: climate.set_hvac_mode
+                        target:
+                          entity_id: climate.1p_jidelna
+                        data:
+                          hvac_mode: heat
+
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
+                              - (last_comfort | float)) | abs > 0.1 }}
+
+                      - action: climate.set_temperature
+                        target:
+                          entity_id: climate.1p_jidelna
+                        data:
+                          temperature: "{{ last_comfort }}"
+
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh 1P Kuchyň"
+                          message: >
+                            Komfortní režim {{ last_comfort }} °C
+                            (inteligentní spuštění, režim: {{ mode }})
+                          entity_id: climate.1p_jidelna
+
+                  # MIMO OKNO → nastav ECO
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ not in_window }}"
+                    sequence:
+                      - action: climate.set_hvac_mode
+                        target:
+                          entity_id: climate.1p_jidelna
+                        data:
+                          hvac_mode: heat
+
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.1p_jidelna','temperature') | float)
+                              - (eco_temp | float)) | abs > 0.1 }}
+
+                      - action: climate.set_temperature
+                        target:
+                          entity_id: climate.1p_jidelna
+                        data:
+                          temperature: "{{ eco_temp }}"
+
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh 1P Kuchyň"
+                          message: >
+                            ECO {{ eco_temp }} °C
+                            (inteligentní spuštění, režim: {{ mode }})
+                          entity_id: climate.1p_jidelna

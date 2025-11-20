@@ -2,6 +2,7 @@
 # Soubor   : config/heating/schedule/automation/smart/smart_prizemi_michal.yaml
 # Modul    : Rozvrh Přízemí – inteligentní spouštění
 # Účel     : Chytré spouštění komfort/ECO podle časového okna a last_comfort
+#           (v režimu Eco drží globální ECO teplotu mimo rozvrh)
 # Autor    : Michal
 # Poslední úprava : 2025-11-19
 # Poznámka : Minimalizuje zbytečné přepisování setpointu a spam v logbooku
@@ -60,6 +61,7 @@ automation:
           - input_datetime.prizemi_michal_sunday_start
           - input_datetime.prizemi_michal_sunday_end
           - input_boolean.schedule_enable_prizemi_michal
+          - input_select.topny_rezim
 
       # Změna „poslední komfortní teploty“ v HA → reapply, pokud jsme v okně
       - trigger: state
@@ -74,6 +76,7 @@ automation:
     # PROMĚNNÉ – teploty + volba správných časů podle dne v týdnu
     # ---------------------------------------------------------------
     variables:
+      mode: "{{ states('input_select.topny_rezim') }}"
       eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}"
       last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"
 
@@ -123,7 +126,7 @@ automation:
         state: "on"
 
     # ---------------------------------------------------------------
-    # AKCE – jednorázově nastav komfort/ECO podle toho, zda jsme „v okně“
+    # AKCE – chování podle režimu (Auto/Boost, Eco, Off)
     # ---------------------------------------------------------------
     actions:
       # Debounce: pokud to spustila hlavice, počkej, aby capture stihl uložit last_comfort
@@ -138,11 +141,11 @@ automation:
 
       - choose:
           # ==========================================================
-          # V OKNĚ → nastav POSLEDNÍ KOMFORT
+          # REŽIM ECO → ignoruj rozvrh, drž globální ECO teplotu
           # ==========================================================
           - conditions:
               - condition: template
-                value_template: "{{ in_window }}"
+                value_template: "{{ mode == 'Eco' }}"
             sequence:
               - action: climate.set_hvac_mode
                 target:
@@ -150,41 +153,9 @@ automation:
                 data:
                   hvac_mode: heat
 
-              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
               - condition: template
                 value_template: >
-                  {{ ((state_attr('climate.prizemi_michal','temperature') | float)
-                      - (last_comfort | float)) | abs > 0.1 }}
-
-              - action: climate.set_temperature
-                target:
-                  entity_id: climate.prizemi_michal
-                data:
-                  temperature: "{{ last_comfort }}"
-
-              - action: logbook.log
-                data:
-                  name: "Rozvrh Přízemí"
-                  message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
-                  entity_id: climate.prizemi_michal
-
-          # ==========================================================
-          # MIMO OKNO → nastav ECO
-          # ==========================================================
-          - conditions:
-              - condition: template
-                value_template: "{{ not in_window }}"
-            sequence:
-              - action: climate.set_hvac_mode
-                target:
-                  entity_id: climate.prizemi_michal
-                data:
-                  hvac_mode: heat
-
-              # Guard: nezasahuj, pokud je teplota už prakticky stejná (±0.1 °C)
-              - condition: template
-                value_template: >
-                  {{ ((state_attr('climate.prizemi_michal','temperature') | float)
+                  {{ ((state_attr('climate.prizemi_michal', 'temperature') | float)
                       - (eco_temp | float)) | abs > 0.1 }}
 
               - action: climate.set_temperature
@@ -196,5 +167,82 @@ automation:
               - action: logbook.log
                 data:
                   name: "Rozvrh Přízemí"
-                  message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
+                  message: "Globální ECO režim – cílová teplota {{ eco_temp }} °C"
+                  entity_id: climate.prizemi_michal
+
+          # ==========================================================
+          # REŽIM Auto / Boost → klasické chování podle časového okna
+          # ==========================================================
+          - conditions:
+              - condition: template
+                value_template: "{{ mode in ['Auto', 'Boost'] }}"
+            sequence:
+              - choose:
+                  # V OKNĚ → nastav POSLEDNÍ KOMFORT
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ in_window }}"
+                    sequence:
+                      - action: climate.set_hvac_mode
+                        target:
+                          entity_id: climate.prizemi_michal
+                        data:
+                          hvac_mode: heat
+
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.prizemi_michal', 'temperature') | float)
+                              - (last_comfort | float)) | abs > 0.1 }}
+
+                      - action: climate.set_temperature
+                        target:
+                          entity_id: climate.prizemi_michal
+                        data:
+                          temperature: "{{ last_comfort }}"
+
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh Přízemí"
+                          message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
+                          entity_id: climate.prizemi_michal
+
+                  # MIMO OKNO → nastav ECO
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ not in_window }}"
+                    sequence:
+                      - action: climate.set_hvac_mode
+                        target:
+                          entity_id: climate.prizemi_michal
+                        data:
+                          hvac_mode: heat
+
+                      - condition: template
+                        value_template: >
+                          {{ ((state_attr('climate.prizemi_michal', 'temperature') | float)
+                              - (eco_temp | float)) | abs > 0.1 }}
+
+                      - action: climate.set_temperature
+                        target:
+                          entity_id: climate.prizemi_michal
+                        data:
+                          temperature: "{{ eco_temp }}"
+
+                      - action: logbook.log
+                        data:
+                          name: "Rozvrh Přízemí"
+                          message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
+                          entity_id: climate.prizemi_michal
+
+          # ==========================================================
+          # REŽIM Off → rozvrh nic nepřepisuje, jen logne stav
+          # ==========================================================
+          - conditions:
+              - condition: template
+                value_template: "{{ mode == 'Off' }}"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Rozvrh Přízemí"
+                  message: "Režim Off – rozvrh nemění cílovou teplotu."
                   entity_id: climate.prizemi_michal
