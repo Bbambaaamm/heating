@@ -8,7 +8,7 @@
 # 📌 Poznámky:
 # - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
 # - input_datetime.*_start/_end určují komfortní okna
-# - tyto entity pouze drží hodnoty — logiku zpracovává schedule_engine.yaml
+# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
 # =====================================================================
 
 

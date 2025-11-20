@@ -7,7 +7,6 @@
 # =====================================================================
 # 📌 Přehled:
 # - senzory:
-#     • sensor.heating_mode_comfort_offset_c  → offset komfortu dle režimu
 #     • sensor.heating_setback_temp_c         → globální útlumová teplota
 # - skripty:
 #     • script.schedule_set_zone_comfort      → nastaví komfort pro zónu
