@@ -21,32 +21,25 @@
 template:
   - sensor:
       # ----------------------------------------------------------------
-      # Offset komfortní teploty podle režimu (Eco snižuje komfort)
-      # ----------------------------------------------------------------
-      - name: "heating_mode_comfort_offset_c"
-        unique_id: heating_mode_comfort_offset_c
-        unit_of_measurement: "°C"
-        state: >-
-          {% set mode = states('input_select.topny_rezim') %}
-          {{ 1.0 if mode == 'Eco' else 0.0 }}
-
-      # ----------------------------------------------------------------
-      # Globální útlumová teplota (setback)
+      # Globální útlumová teplota (setback) – společná pro všechny zóny
       # ----------------------------------------------------------------
       - name: "heating_setback_temp_c"
         unique_id: heating_setback_temp_c
         unit_of_measurement: "°C"
-        state: "17"   # případnou změnu řeš přes UI nebo separátní helper
+        state: "17"  # případnou změnu lze později parametrizovat helperem
 
 # =====================================================================
-# Skripty – sdílená logika pro komfort a útlum
+# Skripty – sdílená logika pro KOMFORT / ECO / ÚTLUM
 # =====================================================================
 
 script:
 
   # -------------------------------------------------------------------
   # script.schedule_set_zone_comfort
-  # Nastaví danou climate entitu na komfortní teplotu (s ohledem na režim)
+  # Nastaví danou climate entitu na cílovou teplotu zóny:
+  # - režim Auto / Boost → poslední KOMFORT z helperu zóny
+  # - režim Eco          → globální ECO teplota (input_number.eco_temp_default)
+  # - režim Off          → skript nezasahuje (guard přes topny_rezim)
   # -------------------------------------------------------------------
   schedule_set_zone_comfort:
     alias: "Schedule: set zone comfort"
@@ -55,18 +48,22 @@ script:
       climate_entity:
         description: "Target climate.* entita hlavice"
       last_comfort_helper:
-        description: "Helper/senzor s poslední komfortní teplotou zóny"
+        description: "Helper (input_number.*_last_comfort) s poslední komfortní teplotou zóny"
     sequence:
       - variables:
           mode: "{{ states('input_select.topny_rezim') }}"
-          base: "{{ states(last_comfort_helper) | float(21) }}"
-          eco_off: "{{ states('sensor.heating_mode_comfort_offset_c') | float(0) }}"
-          target: >
+          base: "{{ states(last_comfort_helper) | float(21) }}"           # fallback komfort
+          eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}"  # globální ECO
+          target: >-
             {% if mode == 'Eco' %}
-              {{ (base - eco_off) | round(1) }}
+              {{ eco_temp | round(1) }}
             {% else %}
               {{ base | round(1) }}
             {% endif %}
+
+      # Režim Off → nerozjížděj nic
+      - condition: template
+        value_template: "{{ mode != 'Off' }}"
 
       # Přepnout na heat jen pokud už není, ať zbytečně nehýbeme režimem
       - choose:
@@ -81,11 +78,11 @@ script:
 
       # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
       - condition: template
-        value_template: >
-          {{ (state_attr(climate_entity,'temperature') | float(0)
+        value_template: >-
+          {{ (state_attr(climate_entity, 'temperature') | float(0)
               - (target | float(0))) | abs > 0.1 }}
 
-      # Nastavení komfortní teploty
+      # Nastavení cílové (komfortní / ECO) teploty
       - action: climate.set_temperature
         data:
           entity_id: "{{ climate_entity }}"
@@ -95,7 +92,7 @@ script:
       - action: logbook.log
         data:
           name: "{{ climate_entity.split('.')[-1] | replace('_',' ') | title }}"
-          message: "Rozvrh – nastavena komfortní teplota: {{ target }} °C"
+          message: "Rozvrh – nastavena cílová teplota: {{ target }} °C (režim: {{ mode }})"
           entity_id: "{{ climate_entity }}"
 
   # -------------------------------------------------------------------
@@ -125,8 +122,8 @@ script:
 
       # Guard: zapisuj jen pokud se teplota reálně liší (±0.1 °C)
       - condition: template
-        value_template: >
-          {{ (state_attr(climate_entity,'temperature') | float(0)
+        value_template: >-
+          {{ (state_attr(climate_entity, 'temperature') | float(0)
               - (setback | float(0))) | abs > 0.1 }}
 
       # Nastavení útlumové teploty
