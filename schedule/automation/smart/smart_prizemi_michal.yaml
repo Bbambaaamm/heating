@@ -77,8 +77,29 @@ automation:
     # ---------------------------------------------------------------
     variables:
       mode: "{{ states('input_select.topny_rezim') }}"
-      eco_temp: "{{ states('input_number.eco_temp_default') | float(15) }}"
-      last_comfort: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"
+
+      # Climate entity + min/max teplota z hlavice
+      climate_entity: "climate.prizemi_michal"
+      climate_min: "{{ state_attr(climate_entity, 'min_temp') | float(5) }}"
+      climate_max: "{{ state_attr(climate_entity, 'max_temp') | float(30) }}"
+
+      # ECO teplota – ořezaná do rozsahu hlavice
+      eco_raw: "{{ states('input_number.eco_temp_default') | float(15) }}"
+      eco_temp: >-
+        {% set x = eco_raw | float %}
+        {% if x < climate_min %}{{ climate_min }}
+        {% elif x > climate_max %}{{ climate_max }}
+        {% else %}{{ x }}
+        {% endif %}
+
+      # Komfort – ořezaný do rozsahu hlavice
+      last_comfort_raw: "{{ states('input_number.prizemi_michal_last_comfort') | float(22) }}"
+      last_comfort: >-
+        {% set x = last_comfort_raw | float %}
+        {% if x < climate_min %}{{ climate_min }}
+        {% elif x > climate_max %}{{ climate_max }}
+        {% else %}{{ x }}
+        {% endif %}
 
       # Výběr START podle aktuálního dne (0=Po .. 6=Ne)
       start: >
@@ -111,11 +132,7 @@ automation:
         {% set s = start %}
         {% set e = end %}
         {% set n = now_hms %}
-
-        {# Když nemáme validní časy, bereme to jako MIMO okno #}
-        {% if s in ['', 'unknown', 'unavailable'] or e in ['', 'unknown', 'unavailable'] %}
-          false
-        {% elif s <= e %}
+        {% if s <= e %}
           {{ s <= n < e }}
         {% else %}
           {{ (n >= s) or (n < e) }}
