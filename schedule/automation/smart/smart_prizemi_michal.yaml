@@ -111,7 +111,11 @@ automation:
         {% set s = start %}
         {% set e = end %}
         {% set n = now_hms %}
-        {% if s <= e %}
+
+        {# Když nemáme validní časy, bereme to jako MIMO okno #}
+        {% if s in ['', 'unknown', 'unavailable'] or e in ['', 'unknown', 'unavailable'] %}
+          false
+        {% elif s <= e %}
           {{ s <= n < e }}
         {% else %}
           {{ (n >= s) or (n < e) }}
