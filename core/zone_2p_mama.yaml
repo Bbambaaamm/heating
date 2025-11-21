@@ -30,14 +30,14 @@ template:
       # SENSOR: Okno otevřené v zóně 2P Máma
       # Logika:
       # - čte stav sensor.2p_mama_detekovano_otevrene_okno
-      # - pokud není explicitně "closed" → bere se jako otevřeno
+      # - okno = OTEVŘENO, jen když je stav explicitně open/on/true/1
       # ----------------------------------------------------------------
       - name: "zona_2p_mama_okno_otevrene"
         unique_id: zona_2p_mama_okno_otevrene
         device_class: opening
         state: >
-          {% set s = states('sensor.2p_mama_detekovano_otevrene_okno') %}
-          {{ s is not string or s|lower != 'closed' }}
+          {% set s = states('sensor.2p_mama_detekovano_otevrene_okno') | lower %}
+          {{ s in ['on', 'open', 'true', '1'] }}
 
       # ----------------------------------------------------------------
       # SENSOR: Zóna 2P Máma aktivní (topení skutečně běží)
@@ -49,5 +49,8 @@ template:
       - name: "zona_2p_mama_aktivni"
         unique_id: zona_2p_mama_aktivni
         state: >
-          {{ (states('sensor.zona_2p_mama_demand')|int(0) > 1)
-             and (not is_state('binary_sensor.zona_2p_mama_okno_otevrene','on')) }}
+          {% set ignore_windows = is_state('input_boolean.kotel_ignore_open_windows','on') %}
+          {% set demand_ok = states('sensor.zona_2p_mama_demand')|int(0) > 1 %}
+          {% set window_open = is_state('binary_sensor.zona_2p_mama_okno_otevrene','on') %}
+
+          {{ demand_ok and (ignore_windows or not window_open) }}
