@@ -1,6 +1,6 @@
 # =====================================================================
 # Soubor   : config/heating/control/External senzors/zone_1p_kuchyn_external_sensor.yaml
-# Modul    : Externí senzor – 1. patro Kuchyň
+# Modul    : Externí senzor – 1. patro Jídelna
 # Účel     : Přeposílání teploty z externího senzoru do hlavice Danfoss
 # Autor    : Michal
 # Poslední úprava : 2025-11-19
@@ -9,7 +9,7 @@
 
 automation:
   # ===================================================================
-  # SEKCE: Automatizace – externí senzor 1P Kuchyň
+  # SEKCE: Automatizace – externí senzor 1P Jídelna
   # ===================================================================
 
   # -------------------------------------------------------------------
@@ -19,7 +19,7 @@ automation:
   # - načte hodnotu senzoru, zkonvertuje na číslo a ověří rozsah
   # - pokud je hodnota platná (-40 až +60 °C), uloží ji do hlavice Danfoss
   # -------------------------------------------------------------------
-  - alias: "Danfoss 1P Kuchyň – přeposlat teplotu z externího senzoru"
+  - alias: "Danfoss 1P Jídelna – přeposlat teplotu z externího senzoru"
     id: danfoss_1p_jidelna_external_temp_forward
     description: >
       Přeposílá teplotu z externího Zigbee senzoru tz3000_jidelna do

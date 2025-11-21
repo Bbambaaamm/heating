@@ -1,7 +1,8 @@
 # =====================================================================
 # Soubor   : config/heating/schedule/automation/smart/smart_1p_jidelna.yaml
-# Modul    : Rozvrh 1P Kuchyň – inteligentní spouštění
+# Modul    : Rozvrh 1P Jídelna – inteligentní spouštění
 # Účel     : Chytré spouštění komfort/ECO podle časového okna a last_comfort
+#           (v režimu Eco drží globální ECO teplotu mimo rozvrh)
 # Autor    : Michal
 # Poslední úprava : 2025-11-19
 # Poznámka : Minimalizuje zbytečné přepisování setpointu a spam v logbooku
@@ -9,12 +10,12 @@
 
 automation:
   # ===================================================================
-  # SEKCE: Rozvrh 1P Kuchyň – inteligentní spouštění
+  # SEKCE: Rozvrh 1P Jídelna – inteligentní spouštění
   # ===================================================================
-  - alias: "Rozvrh 1P Kuchyň – inteligentní spouštění"
+  - alias: "Rozvrh 1P Jídelna – inteligentní spouštění"
     id: schedule_1p_jidelna_smart
     description: >
-      Inteligentně spíná komfortní nebo ECO teplotu v zóně 1P Kuchyň
+      Inteligentně spíná komfortní nebo ECO teplotu v zóně 1P Jídelna
       pouze při smysluplných změnách (čas start/konec, úprava rozvrhu,
       změna last_comfort, ruční zásah do hlavice).
     mode: restart
@@ -117,7 +118,7 @@ automation:
         {% endif %}
 
     # ---------------------------------------------------------------
-    # PODMÍNKY – globální enable rozvrhu pro 1P Kuchyň
+    # PODMÍNKY – globální enable rozvrhu pro 1P Jídelna
     # ---------------------------------------------------------------
     conditions:
       - condition: state
@@ -137,10 +138,6 @@ automation:
                      and trigger.entity_id == 'climate.1p_jidelna' }}
             sequence:
               - delay: "00:00:01"
-
-      # Guard: pokud je režim Off → nedělej nic
-      - condition: template
-        value_template: "{{ mode != 'Off' }}"
 
       - choose:
           # ==========================================================
@@ -169,17 +166,16 @@ automation:
 
               - action: logbook.log
                 data:
-                  name: "Rozvrh 1P Kuchyň"
-                  message: >
-                    ECO {{ eco_temp }} °C (globální režim ECO – rozvrh ignorován)
+                  name: "Rozvrh 1P Jídelna"
+                  message: "Globální ECO režim – cílová teplota {{ eco_temp }} °C"
                   entity_id: climate.1p_jidelna
 
           # ==========================================================
-          # REŽIM Auto / Boost → klasická logika: komfort v okně, ECO mimo okno
+          # REŽIM Auto / Boost → komfort v okně, ECO mimo okno
           # ==========================================================
           - conditions:
               - condition: template
-                value_template: "{{ mode != 'Eco' }}"
+                value_template: "{{ mode in ['Auto', 'Boost'] }}"
             sequence:
               - choose:
                   # V OKNĚ → nastav POSLEDNÍ KOMFORT
@@ -206,10 +202,8 @@ automation:
 
                       - action: logbook.log
                         data:
-                          name: "Rozvrh 1P Kuchyň"
-                          message: >
-                            Komfortní režim {{ last_comfort }} °C
-                            (inteligentní spuštění, režim: {{ mode }})
+                          name: "Rozvrh 1P Jídelna"
+                          message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
                           entity_id: climate.1p_jidelna
 
                   # MIMO OKNO → nastav ECO
@@ -236,8 +230,19 @@ automation:
 
                       - action: logbook.log
                         data:
-                          name: "Rozvrh 1P Kuchyň"
-                          message: >
-                            ECO {{ eco_temp }} °C
-                            (inteligentní spuštění, režim: {{ mode }})
+                          name: "Rozvrh 1P Jídelna"
+                          message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
                           entity_id: climate.1p_jidelna
+
+          # ==========================================================
+          # REŽIM Off → rozvrh nic nepřepisuje, jen logne stav
+          # ==========================================================
+          - conditions:
+              - condition: template
+                value_template: "{{ mode == 'Off' }}"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Rozvrh 1P Jídelna"
+                  message: "Režim Off – rozvrh nemění cílovou teplotu."
+                  entity_id: climate.1p_jidelna

@@ -19,7 +19,7 @@ automation:
   # - přečte novou cílovou teplotu (temperature)
   # - pokud > 0 (platná), uloží do input_number.zona_1p_jidelna_user_set_temp
   # -------------------------------------------------------------------
-  - alias: "Zóna – 1. patro Kuchyň: zachyť změnu setpointu"
+  - alias: "Zóna – 1. patro Jídelna: zachyť změnu setpointu"
     id: zona_1p_jidelna_capture_setpoint
     description: >
       Zachytává každou změnu cílové teploty z hlavice climate.1p_jidelna
@@ -51,7 +51,7 @@ automation:
   # - uloží jej do input_number.zona_1p_jidelna_user_set_temp
   # - malé zpoždění (5s) kvůli inicializaci Zigbee zařízení
   # -------------------------------------------------------------------
-  - alias: "Zóna – 1. patro Kuchyň: init helperu po startu"
+  - alias: "Zóna – 1. patro Jídelna: init helperu po startu"
     id: zona_1p_jidelna_init_on_start
     description: >
       Po restartu HA inicializuje poslední uživatelskou teplotu

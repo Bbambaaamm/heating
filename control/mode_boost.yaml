@@ -114,7 +114,7 @@ automation:
       zones: >
         {{ [
           dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort'),
-          dict(name='1. patro – Kuchyň', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort'),
+          dict(name='1. patro – Jídelna', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort'),
           dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort')
         ] }}
 

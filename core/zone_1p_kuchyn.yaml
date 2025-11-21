@@ -1,6 +1,6 @@
 # =====================================================================
 # Soubor   : config/heating/core/zone_1p_kuchyn.yaml
-# Modul    : Zóna – 1. patro Kuchyň
+# Modul    : Zóna – 1. patro Jídelna
 # Účel     : Logika zóny (poptávka, okno, aktivita topení)
 # Autor    : Michal
 # Poslední úprava : 2025-11-19
@@ -9,7 +9,7 @@
 
 template:
   # ===================================================================
-  # SEKCE: Zóna 1P Kuchyň – senzory
+  # SEKCE: Zóna 1P Jídelna – senzory
   # ===================================================================
   - sensor:
       # ----------------------------------------------------------------
@@ -27,7 +27,7 @@ template:
 
   - binary_sensor:
       # ----------------------------------------------------------------
-      # SENSOR: Okno otevřené v zóně 1P Kuchyň
+      # SENSOR: Okno otevřené v zóně 1P Jídelna
       # Logika:
       # - čte stav sensor.1p_jidelna_detekovano_otevrene_okno
       # - pokud není explicitně "closed" → bere se jako otevřeno
@@ -41,7 +41,7 @@ template:
           {{ s is not string or s|lower != 'closed' }}
 
       # ----------------------------------------------------------------
-      # SENSOR: Zóna 1P Kuchyň aktivní (topení skutečně běží)
+      # SENSOR: Zóna 1P Jídelna aktivní (topení skutečně běží)
       # Logika:
       # - true, pokud:
       #   - demand > 1 %

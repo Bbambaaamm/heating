@@ -7,7 +7,7 @@
 # =====================================================================
 # 📌 Poznámky:
 # - ukládá *pouze* komfortní teploty (ECO se neukládají)
-# - používá se v chytrém a follow scheduleru
+# - používá se v chytrém scheduleru (smart_* automations)
 # - hodnota se mění jen při reálné změně setpointu
 # =====================================================================
 
