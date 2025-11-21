@@ -71,9 +71,9 @@ automation:
       - action: automation.trigger
         target:
           entity_id:
-            - automation.sched_prizemi_michal_end
-            - automation.sched_1p_jidelna_end
-            - automation.sched_2p_mama_end
+            - automation.schedule_prizemi_michal_smart
+            - automation.schedule_1p_jidelna_smart
+            - automation.schedule_2p_mama_smart
 
       # ---------------------------------------------------------------
       # 4) Zapsat událost do Logbooku
