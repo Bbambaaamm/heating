@@ -6,14 +6,6 @@
 # Autor    : Michal
 # Poslední úprava : 2025-11-20
 # =====================================================================
-# 📌 Popis:
-# - po startu HA jednorázově spustí smart rozvrhy všech zón
-# - tím se srovná stav hlavic (komfort/ECO) s:
-#     • aktuálním dnem + časem
-#     • režimem topení (Auto / Eco / Boost / Off)
-#     • posledním komfortem zón
-# - používá existující automations.*_smart, žádná duplicita logiky
-# =====================================================================
 
 automation:
   - id: heating_startup_schedule_sync
@@ -25,13 +17,13 @@ automation:
     mode: restart
     initial_state: true
 
-    trigger:
+    triggers:
       - trigger: homeassistant
         event: start
 
-    condition: []
+    conditions: []
 
-    action:
+    actions:
       # Malé zpoždění, aby se po startu načetly všechny helpery/automations
       - delay: "00:00:10"
 
