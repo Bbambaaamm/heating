@@ -88,6 +88,10 @@ template:
 
           {{ (demands | max) if (demands|count) > 0 else 0 }}
 
+  # ===================================================================
+  # SEKCE: Logický verdikt – měl by být kotel zapnut?
+  # ===================================================================
+  - binary_sensor:
       - name: "kotel_should_be_on"
         unique_id: kotel_should_be_on
         device_class: heat
