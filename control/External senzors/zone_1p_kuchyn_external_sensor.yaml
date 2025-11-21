@@ -51,6 +51,9 @@ automation:
 
       # ---------------------------------------------------------------
       # 2) Ověření hodnoty + přenos do hlavice
+      # - hodnota musí být definovaná
+      # - musí být v reálném rozsahu (-40 až +60 °C)
+      # + podmínka, že rozdíl je > 0.1 °C
       # ---------------------------------------------------------------
       - choose:
           - conditions:
