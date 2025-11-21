@@ -22,6 +22,8 @@ template:
         unique_id: zona_prizemi_michal_demand
         unit_of_measurement: "%"
         state_class: measurement
+        availability: >
+          {{ not is_state('climate.prizemi_michal', 'unavailable') }}
         state: >
           {{ state_attr('climate.prizemi_michal', 'pi_heating_demand') | int(0) }}
 

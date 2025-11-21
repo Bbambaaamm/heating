@@ -14,14 +14,13 @@ template:
   - sensor:
       # ----------------------------------------------------------------
       # SENSOR: Požadavek na topení (%)
-      # Logika:
-      # - čte pi_heating_demand z climate.2p_mama
-      # - výstup je procento (0–100)
       # ----------------------------------------------------------------
       - name: "zona_2p_mama_demand"
         unique_id: zona_2p_mama_demand
         unit_of_measurement: "%"
         state_class: measurement
+        availability: >
+          {{ not is_state('climate.2p_mama', 'unavailable') }}
         state: >
           {{ state_attr('climate.2p_mama', 'pi_heating_demand') | int(0) }}
 
