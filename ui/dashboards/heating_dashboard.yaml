@@ -24,18 +24,33 @@ template:
       # -----------------------------------------------------------------
       - name: "Přízemí Michal – aktuální teplota"
         unit_of_measurement: "°C"
-        state: "{{ state_attr('climate.prizemi_michal', 'current_temperature') | float(0) }}"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.prizemi_michal', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.prizemi_michal', 'current_temperature') | float(0) }}
 
       # -----------------------------------------------------------------
       # 🥘 1. patro – Jídelna: aktuální teplota z externího Zigbee senzoru
       # -----------------------------------------------------------------
       - name: "1. patro Jídelna – aktuální teplota"
         unit_of_measurement: "°C"
-        state: "{{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('sensor.tz3000_jidelna_teplota', 'unavailable') }}
+        state: >
+          {{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}
 
       # -----------------------------------------------------------------
       # 👩 2. patro – Máma: aktuální teplota z hlavice
       # -----------------------------------------------------------------
       - name: "2. patro Máma – aktuální teplota"
         unit_of_measurement: "°C"
-        state: "{{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.2p_mama', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}
