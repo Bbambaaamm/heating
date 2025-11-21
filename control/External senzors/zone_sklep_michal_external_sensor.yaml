@@ -61,10 +61,12 @@ automation:
               - condition: template
                 value_template: >
                   {{ temp is not none and -40 < temp < 60 }}
+              - condition: template
+                value_template: >
+                  {{ (states('number.1p_jidelna_senzor_externi_teploty') | float(0) - temp) | abs > 0.1 }}
             sequence:
               - action: number.set_value
                 target:
-                  entity_id: number.sklep_michal_senzor_externi_teploty
+                  entity_id: number.1p_jidelna_senzor_externi_teploty
                 data:
                   value: "{{ temp }}"
-        default: []
