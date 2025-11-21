@@ -87,3 +87,14 @@ template:
           {% endif %}
 
           {{ (demands | max) if (demands|count) > 0 else 0 }}
+
+      - name: "kotel_should_be_on"
+        unique_id: kotel_should_be_on
+        device_class: heat
+        state: >-
+          {{ is_state('binary_sensor.kotel_threshold_all_ok', 'on')
+             and is_state('binary_sensor.kotel_mode_off_block', 'off') }}
+        attributes:
+          aktivni_zony: "{{ states('sensor.kotel_aktivni_zony_pocet') }}"
+          prumerna_poptavka: "{{ states('sensor.kotel_poptavka_prumer') }}"
+          boost_active: "{{ states('binary_sensor.kotel_boost_active') }}"
