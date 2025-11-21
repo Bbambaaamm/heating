@@ -1,7 +1,7 @@
 # =====================================================================
 # Soubor   : config/heating/schedule/schedule_engine.yaml
 # Modul    : Schedule Engine – sdílená logika rozvrhů (více zón)
-# Účel     : Výpočet komfortního offsetu / setbacku + sdílené skripty
+# Účel     : Jednotná logika pro nastavování komfortních a útlumových teplot
 # Autor    : Michal
 # Poslední úprava : 2025-11-19
 # =====================================================================
