@@ -1,0 +1,98 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_1p_koupelna.yaml
+# Modul    : Schedule Helpers – 1. patro (Koupelna)
+# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# =====================================================================
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
+input_boolean:
+  schedule_enable_1p_koupelna:
+    name: "Rozvrh – 1. patro Koupelna zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
+input_datetime:
+
+  # --- Pondělí ---
+  1p_koupelna_monday_start:
+    name: "1. patro Koupelna – Pondělí začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_monday_end:
+    name: "1. patro Koupelna – Pondělí konec"
+    has_date: false
+    has_time: true
+
+  # --- Úterý ---
+  1p_koupelna_tuesday_start:
+    name: "1. patro Koupelna – Úterý začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_tuesday_end:
+    name: "1. patro Koupelna – Úterý konec"
+    has_date: false
+    has_time: true
+
+  # --- Středa ---
+  1p_koupelna_wednesday_start:
+    name: "1. patro Koupelna – Středa začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_wednesday_end:
+    name: "1. patro Koupelna – Středa konec"
+    has_date: false
+    has_time: true
+
+  # --- Čtvrtek ---
+  1p_koupelna_thursday_start:
+    name: "1. patro Koupelna – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_thursday_end:
+    name: "1. patro Koupelna – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  # --- Pátek ---
+  1p_koupelna_friday_start:
+    name: "1. patro Koupelna – Pátek začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_friday_end:
+    name: "1. patro Koupelna – Pátek konec"
+    has_date: false
+    has_time: true
+
+  # --- Sobota ---
+  1p_koupelna_saturday_start:
+    name: "1. patro Koupelna – Sobota začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_saturday_end:
+    name: "1. patro Koupelna – Sobota konec"
+    has_date: false
+    has_time: true
+
+  # --- Neděle ---
+  1p_koupelna_sunday_start:
+    name: "1. patro Koupelna – Neděle začátek"
+    has_date: false
+    has_time: true
+  1p_koupelna_sunday_end:
+    name: "1. patro Koupelna – Neděle konec"
+    has_date: false
+    has_time: true
