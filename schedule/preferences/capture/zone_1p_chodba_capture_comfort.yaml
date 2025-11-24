@@ -1,0 +1,52 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/capture/zone_1p_chodba_capture_comfort.yaml
+# Modul    : Zachytávání komfortu – 1. patro (Chodba)
+# Účel     : Ukládání poslední uživatelsky nastavené komfortní teploty
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# =====================================================================
+
+automation:
+  - id: capture_last_comfort_1p_chodba
+    alias: "Zachytni poslední komfort – 1. patro Chodba"
+    mode: restart
+    initial_state: true
+
+    # Hlavice změnila setpoint → zkontroluj, zda jde o komfort a ulož
+    triggers:
+      - trigger: state
+        entity_id: climate.1p_chodba
+        attribute: temperature
+
+    variables:
+      new_set: "{{ state_attr('climate.1p_chodba', 'temperature') | float(0) }}"
+      eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
+
+    conditions:
+      # Komfort = hodnota vyšší než ECO + 0.2 °C
+      - condition: template
+        value_template: "{{ new_set >= (eco + 0.2) }}"
+
+      # Uložit pouze pokud došlo ke skutečné změně (> 0.1 °C)
+      - condition: template
+        value_template: >
+          {{ (states('input_number.1p_chodba_last_comfort') | float(0)
+              - new_set) | abs > 0.1 }}
+
+      # Při Boostu neukládat, aby se nepoškodil poslední komfort
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
+
+    actions:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.1p_chodba_last_comfort
+        data:
+          value: "{{ new_set }}"
+
+      - action: logbook.log
+        data:
+          name: "1. patro – Chodba"
+          message: "Uložena komfortní teplota: {{ new_set }} °C"
+          entity_id: climate.1p_chodba
