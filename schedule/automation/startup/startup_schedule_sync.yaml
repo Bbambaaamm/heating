@@ -31,9 +31,9 @@ automation:
       - action: automation.trigger
         target:
           entity_id:
-            - automation.schedule_1p_jidelna_smart
-            - automation.schedule_2p_mama_smart
-            - automation.schedule_prizemi_michal_smart
+            - automation.prizemi_michal_pd
+            - automation.1_patro_jidelna_bp
+            - automation.2_patro_mama_bp
 
       # Záznam do logbooku – pro přehled po restartu
       - action: logbook.log
