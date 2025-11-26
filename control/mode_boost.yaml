@@ -113,8 +113,13 @@ automation:
       # Zde definujeme zóny + jejich "last comfort" helper
       zones: >
         {{ [
+          dict(name='Sklep – Michal', climate='climate.sklep_michal', last='input_number.sklep_michal_last_comfort'),
           dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort'),
+          dict(name='Přízemí – Chodba zachod', climate='climate.prizemi_chodba_zachod', last='input_number.prizemi_chodba_zachod_last_comfort'),
           dict(name='1. patro – Jídelna', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort'),
+          dict(name='1. patro – Kuchyň', climate='climate.1p_kuchyn', last='input_number.1p_kuchyn_last_comfort'),
+          dict(name='1. patro – Koupelna', climate='climate.1p_koupelna', last='input_number.1p_koupelna_last_comfort'),
+          dict(name='1. patro – Chodba', climate='climate.1p_chodba', last='input_number.1p_chodba_last_comfort'),
           dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort')
         ] }}
 

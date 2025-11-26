@@ -31,8 +31,13 @@ automation:
       - action: automation.trigger
         target:
           entity_id:
-            - automation.prizemi_michal_pd
+            - automation.rozvrh_sklep_michal_bp
+            - automation.prizemi_michal_bp
+            - automation.rozvrh_prizemi_chodba_zachod_bp
             - automation.1_patro_jidelna_bp
+            - automation.rozvrh_1_patro_koupelna_bp
+            - automation.rozvrh_1_patro_kuchyn_bp
+            - automation.rozvrh_1_patro_chodba_bp
             - automation.2_patro_mama_bp
 
       # Záznam do logbooku – pro přehled po restartu
