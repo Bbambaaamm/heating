@@ -13,7 +13,7 @@
 
 input_number:
   prizemi_chodba_last_comfort:
-    name: "1. patro Chodba – poslední komfortní teplota"
+    name: "Přízemí Chodba – poslední komfortní teplota"
     unit_of_measurement: "°C"
     icon: mdi:thermometer
     min: 10
