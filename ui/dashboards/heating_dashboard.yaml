@@ -20,7 +20,7 @@ template:
   - sensor:
 
       # -----------------------------------------------------------------
-      # 🏠 Sklep – Michal: aktuální teplota z hlavice
+      # 🏠 Sklep – Michal: aktuální teplota z hlavice z externího senzoru xiaomy
       # -----------------------------------------------------------------
       - name: "Sklep Michal – aktuální teplota"
         unit_of_measurement: "°C"
@@ -80,7 +80,7 @@ template:
           {{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}
 
       # -----------------------------------------------------------------
-      # 🥘 1. patro – Chodba: aktuální teplota z externího Zigbee senzoru
+      # 🥘 1. patro – Chodba: aktuální teplota z hlavice
       # -----------------------------------------------------------------
       - name: "1. patro Chodba – aktuální teplota"
         unit_of_measurement: "°C"
@@ -92,7 +92,7 @@ template:
           {{ state_attr('climate.1p_chodba', 'current_temperature') | float(0) }}
 
       # -----------------------------------------------------------------
-      # 🥘 1. patro – Koupelna: aktuální teplota z externího Zigbee senzoru
+      # 🥘 1. patro – Koupelna: aktuální teplota z hlavice
       # -----------------------------------------------------------------
       - name: "1. patro Koupelna – aktuální teplota"
         unit_of_measurement: "°C"
