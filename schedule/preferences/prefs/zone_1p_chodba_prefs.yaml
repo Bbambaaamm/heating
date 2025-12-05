@@ -1,5 +1,5 @@
 # =====================================================================
-# Soubor   : config/heating/schedule/preferences/prefs/zone_prizemi_chodba_prefs.yaml
+# Soubor   : config/heating/schedule/preferences/prefs/zone_1p_chodba_prefs.yaml
 # Modul    : Schedule Preferences – 1. patro (Chodba)
 # Účel     : Perzistentní úložiště poslední KOMFORTNÍ teploty zóny
 # Autor    : Michal
@@ -12,8 +12,8 @@
 # =====================================================================
 
 input_number:
-  prizemi_chodba_last_comfort:
-    name: "Přízemí Chodba – poslední komfortní teplota"
+  1p_chodba_last_comfort:
+    name: "1. patro Chodba – poslední komfortní teplota"
     unit_of_measurement: "°C"
     icon: mdi:thermometer
     min: 10
