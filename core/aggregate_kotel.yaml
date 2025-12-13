@@ -67,7 +67,7 @@ template:
             {% set demands = demands + [ states('sensor.zona_2p_mama_demand') | int(0) ] %}
           {% endif %}
 
-          {{ (demands | sum / demands|count) | round(1) if (demands|count) > 0 else 0 }}
+          {{ ((demands | sum) / (demands | count)) | round(1) if (demands | count) > 0 else 0 }}
 
       # ---------------------------------------------------------------
       # SENSOR: Maximální poptávka aktivních zón (%)
