@@ -56,7 +56,7 @@ input_boolean:
   kotel_ignore_open_windows:
     name: "Kotel – ignorovat otevřená okna"
     icon: mdi:window-open-variant
-    initial: true
+    initial: on
 
 
 # =====================================================================
