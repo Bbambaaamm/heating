@@ -14,6 +14,8 @@
 !heating/
 !heating/**
 
-# Povol blueprints (adresář + podadresáře + obsah)
+# === povol POUZE heating blueprinty ===
 !blueprints/
-!blueprints/**
+!blueprints/automation/
+!blueprints/automation/heating/
+!blueprints/automation/heating/**
