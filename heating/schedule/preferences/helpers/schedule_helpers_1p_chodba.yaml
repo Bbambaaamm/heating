@@ -1,0 +1,98 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_1p_chodba.yaml
+# Modul    : Schedule Helpers – 1. patro (Chodba)
+# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# =====================================================================
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
+input_boolean:
+  schedule_enable_1p_chodba:
+    name: "Rozvrh – 1. patro Chodba zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
+input_datetime:
+
+  # --- Pondělí ---
+  1p_chodba_monday_start:
+    name: "1. patro Chodba – Pondělí začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_monday_end:
+    name: "1. patro Chodba – Pondělí konec"
+    has_date: false
+    has_time: true
+
+  # --- Úterý ---
+  1p_chodba_tuesday_start:
+    name: "1. patro Chodba – Úterý začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_tuesday_end:
+    name: "1. patro Chodba – Úterý konec"
+    has_date: false
+    has_time: true
+
+  # --- Středa ---
+  1p_chodba_wednesday_start:
+    name: "1. patro Chodba – Středa začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_wednesday_end:
+    name: "1. patro Chodba – Středa konec"
+    has_date: false
+    has_time: true
+
+  # --- Čtvrtek ---
+  1p_chodba_thursday_start:
+    name: "1. patro Chodba – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_thursday_end:
+    name: "1. patro Chodba – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  # --- Pátek ---
+  1p_chodba_friday_start:
+    name: "1. patro Chodba – Pátek začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_friday_end:
+    name: "1. patro Chodba – Pátek konec"
+    has_date: false
+    has_time: true
+
+  # --- Sobota ---
+  1p_chodba_saturday_start:
+    name: "1. patro Chodba – Sobota začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_saturday_end:
+    name: "1. patro Chodba – Sobota konec"
+    has_date: false
+    has_time: true
+
+  # --- Neděle ---
+  1p_chodba_sunday_start:
+    name: "1. patro Chodba – Neděle začátek"
+    has_date: false
+    has_time: true
+  1p_chodba_sunday_end:
+    name: "1. patro Chodba – Neděle konec"
+    has_date: false
+    has_time: true

@@ -1,0 +1,150 @@
+# =====================================================================
+# Soubor   : config/heating/ui/dashboards/heating_dashboard.yaml
+# Modul    : UI – Dashboard senzory (aktuální teploty zón)
+# Účel     : Poskytnout UI-friendly senzory pro vizualizaci na dashboardu
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# =====================================================================
+# 📌 Obsah:
+#   - Senzory s aktuální teplotou ve všech zónách
+#   - Všechny hodnoty bezpečně ošetřené (float/attr fallback)
+#
+# 📝 Poznámky:
+# - climate.* → current_temperature používáme tam, kde je dostupný
+# - U zóny 1P Jídelna je použit Zigbee externí senzor (tz3000…)
+# - Všechny výstupy mají jednotku °C
+# =====================================================================
+
+
+template:
+  - sensor:
+
+      # -----------------------------------------------------------------
+      # 🏠 Sklep – Michal: aktuální teplota z hlavice z externího senzoru xiaomy
+      # -----------------------------------------------------------------
+      - name: "Sklep Michal – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.sklep_michal', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.sklep_michal', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🏠 Přízemí – Michal: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "Přízemí Michal – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.prizemi_michal', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.prizemi_michal', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🏠 Přízemí – Chodba záchod: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "Přízemí Chodba záchod – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.prizemi_chodba_zachod', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.prizemi_chodba_zachod', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🏠 1. patro – Kuchyň: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "1. patro - Kuchyň – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.1p_kuchyn', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.1p_kuchyn', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🥘 1. patro – Jídelna: aktuální teplota z externího Zigbee senzoru
+      # -----------------------------------------------------------------
+      - name: "1. patro Jídelna – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('sensor.tz3000_jidelna_teplota', 'unavailable') }}
+        state: >
+          {{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}
+
+      # -----------------------------------------------------------------
+      # 🥘 1. patro – Chodba: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "1. patro Chodba – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.1p_chodba', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.1p_chodba', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🥘 1. patro – Koupelna: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "1. patro Koupelna – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.1p_koupelna', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.1p_koupelna', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 👩 2. patro – Máma: aktuální teplota z hlavice
+      # -----------------------------------------------------------------
+      - name: "2. patro Máma – aktuální teplota"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.2p_mama', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}
+
+input_boolean:
+
+  ui_sklep_michal_schedule_expand:
+    name: UI – Sklep Michal rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_prizemi_michal_schedule_expand:
+    name: UI – Přízemí Michal rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_prizemi_chodba_zachod_schedule_expand:
+    name: UI – Přízemí Chodba záchod rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_1p_chodba_schedule_expand:
+    name: UI – 1. patro Chodba rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_1p_jidelna_schedule_expand:
+    name: UI – 1. patro Jídelna rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_1p_kuchyn_schedule_expand:
+    name: UI – 1. patro Kuchyň rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_1p_koupelna_schedule_expand:
+    name: UI – 1. patro Koupelna rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal
+
+  ui_2p_mama_schedule_expand:
+    name: UI – 2. patro Máma rozvrh rozbalit
+    icon: mdi:unfold-more-horizontal

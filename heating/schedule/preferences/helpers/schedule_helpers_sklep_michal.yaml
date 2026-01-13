@@ -1,0 +1,98 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_sklep_michal.yaml
+# Modul    : Schedule Helpers – Sklep (Michal)
+# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# =====================================================================
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
+input_boolean:
+  schedule_enable_sklep_michal:
+    name: "Rozvrh – Sklep Michal zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
+input_datetime:
+
+  # --- Pondělí ---
+  sklep_michal_monday_start:
+    name: "Sklep Michal – Pondělí začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_monday_end:
+    name: "Sklep Michal – Pondělí konec"
+    has_date: false
+    has_time: true
+
+  # --- Úterý ---
+  sklep_michal_tuesday_start:
+    name: "Sklep Michal – Úterý začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_tuesday_end:
+    name: "Sklep Michal – Úterý konec"
+    has_date: false
+    has_time: true
+
+  # --- Středa ---
+  sklep_michal_wednesday_start:
+    name: "Sklep Michal – Středa začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_wednesday_end:
+    name: "Sklep Michal – Středa konec"
+    has_date: false
+    has_time: true
+
+  # --- Čtvrtek ---
+  sklep_michal_thursday_start:
+    name: "Sklep Michal – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_thursday_end:
+    name: "Sklep Michal – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  # --- Pátek ---
+  sklep_michal_friday_start:
+    name: "Sklep Michal – Pátek začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_friday_end:
+    name: "Sklep Michal – Pátek konec"
+    has_date: false
+    has_time: true
+
+  # --- Sobota ---
+  sklep_michal_saturday_start:
+    name: "Sklep Michal – Sobota začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_saturday_end:
+    name: "Sklep Michal – Sobota konec"
+    has_date: false
+    has_time: true
+
+  # --- Neděle ---
+  sklep_michal_sunday_start:
+    name: "Sklep Michal – Neděle začátek"
+    has_date: false
+    has_time: true
+  sklep_michal_sunday_end:
+    name: "Sklep Michal – Neděle konec"
+    has_date: false
+    has_time: true

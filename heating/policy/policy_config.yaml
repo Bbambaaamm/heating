@@ -1,0 +1,86 @@
+# =====================================================================
+# Soubor   : config/heating/policy/policy_config.yaml
+# Modul    : Konfigurace prahů a zpoždění kotle (policy)
+# Účel     : Definice všech helperů ovlivňujících chování kotle
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Hodnoty jsou editovatelné v UI a používají se v engine/policy
+# =====================================================================
+
+input_number:
+
+  # -------------------------------------------------------------------
+  # HELPER: Minimální průměrná poptávka (%) napříč aktivními zónami
+  # Logika:
+  # - pokud průměrná poptávka aktivních zón překročí tuto hodnotu,
+  #   může být kotel zapnut (pokud splní i ostatní podmínky)
+  # -------------------------------------------------------------------
+  kotel_min_avg_demand_pct:
+    name: "Kotel – min. průměrná poptávka (%)"
+    unit_of_measurement: "%"
+    icon: mdi:percent
+    min: 0
+    max: 100
+    step: 1
+    initial: 15
+
+  # -------------------------------------------------------------------
+  # HELPER: Minimální demand zóny pro započítání do rozhodování kotle (%)
+  # Logika:
+  # - zóna se započítá do průměru / počtu pouze pokud:
+  #   - je aktivní
+  #   - a její demand >= této hodnoty
+  # - slouží k odfiltrování malých PI impulzů (např. koupelna, chodba)
+  # -------------------------------------------------------------------
+  kotel_min_zone_demand_pct:
+    name: "Kotel – min. demand zóny (%)"
+    unit_of_measurement: "%"
+    icon: mdi:percent
+    min: 0
+    max: 100
+    step: 1
+    initial: 5
+
+  # -------------------------------------------------------------------
+  # HELPER: Minimální počet aktivních zón
+  # Logika:
+  # - určuje, kolik zón musí být „aktivních“, aby se kotel mohl zapnout
+  # - zabraňuje spouštění kvůli jediné zóně na krátkou dobu
+  # -------------------------------------------------------------------
+  kotel_min_active_zones:
+    name: "Kotel – min. počet aktivních zón"
+    icon: mdi:numeric
+    min: 0
+    max: 10
+    step: 1
+    initial: 1
+
+  # -------------------------------------------------------------------
+  # HELPER: Zpoždění zapnutí kotle (sekundy)
+  # Logika:
+  # - anti-cycling parametr
+  # - kotel se zapne až po X sekundách od vzniku požadavku, pokud trvá
+  # -------------------------------------------------------------------
+  kotel_on_delay_sec:
+    name: "Kotel – zpoždění zapnutí (s)"
+    unit_of_measurement: "s"
+    icon: mdi:timer-play
+    min: 0
+    max: 900
+    step: 10
+    initial: 120
+
+  # -------------------------------------------------------------------
+  # HELPER: Zpoždění vypnutí kotle (sekundy)
+  # Logika:
+  # - po zániku všech požadavků počká X sekund, než kotel vypne
+  # - pokud během čekání přijde nový požadavek, odpočet se zruší
+  # -------------------------------------------------------------------
+  kotel_off_delay_sec:
+    name: "Kotel – zpoždění vypnutí (s)"
+    unit_of_measurement: "s"
+    icon: mdi:timer-stop
+    min: 0
+    max: 1800
+    step: 10
+    initial: 300
