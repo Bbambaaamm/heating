@@ -25,6 +25,23 @@ input_number:
     initial: 15
 
   # -------------------------------------------------------------------
+  # HELPER: Minimální demand zóny pro započítání do rozhodování kotle (%)
+  # Logika:
+  # - zóna se započítá do průměru / počtu pouze pokud:
+  #   - je aktivní
+  #   - a její demand >= této hodnoty
+  # - slouží k odfiltrování malých PI impulzů (např. koupelna, chodba)
+  # -------------------------------------------------------------------
+  kotel_min_zone_demand_pct:
+    name: "Kotel – min. demand zóny (%)"
+    unit_of_measurement: "%"
+    icon: mdi:percent
+    min: 0
+    max: 100
+    step: 1
+    initial: 5
+
+  # -------------------------------------------------------------------
   # HELPER: Minimální počet aktivních zón
   # Logika:
   # - určuje, kolik zón musí být „aktivních“, aby se kotel mohl zapnout
