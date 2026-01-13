@@ -1,0 +1,16 @@
+# === DEFAULT: ignoruj VŠECHNO ===
+*
+
+# === povol jen tyto věci ===
+!.gitignore
+
+!heating/**
+!blueprints/**
+
+# (volitelné – pokud chceš)
+!configuration.yaml
+!automations.yaml
+!scripts.yaml
+!scenes.yaml
+!groups.yaml
+!secrets.yaml

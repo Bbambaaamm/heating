@@ -1,0 +1,42 @@
+# 🧩 Načte všechny výchozí integrace Home Assistanta
+default_config:  # ⚙️ Neodstraňovat — zajišťuje fungování základních funkcí (UI, zařízení, atd.)
+
+# 🎨 Načítá motivy (themes) ze složky "themes"
+frontend:
+  themes: !include_dir_merge_named themes  # 🔹 umožní přidávat vlastní barevné motivy pro frontend
+
+# ⚙️ Odkazy na samostatné soubory s automatizacemi, skripty a scénami
+automation: !include automations.yaml  # 📜 všechny automatizace
+script: !include scripts.yaml           # ▶️ uživatelské skripty
+scene: !include scenes.yaml             # 💡 scény (např. večerní režim, filmový režim apod.)
+
+# 📍 Device Tracker – sledování přítomnosti zařízení (např. telefonů)
+device_tracker: []
+#  - platform: bluetooth_le_tracker      # 🔹 sleduje zařízení pomocí BLE (Bluetooth Low Energy)
+#    track_new_devices: true             # 🔸 automaticky přidává nová zařízení
+#    consider_home: 180                  # ⏱️ zařízení zůstává „doma“ ještě 180 s po ztrátě signálu
+#  - platform: bluetooth_tracker         # 🔹 klasický Bluetooth (ne BLE)
+#    interval_seconds: 30                # 🔸 interval skenování v sekundách
+#    request_rssi: true                  # 📶 zaznamenává i sílu signálu (užitečné pro přesnost)
+
+# 🧠 Template senzory – vlastní logika nebo přepočty hodnot
+template:
+  - binary_sensor:
+      - name: "Opravený stav vrat"       # 🚪 vlastní binární senzor pro stav garážových vrat
+        state: >
+          {{ not is_state('cover.vrata_gatebox_position', 'closed') }}
+        device_class: garage_door        # 🚗 zobrazí se jako garážová vrata v UI
+  - trigger:
+      - trigger: event
+        event_type: bubble_card_update_modules
+    sensor:
+      - name: "Bubble Card Modules"
+        state: "saved"
+        icon: "mdi:puzzle"
+        attributes:
+          modules: "{{ trigger.event.data.modules }}"
+          last_updated: "{{ trigger.event.data.last_updated }}"
+
+# 🌡️ Integrace topení – načte všechny konfigurační soubory ze složky "heating"
+homeassistant:
+  packages: !include_dir_named heating
