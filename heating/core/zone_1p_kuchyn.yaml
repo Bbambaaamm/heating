@@ -1,0 +1,55 @@
+# =====================================================================
+# Soubor   : config/heating/core/zone_1p_kuchyn.yaml
+# Modul    : Zóna – 1. patro Kuchyň
+# Účel     : Logika zóny (poptávka, okno, aktivita topení)
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Výstupy: demand %, okno otevřené, zóna aktivní
+# =====================================================================
+
+template:
+  # ===================================================================
+  # SEKCE: Zóna 1P Kuchyň – senzory
+  # ===================================================================
+  - sensor:
+      # ----------------------------------------------------------------
+      # SENSOR: Požadavek na topení (%)
+      # ----------------------------------------------------------------
+      - name: "zona_1p_kuchyn_demand"
+        unique_id: zona_1p_kuchyn_demand
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.1p_kuchyn', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.1p_kuchyn', 'pi_heating_demand') | int(0) }}
+
+  - binary_sensor:
+      # ----------------------------------------------------------------
+      # SENSOR: Okno otevřené v zóně 1P Kuchyň
+      # Logika:
+      # - čte stav sensor.1p_kuchyn_detekovano_otevrene_okno
+      # - okno = OTEVŘENO, jen když je stav explicitně open/on/true/1
+      # ----------------------------------------------------------------
+      - name: "zona_1p_kuchyn_okno_otevrene"
+        unique_id: zona_1p_kuchyn_okno_otevrene
+        device_class: opening
+        state: >
+          {% set s = states('sensor.1p_kuchyn_detekovano_otevrene_okno') | lower %}
+          {{ s in ['on', 'open', 'true', '1'] }}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Zóna 1P Kuchyň aktivní (topení skutečně běží)
+      # Logika:
+      # - true, pokud:
+      #   - demand > 1 %
+      #   - a současně není detekováno otevřené okno
+      # ----------------------------------------------------------------
+      - name: "zona_1p_kuchyn_aktivni"
+        unique_id: zona_1p_kuchyn_aktivni
+        state: >
+          {% set ignore_windows = is_state('input_boolean.kotel_ignore_open_windows','on') %}
+          {% set demand_ok = states('sensor.zona_1p_kuchyn_demand')|int(0) > 1 %}
+          {% set window_open = is_state('binary_sensor.zona_1p_kuchyn_okno_otevrene','on') %}
+
+          {{ demand_ok and (ignore_windows or not window_open) }}

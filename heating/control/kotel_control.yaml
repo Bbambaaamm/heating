@@ -1,0 +1,139 @@
+# =====================================================================
+# Soubor   : config/heating/control/kotel_control.yaml
+# Modul    : Topení – řízení kotle
+# Účel     : Zapínání a vypínání kotle podle politiky a poptávky zón
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# =====================================================================
+
+automation:
+  # ===================================================================
+  # SEKCE: Automatizace – řízení kotle
+  # ===================================================================
+
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Zapnout kotel při splnění politiky
+  # Logika: Zapne relé kotle po zpoždění, pokud je master ON, není blokace
+  #         režimem Off a jsou splněné prahové podmínky.
+  # -------------------------------------------------------------------
+  - alias: "Kotel: zapnout při splnění politiky"
+    id: kotel_turn_on_by_policy
+    description: >
+      Zapne relé kotle po zpoždění, pokud je master zapnutý, režim není Off
+      a jsou splněné prahové podmínky (aktivní zóny / poptávka).
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.kotel_threshold_all_ok        # prahové podmínky OK
+          - binary_sensor.kotel_mode_off_block         # blokace režimem Off
+          - binary_sensor.kotel_boost_active           # aktivní boost
+          - input_boolean.topny_system_enable          # master povolení systému
+          - input_select.topny_rezim                   # režim topení
+          - input_number.kotel_on_delay_sec            # ruční on-delay
+          - sensor.kotel_aktivni_zony_pocet            # počet aktivních zón
+          - sensor.kotel_poptavka_prumer               # průměrná poptávka
+          - sensor.kotel_poptavka_max                  # maximální poptávka
+
+    conditions:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.kotel_threshold_all_ok
+        state: "on"
+
+    actions:
+      - delay:
+          seconds: "{{ states('sensor.kotel_effective_on_delay_sec') | int(0) }}"
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.kotel_threshold_all_ok
+        state: "on"
+      - action: switch.turn_on
+        target:
+          entity_id: switch.kotel_rele_spinac
+
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Vypnout kotel při nesplnění politiky / blokaci
+  # Logika: Vypne relé kotle po zpoždění, pokud je master OFF, režim Off
+  #         nebo nejsou splněné prahové podmínky (aktivní zóny / poptávka).
+  # -------------------------------------------------------------------
+  - alias: "Kotel: vypnout při nesplnění politiky / blokaci"
+    id: kotel_turn_off_by_policy
+    description: >
+      Vypne relé kotle po zpoždění, pokud je master vypnutý, aktivní blokace
+      režimem Off nebo nejsou splněné prahové podmínky.
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.kotel_threshold_all_ok        # prahové podmínky OK
+          - binary_sensor.kotel_mode_off_block         # blokace režimem Off
+          - binary_sensor.kotel_boost_active           # aktivní boost
+          - input_boolean.topny_system_enable          # master povolení systému
+          - input_select.topny_rezim                   # režim topení
+          - input_number.kotel_off_delay_sec           # ruční off-delay
+          - sensor.kotel_aktivni_zony_pocet            # počet aktivních zón
+          - sensor.kotel_poptavka_prumer               # průměrná poptávka
+          - sensor.kotel_poptavka_max                  # maximální poptávka
+
+    conditions: []
+
+    actions:
+      - choose:
+          # ⛔ Master OFF
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "off"
+            sequence:
+              - delay:
+                  seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "off"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
+
+          # ⛔ Režim Off (blokace)
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.kotel_mode_off_block
+                state: "on"
+            sequence:
+              - delay:
+                  seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
+              - condition: state
+                entity_id: binary_sensor.kotel_mode_off_block
+                state: "on"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
+
+          # ⛔ Nesplněné prahy (počet zón / průměrná poptávka)
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.kotel_threshold_all_ok
+                state: "off"
+            sequence:
+              - delay:
+                  seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(0) }}"
+              - condition: state
+                entity_id: binary_sensor.kotel_threshold_all_ok
+                state: "off"
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac

@@ -1,0 +1,434 @@
+blueprint:
+  name: "Heating – Smart zone schedule (with comfort capture)"
+  description: >
+    Chytrý rozvrh pro jednu topnou zónu.
+    Řídí komfort/ECO podle časových oken a poslední komfortní teploty
+    a zároveň ukládá poslední uživatelsky nastavený komfortní setpoint.
+    Podporuje globální režimy: Auto / Eco / Boost / Off.
+  domain: automation
+
+  input:
+    zone_name:
+      name: Název zóny pro logbook
+      description: Jak se má zóna jmenovat v logu (např. 'Přízemí Michal', '1P Jídelna').
+      selector:
+        text:
+
+    climate_entity:
+      name: Climate entity zóny
+      selector:
+        entity:
+          domain: climate
+
+    schedule_enable:
+      name: Enable boolean pro rozvrh zóny
+      selector:
+        entity:
+          domain: input_boolean
+
+    last_comfort_helper:
+      name: Helper – poslední komfortní teplota (input_number)
+      selector:
+        entity:
+          domain: input_number
+
+    eco_temp_default:
+      name: Eco teplota (input_number)
+      selector:
+        entity:
+          domain: input_number
+
+    boost_active:
+      name: Boost aktivní (binary_sensor)
+      description: "Binary sensor, který říká, že je aktivní Boost (např. binary_sensor.kotel_boost_active)."
+      selector:
+        entity:
+          domain: binary_sensor
+
+    cooldown_seconds:
+      name: Antispam – cooldown (sekundy)
+      description: "Minimální čas mezi aplikacemi rozvrhu při 'spam' triggerech (mimo time trigger a mimo ruční změnu setpointu)."
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 1
+          unit_of_measurement: s
+
+    # ---- Časy start/end pro jednotlivé dny ----
+    monday_start:
+      name: Pondělí – start
+      selector:
+        entity:
+          domain: input_datetime
+    monday_end:
+      name: Pondělí – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    tuesday_start:
+      name: Úterý – start
+      selector:
+        entity:
+          domain: input_datetime
+    tuesday_end:
+      name: Úterý – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    wednesday_start:
+      name: Středa – start
+      selector:
+        entity:
+          domain: input_datetime
+    wednesday_end:
+      name: Středa – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    thursday_start:
+      name: Čtvrtek – start
+      selector:
+        entity:
+          domain: input_datetime
+    thursday_end:
+      name: Čtvrtek – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    friday_start:
+      name: Pátek – start
+      selector:
+        entity:
+          domain: input_datetime
+    friday_end:
+      name: Pátek – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    saturday_start:
+      name: Sobota – start
+      selector:
+        entity:
+          domain: input_datetime
+    saturday_end:
+      name: Sobota – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+    sunday_start:
+      name: Neděle – start
+      selector:
+        entity:
+          domain: input_datetime
+    sunday_end:
+      name: Neděle – konec
+      selector:
+        entity:
+          domain: input_datetime
+
+mode: restart
+initial_state: true
+
+# ---------------------------------------------------------------
+# TRIGGER
+# ---------------------------------------------------------------
+trigger:
+  # Časové body: začátky a konce pro každý den v týdnu
+  - platform: time
+    at:
+      - !input monday_start
+      - !input monday_end
+      - !input tuesday_start
+      - !input tuesday_end
+      - !input wednesday_start
+      - !input wednesday_end
+      - !input thursday_start
+      - !input thursday_end
+      - !input friday_start
+      - !input friday_end
+      - !input saturday_start
+      - !input saturday_end
+      - !input sunday_start
+      - !input sunday_end
+
+  # Změna nastavení rozvrhu (časy nebo enable flag nebo režim)
+  - platform: state
+    entity_id:
+      - !input monday_start
+      - !input monday_end
+      - !input tuesday_start
+      - !input tuesday_end
+      - !input wednesday_start
+      - !input wednesday_end
+      - !input thursday_start
+      - !input thursday_end
+      - !input friday_start
+      - !input friday_end
+      - !input saturday_start
+      - !input saturday_end
+      - !input sunday_start
+      - !input sunday_end
+      - !input schedule_enable
+      - input_select.topny_rezim
+
+  # Změna „poslední komfortní teploty“ → reapply, pokud jsme v okně
+  - platform: state
+    entity_id: !input last_comfort_helper
+
+  # Ruční změna setpointu na hlavici → zachyť komfort + případně reaguj
+  - platform: state
+    entity_id: !input climate_entity
+    attribute: temperature
+
+  # Změna ECO teploty
+  - platform: state
+    entity_id: !input eco_temp_default
+
+# ---------------------------------------------------------------
+# CONDITIONS
+# ---------------------------------------------------------------
+condition:
+  - condition: state
+    entity_id: !input schedule_enable
+    state: "on"
+
+# ---------------------------------------------------------------
+# VARIABLES
+# ---------------------------------------------------------------
+variables:
+  zone_name: !input zone_name
+  climate_entity: !input climate_entity
+  last_comfort_helper: !input last_comfort_helper
+  eco_temp_entity: !input eco_temp_default
+  boost_active_entity: !input boost_active
+  cooldown_seconds: !input cooldown_seconds
+
+  monday_start_entity: !input monday_start
+  monday_end_entity: !input monday_end
+  tuesday_start_entity: !input tuesday_start
+  tuesday_end_entity: !input tuesday_end
+  wednesday_start_entity: !input wednesday_start
+  wednesday_end_entity: !input wednesday_end
+  thursday_start_entity: !input thursday_start
+  thursday_end_entity: !input thursday_end
+  friday_start_entity: !input friday_start
+  friday_end_entity: !input friday_end
+  saturday_start_entity: !input saturday_start
+  saturday_end_entity: !input saturday_end
+  sunday_start_entity: !input sunday_start
+  sunday_end_entity: !input sunday_end
+
+  mode: "{{ states('input_select.topny_rezim') }}"
+  eco_temp: "{{ states(eco_temp_entity) | float(15) }}"
+  last_comfort: "{{ states(last_comfort_helper) | float(22) }}"
+  new_set: "{{ state_attr(climate_entity, 'temperature') | float(0) }}"
+
+  is_time_trigger: "{{ trigger.platform == 'time' }}"
+  is_climate_trigger: "{{ trigger.platform == 'state' and trigger.entity_id == climate_entity }}"
+
+  # Antispam výpočty (poslední spuštění této automation entity)
+  now_ts: "{{ as_timestamp(now()) }}"
+  last_trig_ts: >
+    {{ as_timestamp(state_attr(this.entity_id, 'last_triggered')) if state_attr(this.entity_id, 'last_triggered') else 0 }}
+  since_last: "{{ (now_ts - last_trig_ts) | float(999999) }}"
+
+  # Výběr START podle dne
+  start: >
+    {% set d = now().weekday() %}
+    {% if   d == 0 %} {{ states(monday_start_entity) }}
+    {% elif d == 1 %} {{ states(tuesday_start_entity) }}
+    {% elif d == 2 %} {{ states(wednesday_start_entity) }}
+    {% elif d == 3 %} {{ states(thursday_start_entity) }}
+    {% elif d == 4 %} {{ states(friday_start_entity) }}
+    {% elif d == 5 %} {{ states(saturday_start_entity) }}
+    {% else %}         {{ states(sunday_start_entity) }}
+    {% endif %}
+
+  # Výběr END podle dne
+  end: >
+    {% set d = now().weekday() %}
+    {% if   d == 0 %} {{ states(monday_end_entity) }}
+    {% elif d == 1 %} {{ states(tuesday_end_entity) }}
+    {% elif d == 2 %} {{ states(wednesday_end_entity) }}
+    {% elif d == 3 %} {{ states(thursday_end_entity) }}
+    {% elif d == 4 %} {{ states(friday_end_entity) }}
+    {% elif d == 5 %} {{ states(saturday_end_entity) }}
+    {% else %}         {{ states(sunday_end_entity) }}
+    {% endif %}
+
+  now_hms: "{{ now().strftime('%H:%M:%S') }}"
+
+  # Jsme uvnitř okna? (umí i přes půlnoc)
+  in_window: >
+    {% set s = start %}
+    {% set e = end %}
+    {% set n = now_hms %}
+    {% if s <= e %}
+      {{ s <= n < e }}
+    {% else %}
+      {{ (n >= s) or (n < e) }}
+    {% endif %}
+
+# ---------------------------------------------------------------
+# ACTION
+# ---------------------------------------------------------------
+action:
+  # 1) ZACHYCENÍ KOMFORTNÍ TEPLOTY PŘI RUČNÍ ZMĚNĚ SETPOINTU
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ is_climate_trigger }}"
+          - condition: template
+            value_template: "{{ new_set >= (eco_temp + 0.2) }}"
+          - condition: template
+            value_template: "{{ (last_comfort - new_set) | abs > 0.1 }}"
+          - condition: template
+            value_template: "{{ states(boost_active_entity) == 'off' }}"
+        sequence:
+          - service: input_number.set_value
+            target:
+              entity_id: !input last_comfort_helper
+            data:
+              value: "{{ new_set }}"
+
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Uložena komfortní teplota: {{ new_set }} °C"
+              entity_id: "{{ climate_entity }}"
+
+  # 1b) Pokud je ruční změna a jsme v okně (Auto/Boost), NESAHEJ HNED ZNOVU NA HLAVICI
+  #     (to je přesně ten "spam"/double-run co jsi viděl v logu)
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ is_climate_trigger
+                 and mode in ['Auto','Boost']
+                 and in_window
+                 and new_set >= (eco_temp + 0.2) }}
+        sequence:
+          - stop: "Ruční komfort v okně: uloženo, rozvrh teď zbytečně nepřepisuje"
+
+  # 0) ANTISPAM – aplikaci rozvrhu throttle (NEPLATÍ pro time trigger, a neplatí pro ruční otočení)
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ (cooldown_seconds | int(0)) > 0
+                 and not is_time_trigger
+                 and not is_climate_trigger
+                 and (since_last | float(999999)) < (cooldown_seconds | int(0)) }}
+        sequence:
+          - stop: "Antispam: cooldown aktivní"
+
+  # 2) APLIKACE REŽIMŮ (Eco / Auto+Boost / Off)
+  - choose:
+      # ECO
+      - conditions:
+          - condition: template
+            value_template: "{{ mode == 'Eco' }}"
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              hvac_mode: heat
+
+          - condition: template
+            value_template: >
+              {{ ((state_attr(climate_entity, 'temperature') | float)
+                  - (eco_temp | float)) | abs > 0.1 }}
+
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              temperature: "{{ eco_temp }}"
+
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Globální ECO režim – cílová teplota {{ eco_temp }} °C"
+              entity_id: "{{ climate_entity }}"
+
+      # Auto / Boost
+      - conditions:
+          - condition: template
+            value_template: "{{ mode in ['Auto', 'Boost'] }}"
+        sequence:
+          - choose:
+              # V OKNĚ → poslední komfort
+              - conditions:
+                  - condition: template
+                    value_template: "{{ in_window }}"
+                sequence:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      hvac_mode: heat
+
+                  - condition: template
+                    value_template: >
+                      {{ ((state_attr(climate_entity, 'temperature') | float)
+                          - (last_comfort | float)) | abs > 0.1 }}
+
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      temperature: "{{ last_comfort }}"
+
+                  - service: logbook.log
+                    data:
+                      name: "{{ zone_name }}"
+                      message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
+                      entity_id: "{{ climate_entity }}"
+
+              # MIMO OKNO → ECO
+              - conditions:
+                  - condition: template
+                    value_template: "{{ not in_window }}"
+                sequence:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      hvac_mode: heat
+
+                  - condition: template
+                    value_template: >
+                      {{ ((state_attr(climate_entity, 'temperature') | float)
+                          - (eco_temp | float)) | abs > 0.1 }}
+
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      temperature: "{{ eco_temp }}"
+
+                  - service: logbook.log
+                    data:
+                      name: "{{ zone_name }}"
+                      message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
+                      entity_id: "{{ climate_entity }}"
+
+      # Off
+      - conditions:
+          - condition: template
+            value_template: "{{ mode == 'Off' }}"
+        sequence:
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Režim Off – rozvrh nemění cílovou teplotu."
+              entity_id: "{{ climate_entity }}"

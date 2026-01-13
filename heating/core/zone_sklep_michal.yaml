@@ -1,0 +1,58 @@
+# =====================================================================
+# Soubor   : config/heating/core/zone_sklep_michal.yaml
+# Modul    : Zóna – Sklep Michal
+# Účel     : Logika zóny (poptávka, okno, aktivita topení)
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# Poznámka : Výstupy: demand %, okno otevřené, zóna aktivní
+# =====================================================================
+
+template:
+  # ===================================================================
+  # SEKCE: Zóna Sklep – senzory
+  # ===================================================================
+  - sensor:
+      # ----------------------------------------------------------------
+      # SENSOR: Požadavek na topení (%)
+      # Logika:
+      # - čte pi_heating_demand z climate.sklep_michal
+      # - výstup je procento (0–100)
+      # ----------------------------------------------------------------
+      - name: "zona_sklep_michal_demand"
+        unique_id: zona_sklep_michal_demand
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+          {{ not is_state('climate.sklep_michal', 'unavailable') }}
+        state: >
+          {{ state_attr('climate.sklep_michal', 'pi_heating_demand') | int(0) }}
+
+  - binary_sensor:
+      # ----------------------------------------------------------------
+      # SENSOR: Okno otevřené v zóně Sklep – Michal
+      # Logika:
+      # - čte stav sensor.sklep_michal_detekovano_otevrene_okno
+      # - okno = OTEVŘENO, jen když je stav explicitně open/on/true/1
+      # ----------------------------------------------------------------
+      - name: "zona_sklep_michal_okno_otevrene"
+        unique_id: zona_sklep_michal_okno_otevrene
+        device_class: opening
+        state: >
+          {% set s = states('sensor.sklep_michal_detekovano_otevrene_okno') | lower %}
+          {{ s in ['on', 'open', 'true', '1'] }}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Zóna Sklep – Michal aktivní (topení skutečně běží)
+      # Logika:
+      # - true, pokud:
+      #   - demand > 1 %
+      #   - a není detekováno otevřené okno
+      # ----------------------------------------------------------------
+      - name: "zona_sklep_michal_aktivni"
+        unique_id: zona_sklep_michal_aktivni
+        state: >
+          {% set ignore_windows = is_state('input_boolean.kotel_ignore_open_windows','on') %}
+          {% set demand_ok = states('sensor.zona_sklep_michal_demand')|int(0) > 1 %}
+          {% set window_open = is_state('binary_sensor.zona_sklep_michal_okno_otevrene','on') %}
+
+          {{ demand_ok and (ignore_windows or not window_open) }}

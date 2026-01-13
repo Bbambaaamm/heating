@@ -1,16 +1,19 @@
-# === DEFAULT: ignoruj VŠECHNO ===
+# Ignoruj všechno
 *
 
-# === povol jen tyto věci ===
+# Povol .gitignore
 !.gitignore
 
-!heating/**
-!blueprints/**
-
-# (volitelné – pokud chceš)
+# Povol root YAML soubory
 !configuration.yaml
 !automations.yaml
 !scripts.yaml
 !scenes.yaml
-!groups.yaml
-!secrets.yaml
+
+# Povol heating (adresář + obsah)
+!heating/
+!heating/**
+
+# Povol blueprints (adresář + podadresáře + obsah)
+!blueprints/
+!blueprints/**

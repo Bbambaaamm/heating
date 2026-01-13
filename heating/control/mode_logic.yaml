@@ -1,0 +1,101 @@
+# =====================================================================
+# Soubor   : config/heating/control/mode_logic.yaml
+# Modul    : Topení – čistá logika režimů
+# Účel     : Reakce na změnu režimu (Off/Auto/Eco/Boost) + logování
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# =====================================================================
+
+automation:
+  # ===================================================================
+  # SEKCE: Automatizace – logika režimů
+  # ===================================================================
+
+  # -------------------------------------------------------------------
+  # AUTOMATIZACE: Logika přepínání režimů
+  # Logika:
+  # - reaguje na změnu input_select.topny_rezim
+  # - při přechodu na Off vypne kotel a zaloguje událost
+  # - ostatní režimy pouze zapíší informaci do logbooku
+  # - ignoruje falešné triggery bez reálné změny stavu
+  # -------------------------------------------------------------------
+  - alias: "Topení – logika režimů (čistá)"
+    id: heating_mode_logic_clean
+    description: >
+      Reaguje na změnu režimu topení. Při přepnutí do Off vypne kotel,
+      ostatní režimy pouze zapisuje do logbooku. Zabraňuje reakci
+      na triggery bez skutečné změny stavu.
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id: input_select.topny_rezim
+
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.to_state is not none
+             and trigger.from_state.state != trigger.to_state.state }}
+
+    actions:
+      - choose:
+          # -----------------------------------------------------------
+          # Režim Off → vypnout kotel + zalogovat
+          # -----------------------------------------------------------
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Off"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.kotel_rele_spinac
+              - action: logbook.log
+                data:
+                  name: "Topení – režimy"
+                  message: "Režim přepnut na Off → kotel vypnut."
+                  entity_id: switch.kotel_rele_spinac
+
+          # -----------------------------------------------------------
+          # Režim Auto → čistě informativní log
+          # -----------------------------------------------------------
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Auto"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Topení – režimy"
+                  message: "Režim Auto → používají se účinné prahy (policy/mode_engine)."
+                  entity_id: input_select.topny_rezim
+
+          # -----------------------------------------------------------
+          # Režim Eco → čistě informativní log
+          # -----------------------------------------------------------
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Eco"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Topení – režimy"
+                  message: "Režim Eco → přísnější účinné prahy (policy/mode_engine)."
+                  entity_id: input_select.topny_rezim
+
+          # -----------------------------------------------------------
+          # Režim Boost → čistě informativní log
+          # -----------------------------------------------------------
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Boost"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Topení – režimy"
+                  message: "Režim Boost → uvolněné prahy + časování (mode_engine)."
+                  entity_id: input_select.topny_rezim

@@ -1,0 +1,184 @@
+blueprint:
+  name: "Danfoss – externí teplotní senzor"
+  description: >
+    Přeposílá hodnotu z externího teplotního senzoru do Danfoss hlavice.
+    Pokud je hodnota validní, nastaví number.* pro externí teplotu
+    a zapne switch.* „upřednostnit externí teplotní senzor“.
+    Používá se jen v zónách, kde externí senzor existuje.
+  domain: automation
+
+  input:
+    zone_name:
+      name: Název zóny pro logbook
+      description: Jak se má zóna jmenovat v logu (např. 'Přízemí – Michal').
+      selector:
+        text:
+
+    source_temp_sensor:
+      name: Externí teplotní senzor (zdroj)
+      description: Např. Zigbee senzor v místnosti.
+      selector:
+        entity:
+          domain: sensor
+
+    danfoss_external_temp_number:
+      name: Danfoss – number pro externí teplotu
+      description: number.* pro hlavici (např. number.prizemi_michal_senzor_externi_teploty).
+      selector:
+        entity:
+          domain: number
+
+    danfoss_prefer_external_switch:
+      name: Danfoss – switch upřednostnit externí senzor
+      description: switch.* (např. switch.prizemi_michal_uprednostnit_externi_teplotni_senzor).
+      selector:
+        entity:
+          domain: switch
+
+    min_valid_temp:
+      name: Minimální validní teplota
+      description: Hodnoty pod touto teplotou nebudou posílány do hlavice.
+      default: 5
+      selector:
+        number:
+          min: -30
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+
+    max_valid_temp:
+      name: Maximální validní teplota
+      description: Hodnoty nad touto teplotou nebudou posílány do hlavice.
+      default: 35
+      selector:
+        number:
+          min: 10
+          max: 60
+          step: 0.5
+          unit_of_measurement: "°C"
+
+    antispam_delta:
+      name: Antispam – minimální změna (°C)
+      description: "Pošle se jen když je změna proti posledně odeslané hodnotě ≥ tato hodnota."
+      default: 0.2
+      selector:
+        number:
+          min: 0.0
+          max: 1.0
+          step: 0.1
+          unit_of_measurement: "°C"
+          mode: slider
+
+    antispam_min_interval_sec:
+      name: Antispam – minimální interval (s)
+      description: "0 = bez omezení. Jinak se pošle max 1× za X sekund (počítáno od poslední změny number.*)."
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 600
+          step: 10
+          unit_of_measurement: "s"
+          mode: slider
+
+mode: restart
+initial_state: true
+
+trigger:
+  - platform: state
+    entity_id: !input source_temp_sensor
+
+condition: []
+
+action:
+  - variables:
+      zone_name: !input zone_name
+      src: !input source_temp_sensor
+      num: !input danfoss_external_temp_number
+      sw: !input danfoss_prefer_external_switch
+
+      min_valid: !input min_valid_temp
+      max_valid: !input max_valid_temp
+      delta: !input antispam_delta
+      min_interval: !input antispam_min_interval_sec
+
+      raw: "{{ states(src) }}"
+      temp: "{{ raw | float(999) }}"
+      temp_send: "{{ (raw | float(999)) | round(1) }}"
+
+      last_sent: "{{ states(num) | float(none) }}"
+      last_sent_ts: >
+        {% set obj = states[num] if num in states else none %}
+        {% if obj is none %}
+          {{ none }}
+        {% else %}
+          {{ as_timestamp(obj.last_changed) }}
+        {% endif %}
+      now_ts: "{{ as_timestamp(now()) }}"
+
+      delta_ok: >
+        {% if last_sent is none %}
+          true
+        {% else %}
+          {{ (temp_send - last_sent) | abs >= (delta | float(0.2)) }}
+        {% endif %}
+
+      interval_ok: >
+        {% set mi = (min_interval | int(0)) %}
+        {% if mi == 0 %}
+          true
+        {% elif last_sent_ts is none %}
+          true
+        {% else %}
+          {{ (now_ts - last_sent_ts) >= mi }}
+        {% endif %}
+
+  - choose:
+      # 🔹 Validní teplota → (antispam) pošli do hlavice + zapni preferenci externího senzoru
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ raw not in ['unavailable', 'unknown', 'none', 'NaN']
+                 and min_valid <= temp <= max_valid }}
+        sequence:
+          # zapnout externí senzor, pokud ještě není
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input danfoss_prefer_external_switch
+                    state: "off"
+                sequence:
+                  - service: switch.turn_on
+                    target:
+                      entity_id: !input danfoss_prefer_external_switch
+
+          # antispam: delta + interval
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ delta_ok and interval_ok }}"
+                sequence:
+                  - service: number.set_value
+                    target:
+                      entity_id: !input danfoss_external_temp_number
+                    data:
+                      value: "{{ temp_send }}"
+
+                  - service: logbook.log
+                    data:
+                      name: "{{ zone_name }}"
+                      message: "Externí teplota {{ temp_send }} °C → předána Danfoss hlavici."
+                      entity_id: !input source_temp_sensor
+
+      # 🔹 Nevalidní / nedostupná teplota → jen zaloguj, nic neposílej
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ raw in ['unavailable', 'unknown', 'none', 'NaN']
+                 or temp < min_valid or temp > max_valid }}
+        sequence:
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Externí teplota nedostupná nebo mimo rozsah ({{ raw }}). Hodnota neodeslána do hlavice."
+              entity_id: !input source_temp_sensor

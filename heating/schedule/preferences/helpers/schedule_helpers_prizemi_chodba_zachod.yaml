@@ -1,0 +1,98 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_prizemi_chodba_zachod.yaml
+# Modul    : Schedule Helpers – Přízemí (Chodba záchod)
+# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# =====================================================================
+# 📌 Poznámky:
+# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
+# - input_datetime.*_start/_end určují komfortní okna
+# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# 🔘 ENABLE – aktivace rozvrhu zóny
+# ---------------------------------------------------------------------
+input_boolean:
+  schedule_enable_prizemi_chodba_zachod:
+    name: "Rozvrh – Přízemí Chodba záchod zapnuto"
+    icon: mdi:calendar-clock
+    initial: on
+
+
+# ---------------------------------------------------------------------
+# 🕒 ČASOVÉ ÚDAJE – start/end rozvrhových oken
+# ---------------------------------------------------------------------
+input_datetime:
+
+  # --- Pondělí ---
+  prizemi_chodba_zachod_monday_start:
+    name: "Přízemí Chodba záchod – Pondělí začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_monday_end:
+    name: "Přízemí Chodba záchod – Pondělí konec"
+    has_date: false
+    has_time: true
+
+  # --- Úterý ---
+  prizemi_chodba_zachod_tuesday_start:
+    name: "Přízemí Chodba záchod – Úterý začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_tuesday_end:
+    name: "Přízemí Chodba záchod – Úterý konec"
+    has_date: false
+    has_time: true
+
+  # --- Středa ---
+  prizemi_chodba_zachod_wednesday_start:
+    name: "Přízemí Chodba záchod – Středa začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_wednesday_end:
+    name: "Přízemí Chodba záchod – Středa konec"
+    has_date: false
+    has_time: true
+
+  # --- Čtvrtek ---
+  prizemi_chodba_zachod_thursday_start:
+    name: "Přízemí Chodba záchod – Čtvrtek začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_thursday_end:
+    name: "Přízemí Chodba záchod – Čtvrtek konec"
+    has_date: false
+    has_time: true
+
+  # --- Pátek ---
+  prizemi_chodba_zachod_friday_start:
+    name: "Přízemí Chodba záchod – Pátek začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_friday_end:
+    name: "Přízemí Chodba záchod – Pátek konec"
+    has_date: false
+    has_time: true
+
+  # --- Sobota ---
+  prizemi_chodba_zachod_saturday_start:
+    name: "Přízemí Chodba záchod – Sobota začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_saturday_end:
+    name: "Přízemí Chodba záchod – Sobota konec"
+    has_date: false
+    has_time: true
+
+  # --- Neděle ---
+  prizemi_chodba_zachod_sunday_start:
+    name: "Přízemí Chodba záchod – Neděle začátek"
+    has_date: false
+    has_time: true
+  prizemi_chodba_zachod_sunday_end:
+    name: "Přízemí Chodba záchod – Neděle konec"
+    has_date: false
+    has_time: true

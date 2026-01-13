@@ -1,0 +1,22 @@
+# =====================================================================
+# Soubor   : config/heating/schedule/preferences/prefs/zone_1p_chodba_prefs.yaml
+# Modul    : Schedule Preferences – 1. patro (Chodba)
+# Účel     : Perzistentní úložiště poslední KOMFORTNÍ teploty zóny
+# Autor    : Michal
+# Poslední úprava : 2025-11-24
+# =====================================================================
+# 📌 Poznámky:
+# - ukládá *pouze* komfortní teploty (ECO se neukládají)
+# - používá se v chytrém scheduleru (smart_* automations)
+# - hodnota se mění jen při reálné změně setpointu
+# =====================================================================
+
+input_number:
+  1p_chodba_last_comfort:
+    name: "1. patro Chodba – poslední komfortní teplota"
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+    min: 10
+    max: 30
+    step: 0.5
+    initial: 22   # výchozí seed, první komfort ji automaticky přepíše

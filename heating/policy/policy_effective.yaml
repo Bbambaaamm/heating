@@ -1,0 +1,148 @@
+# =====================================================================
+# Soubor   : config/heating/policy/policy_effective.yaml
+# Modul    : Effective prahy – odvozené podle režimu (Auto/Eco/Boost/Off)
+# Účel     : Výpočet účinných prahů a zpoždění pro řízení kotle
+# Autor    : Michal
+# Poslední úprava : 2025-11-19
+# Poznámka : Používá režim, Boost a vstupní policy hodnoty z UI
+# =====================================================================
+
+template:
+
+  # ===================================================================
+  # SEKCE: Účinné prahy kotle – senzory
+  # ===================================================================
+  - sensor:
+
+      # ----------------------------------------------------------------
+      # SENSOR: Efektivní minimální průměrná poptávka (%)
+      # Logika:
+      # - režim Off → prakticky blokace (999)
+      # - Boost → povolit okamžitě (0 %)
+      # - Eco → zvýší požadavek o +10 %
+      # - Auto → použije základní hodnotu z input_number
+      # ----------------------------------------------------------------
+      - name: "kotel_effective_min_avg_demand_pct"
+        unique_id: kotel_effective_min_avg_demand_pct
+        unit_of_measurement: "%"
+        state: >-
+          {% set base  = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
+          {% if mode == 'Off' %}
+            999
+          {% elif boost %}
+            0
+          {% elif mode == 'Eco' %}
+            {{ [base + 10, 100] | min }}
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Efektivní minimální počet aktivních zón
+      # Logika:
+      # - Off → blokace (99)
+      # - Boost → stačí jedna zóna
+      # - Eco → zpřísnění +1 zóna
+      # - Auto → základní hodnota
+      # ----------------------------------------------------------------
+      - name: "kotel_effective_min_active_zones"
+        unique_id: kotel_effective_min_active_zones
+        state: >-
+          {% set base  = states('input_number.kotel_min_active_zones') | int(2) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
+          {% if mode == 'Off' %}
+            99
+          {% elif boost %}
+            1
+          {% elif mode == 'Eco' %}
+            {{ base + 1 }}
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Efektivní ON delay
+      # Logika:
+      # - Boost → okamžitě (0s)
+      # - jinak použije standardní hodnotu
+      # ----------------------------------------------------------------
+      - name: "kotel_effective_on_delay_sec"
+        unique_id: kotel_effective_on_delay_sec
+        unit_of_measurement: "s"
+        state: >-
+          {% set base = states('input_number.kotel_on_delay_sec') | int(120) %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
+          {{ 0 if boost else base }}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Efektivní OFF delay
+      # Logika:
+      # - Eco → delší vypínání (+60s)
+      # - Boost → nikdy pod 300s
+      # - Auto → základní hodnota
+      # ----------------------------------------------------------------
+      - name: "kotel_effective_off_delay_sec"
+        unique_id: kotel_effective_off_delay_sec
+        unit_of_measurement: "s"
+        state: >-
+          {% set base  = states('input_number.kotel_off_delay_sec') | int(300) %}
+          {% set mode  = states('input_select.topny_rezim') %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
+          {% if mode == 'Eco' %}
+            {{ base + 60 }}
+          {% elif boost %}
+            {{ [base, 300] | max }}
+          {% else %}
+            {{ base }}
+          {% endif %}
+
+  # ===================================================================
+  # SEKCE: Účinné prahy – binární senzory (vyhodnocení)
+  # ===================================================================
+  - binary_sensor:
+
+      # ----------------------------------------------------------------
+      # SENSOR: Splněn práh aktivních zón?
+      # ----------------------------------------------------------------
+      - name: "kotel_threshold_ok_active_zones"
+        unique_id: kotel_threshold_ok_active_zones
+        device_class: connectivity
+        state: >-
+          {{ (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >=
+             (states('sensor.kotel_effective_min_active_zones') | int(99)) }}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Splněn práh průměrné poptávky?
+      # ----------------------------------------------------------------
+      - name: "kotel_threshold_ok_avg_demand"
+        unique_id: kotel_threshold_ok_avg_demand
+        device_class: connectivity
+        state: >-
+          {{ (states('sensor.kotel_poptavka_prumer') | float(0)) >=
+             (states('sensor.kotel_effective_min_avg_demand_pct') | float(999)) }}
+
+      # ----------------------------------------------------------------
+      # SENSOR: Celkový hlavní práh (AND)
+      # ----------------------------------------------------------------
+      - name: "kotel_threshold_all_ok"
+        unique_id: kotel_threshold_all_ok
+        icon: mdi:checkbox-marked-circle
+        state: >-
+          {{ is_state('binary_sensor.kotel_threshold_ok_active_zones','on')
+             and is_state('binary_sensor.kotel_threshold_ok_avg_demand','on') }}
+        attributes:
+          active_zones_ok: "{{ states('binary_sensor.kotel_threshold_ok_active_zones') }}"
+          avg_demand_ok: "{{ states('binary_sensor.kotel_threshold_ok_avg_demand') }}"
+
+      # ----------------------------------------------------------------
+      # SENSOR: Režim Off nebo systém vypnutý → blokace zapnutí kotle
+      # ----------------------------------------------------------------
+      - name: "kotel_mode_off_block"
+        unique_id: kotel_mode_off_block
+        device_class: problem
+        state: >-
+          {{ is_state('input_select.topny_rezim','Off')
+             or is_state('input_boolean.topny_system_enable','off') }}

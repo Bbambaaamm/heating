@@ -1,0 +1,48 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/schedule/automation/startup/startup_schedule_sync.yaml
+# Modul    : Startup Schedule Sync
+# Účel     : Po startu Home Assistanta přepočítá rozvrhy všech zón
+# Autor    : Michal
+# Poslední úprava : 2025-11-20
+# =====================================================================
+
+automation:
+  - id: heating_startup_schedule_sync
+    alias: "Topení – synchronizace rozvrhů po startu HA"
+    description: >
+      Po startu Home Assistanta spustí chytré rozvrhy všech zón, aby
+      se komfort/ECO teploty hlavic srovnaly s aktuálním režimem
+      topení a nastaveným časovým oknem.
+    mode: restart
+    initial_state: true
+
+    triggers:
+      - trigger: homeassistant
+        event: start
+
+    conditions: []
+
+    actions:
+      # Malé zpoždění, aby se po startu načetly všechny helpery/automations
+      - delay: "00:00:10"
+
+      # Spusť smart rozvrh pro všechny zóny (používají vlastní logiku in_window + mód)
+      - action: automation.trigger
+        target:
+          entity_id:
+            - automation.rozvrh_sklep_michal_bp
+            - automation.prizemi_michal_bp
+            - automation.rozvrh_prizemi_chodba_zachod_bp
+            - automation.1_patro_jidelna_bp
+            - automation.rozvrh_1_patro_koupelna_bp
+            - automation.rozvrh_1_patro_kuchyn_bp
+            - automation.rozvrh_1_patro_chodba_bp
+            - automation.2_patro_mama_bp
+
+      # Záznam do logbooku – pro přehled po restartu
+      - action: logbook.log
+        data:
+          name: "Topení – rozvrhy"
+          message: "Po startu HA spuštěna synchronizace rozvrhů (smart zóny)."
+          entity_id: input_select.topny_rezim
