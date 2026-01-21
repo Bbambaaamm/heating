@@ -5,32 +5,35 @@
 
 template:
   - sensor:
-
       # ---------------------------------------------------------------
       # SENSOR: Počet aktivních zón
-      # (počítá jen zóny s demand >= kotel_min_zone_demand_pct)
       # ---------------------------------------------------------------
       - name: "kotel_aktivni_zony_pocet"
         unique_id: kotel_aktivni_zony_pocet
         unit_of_measurement: "zón"
         state: >
           {% set min_d = states('input_number.kotel_min_zone_demand_pct') | float(0) %}
-          {% set zs = [
-            (is_state('binary_sensor.zona_sklep_michal_aktivni','on') and (states('sensor.zona_sklep_michal_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_prizemi_michal_aktivni','on') and (states('sensor.zona_prizemi_michal_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_prizemi_chodba_zachod_aktivni','on') and (states('sensor.zona_prizemi_chodba_zachod_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_1p_jidelna_aktivni','on') and (states('sensor.zona_1p_jidelna_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_1p_kuchyn_aktivni','on') and (states('sensor.zona_1p_kuchyn_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_1p_koupelna_aktivni','on') and (states('sensor.zona_1p_koupelna_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_1p_chodba_aktivni','on') and (states('sensor.zona_1p_chodba_demand') | float(0)) >= min_d),
-            (is_state('binary_sensor.zona_2p_mama_aktivni','on') and (states('sensor.zona_2p_mama_demand') | float(0)) >= min_d)
-          ] %}
-          {{ zs | select('equalto', true) | list | count }}
+          {% set count = namespace(value=0) %}
 
+          {# Iterujeme přes všechny climate entity ve skupině #}
+          {% for c in expand('group.topne_zony') %}
+            {# Získáme čisté ID (např. 'sklep_michal' z 'climate.sklep_michal') #}
+            {% set id = c.entity_id.split('.')[1] %}
+
+            {# Dynamicky sestavíme názvy vašich senzorů #}
+            {% set s_active = 'binary_sensor.zona_' ~ id ~ '_aktivni' %}
+            {% set s_demand = 'sensor.zona_' ~ id ~ '_demand' %}
+
+            {# Kontrola: Zóna aktivní AND Poptávka >= Min práh #}
+            {% if is_state(s_active, 'on') and (states(s_demand) | float(0) >= min_d) %}
+              {% set count.value = count.value + 1 %}
+            {% endif %}
+          {% endfor %}
+
+          {{ count.value }}
 
       # ---------------------------------------------------------------
       # SENSOR: Průměrná poptávka aktivních zón (%)
-      # (počítá jen zóny s demand >= kotel_min_zone_demand_pct)
       # ---------------------------------------------------------------
       - name: "kotel_poptavka_prumer"
         unique_id: kotel_poptavka_prumer
@@ -38,54 +41,24 @@ template:
         state_class: measurement
         state: >
           {% set min_d = states('input_number.kotel_min_zone_demand_pct') | float(0) %}
-          {% set demands = [] %}
+          {% set ns = namespace(demands=[]) %}
 
-          {% set d = states('sensor.zona_sklep_michal_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_sklep_michal_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
+          {% for c in expand('group.topne_zony') %}
+            {% set id = c.entity_id.split('.')[1] %}
+            {% set s_active = 'binary_sensor.zona_' ~ id ~ '_aktivni' %}
+            {% set s_demand = 'sensor.zona_' ~ id ~ '_demand' %}
+            {% set d_val = states(s_demand) | float(0) %}
 
-          {% set d = states('sensor.zona_prizemi_michal_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
+            {% if is_state(s_active, 'on') and d_val >= min_d %}
+              {% set ns.demands = ns.demands + [ d_val ] %}
+            {% endif %}
+          {% endfor %}
 
-          {% set d = states('sensor.zona_prizemi_chodba_zachod_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_prizemi_chodba_zachod_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {% set d = states('sensor.zona_1p_jidelna_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_1p_jidelna_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {% set d = states('sensor.zona_1p_kuchyn_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_1p_kuchyn_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {% set d = states('sensor.zona_1p_koupelna_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_1p_koupelna_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {% set d = states('sensor.zona_1p_chodba_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_1p_chodba_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {% set d = states('sensor.zona_2p_mama_demand') | float(0) %}
-          {% if is_state('binary_sensor.zona_2p_mama_aktivni','on') and d >= min_d %}
-            {% set demands = demands + [ d ] %}
-          {% endif %}
-
-          {{ ((demands | sum) / (demands | count)) | round(1) if (demands | count) > 0 else 0 }}
-
+          {# Výpočet průměru (ošetření dělení nulou) #}
+          {{ (ns.demands | average | round(1)) if (ns.demands | count) > 0 else 0 }}
 
       # ---------------------------------------------------------------
       # SENSOR: Maximální poptávka aktivních zón (%)
-      # (počítá jen zóny s demand >= kotel_min_zone_demand_pct)
       # ---------------------------------------------------------------
       - name: "kotel_poptavka_max"
         unique_id: kotel_poptavka_max
@@ -93,50 +66,20 @@ template:
         state_class: measurement
         state: >
           {% set min_d = states('input_number.kotel_min_zone_demand_pct') | float(0) %}
-          {% set demands = [] %}
+          {% set ns = namespace(demands=[]) %}
 
-          {% if is_state('binary_sensor.zona_sklep_michal_aktivni','on')
-                and (states('sensor.zona_sklep_michal_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_sklep_michal_demand') | float(0) ] %}
-          {% endif %}
+          {% for c in expand('group.topne_zony') %}
+            {% set id = c.entity_id.split('.')[1] %}
+            {% set s_active = 'binary_sensor.zona_' ~ id ~ '_aktivni' %}
+            {% set s_demand = 'sensor.zona_' ~ id ~ '_demand' %}
+            {% set d_val = states(s_demand) | float(0) %}
 
-          {% if is_state('binary_sensor.zona_prizemi_michal_aktivni','on')
-                and (states('sensor.zona_prizemi_michal_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_prizemi_michal_demand') | float(0) ] %}
-          {% endif %}
+            {% if is_state(s_active, 'on') and d_val >= min_d %}
+              {% set ns.demands = ns.demands + [ d_val ] %}
+            {% endif %}
+          {% endfor %}
 
-          {% if is_state('binary_sensor.zona_prizemi_chodba_zachod_aktivni','on')
-                and (states('sensor.zona_prizemi_chodba_zachod_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_prizemi_chodba_zachod_demand') | float(0) ] %}
-          {% endif %}
-
-          {% if is_state('binary_sensor.zona_1p_jidelna_aktivni','on')
-                and (states('sensor.zona_1p_jidelna_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_1p_jidelna_demand') | float(0) ] %}
-          {% endif %}
-
-          {% if is_state('binary_sensor.zona_1p_kuchyn_aktivni','on')
-                and (states('sensor.zona_1p_kuchyn_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_1p_kuchyn_demand') | float(0) ] %}
-          {% endif %}
-
-          {% if is_state('binary_sensor.zona_1p_koupelna_aktivni','on')
-                and (states('sensor.zona_1p_koupelna_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_1p_koupelna_demand') | float(0) ] %}
-          {% endif %}
-
-          {% if is_state('binary_sensor.zona_1p_chodba_aktivni','on')
-                and (states('sensor.zona_1p_chodba_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_1p_chodba_demand') | float(0) ] %}
-          {% endif %}
-
-          {% if is_state('binary_sensor.zona_2p_mama_aktivni','on')
-                and (states('sensor.zona_2p_mama_demand') | float(0)) >= min_d %}
-            {% set demands = demands + [ states('sensor.zona_2p_mama_demand') | float(0) ] %}
-          {% endif %}
-
-          {{ demands | max if demands | count > 0 else 0 }}
-
+          {{ (ns.demands | max) if (ns.demands | count) > 0 else 0 }}
 
   - binary_sensor:
       - name: "kotel_should_be_on"
@@ -149,3 +92,4 @@ template:
           aktivni_zony: "{{ states('sensor.kotel_aktivni_zony_pocet') }}"
           prumerna_poptavka: "{{ states('sensor.kotel_poptavka_prumer') }}"
           boost_active: "{{ states('binary_sensor.kotel_boost_active') }}"
+

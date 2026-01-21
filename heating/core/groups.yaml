@@ -1,0 +1,18 @@
+# =====================================================================
+# Soubor   : config/heating/core/groups.yaml
+# Účel     : definice skupin
+# Autor    : Michal
+# Poslední úprava : 21-01-2026
+# =====================================================================
+group:
+  topne_zony:
+    name: Topné zóny (Climate)
+    entities:
+      - climate.sklep_michal
+      - climate.prizemi_michal
+      - climate.prizemi_chodba_zachod
+      - climate.1p_jidelna
+      - climate.1p_kuchyn
+      - climate.1p_koupelna
+      - climate.1p_chodba
+      - climate.2p_mama
