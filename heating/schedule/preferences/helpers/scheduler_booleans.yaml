@@ -1,0 +1,40 @@
+# =====================================================================
+# Soubor   : config/heating/helpers/scheduler_booleans.yaml
+# Účel     : Proxy booleany pro Scheduler (ON = komfortní čas)
+# Autor    : Michal
+# Poslední úprava : 21-01-2026
+# =====================================================================
+
+input_boolean:
+
+  sklep_michal_schedule_active: 
+    name: Sklep Michal – plán topení
+    icon: mdi:calendar-clock
+
+  prizemi_michal_schedule_active:
+    name: Přízemí Michal – plán topení
+    icon: mdi:calendar-clock
+
+  prizemi_chodba_zachod_schedule_active:
+    name: Přízemí chodba/Záchod – plán topení
+    icon: mdi:calendar-clock
+
+  1p_jidelna_schedule_active:
+    name: 1P Jídelna – plán topení
+    icon: mdi:calendar-clock
+
+  1p_kuchyn_schedule_active:
+    name: 1P Kuchyň – plán topení
+    icon: mdi:calendar-clock
+
+  1p_koupelna_schedule_active:
+    name: 1P Koupelna – plán topení
+    icon: mdi:calendar-clock
+
+  1p_chodba_schedule_active:
+    name: 1P Chodba – plán topení
+    icon: mdi:calendar-clock
+
+  2p_mama_schedule_active:
+    name: 2P Máma – plán topení
+    icon: mdi:calendar-clock
