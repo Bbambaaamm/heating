@@ -20,7 +20,7 @@ template:
   - sensor:
 
       # -----------------------------------------------------------------
-      # 🏠 Sklep – Michal: aktuální teplota z hlavice z externího senzoru xiaomy
+      # 🏠 Sklep – Michal: aktuální teplota z hlavice z externího senzoru xiaomi
       # -----------------------------------------------------------------
       - name: "Sklep Michal – aktuální teplota"
         unit_of_measurement: "°C"
