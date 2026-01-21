@@ -88,13 +88,14 @@ template:
         unique_id: kotel_effective_off_delay_sec
         unit_of_measurement: "s"
         state: >-
-          {% set base  = states('input_number.kotel_off_delay_sec') | int(300) %}
-          {% set mode  = states('input_select.topny_rezim') %}
+          {% set base = states('input_number.kotel_off_delay_sec') | int(300) %}
+          {% set mode = states('input_select.topny_rezim') %}
           {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
-          {% if mode == 'Eco' %}
-            {{ base + 60 }}
-          {% elif boost %}
+
+          {% if boost %}
             {{ [base, 300] | max }}
+          {% elif mode == 'Eco' %}
+            {{ base + 60 }}
           {% else %}
             {{ base }}
           {% endif %}
