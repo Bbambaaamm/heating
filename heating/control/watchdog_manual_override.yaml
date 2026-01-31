@@ -1,0 +1,50 @@
+# =====================================================================
+# Soubor   : config/heating/control/watchdog_manual_override.yaml
+# Modul    : Topení – Watchdog manuálních override
+# Účel     : Zabrání zaseknutí topení v manuálním režimu (např. chyba Scheduleru)
+# Spouštění: Denně 03:00
+# Akce     : Pokud je *_manual_override = ON a last_changed > 24h, vypne + zapíše do Logbooku
+# =====================================================================
+
+automation:
+  - id: heating_watchdog_manual_override
+    alias: "Heating Watchdog – manuální override > 24h"
+    description: >
+      Denně kontroluje všechny *_manual_override helpery. Pokud je override zapnutý déle než 24 hodin,
+      automaticky jej vypne a zapíše varování do logbooku.
+    mode: single
+
+    triggers:
+      - trigger: time
+        at: "03:00:00"
+
+    actions:
+      - repeat:
+          for_each:
+            - input_boolean.sklep_michal_manual_override
+            - input_boolean.prizemi_michal_manual_override
+            - input_boolean.prizemi_chodba_zachod_manual_override
+            - input_boolean.1p_jidelna_manual_override
+            - input_boolean.1p_kuchyn_manual_override
+            - input_boolean.1p_koupelna_manual_override
+            - input_boolean.1p_chodba_manual_override
+            - input_boolean.2p_mama_manual_override
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: >
+                        {{ is_state(repeat.item, 'on')
+                           and (now() - states[repeat.item].last_changed) > timedelta(hours=24) }}
+                  sequence:
+                    - action: input_boolean.turn_off
+                      target:
+                        entity_id: "{{ repeat.item }}"
+
+                    - action: logbook.log
+                      data:
+                        name: "Heating Watchdog"
+                        message: >
+                          Zóna {{ state_attr(repeat.item, 'friendly_name') or repeat.item }}
+                          byla v manuálu > 24h. Automaticky vypínám.
+                        entity_id: "{{ repeat.item }}"
