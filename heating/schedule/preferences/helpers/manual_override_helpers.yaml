@@ -1,0 +1,114 @@
+# =====================================================================
+# Soubor   : config/heating/helpers/manual_override_helpers.yaml
+# Modul    : Manual Override Helpers – per zóna
+# Účel     : Pomocné entity pro manuální override topení (časově / do další změny rozvrhu)
+# Autor    : Michal
+# Poslední úprava : 2026-01-31
+# =====================================================================
+# 📌 Poznámky:
+# - input_boolean.*_manual_override = manuální override aktivní pro zónu
+# - timer.*_manual_override = časové trvání override (active = override běží)
+# - input_select.*_manual_override_type = typ ukončení: timed / until_next_schedule
+# =====================================================================
+
+input_boolean:
+  sklep_michal_manual_override:
+    name: "Sklep Michal – manuální override"
+    icon: mdi:hand
+
+  prizemi_michal_manual_override:
+    name: "Přízemí Michal – manuální override"
+    icon: mdi:hand
+
+  prizemi_chodba_zachod_manual_override:
+    name: "Přízemí chodba/Záchod – manuální override"
+    icon: mdi:hand
+
+  1p_jidelna_manual_override:
+    name: "1P Jídelna – manuální override"
+    icon: mdi:hand
+
+  1p_kuchyn_manual_override:
+    name: "1P Kuchyň – manuální override"
+    icon: mdi:hand
+
+  1p_koupelna_manual_override:
+    name: "1P Koupelna – manuální override"
+    icon: mdi:hand
+
+  1p_chodba_manual_override:
+    name: "1P Chodba – manuální override"
+    icon: mdi:hand
+
+  2p_mama_manual_override:
+    name: "2P Máma – manuální override"
+    icon: mdi:hand
+
+
+timer:
+  sklep_michal_manual_override:
+  prizemi_michal_manual_override:
+  prizemi_chodba_zachod_manual_override:
+  1p_jidelna_manual_override:
+  1p_kuchyn_manual_override:
+  1p_koupelna_manual_override:
+  1p_chodba_manual_override:
+  2p_mama_manual_override:
+
+
+input_select:
+  sklep_michal_manual_override_type:
+    name: "Sklep Michal – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  prizemi_michal_manual_override_type:
+    name: "Přízemí Michal – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  prizemi_chodba_zachod_manual_override_type:
+    name: "Přízemí chodba/Záchod – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  1p_jidelna_manual_override_type:
+    name: "1P Jídelna – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  1p_kuchyn_manual_override_type:
+    name: "1P Kuchyň – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  1p_koupelna_manual_override_type:
+    name: "1P Koupelna – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  1p_chodba_manual_override_type:
+    name: "1P Chodba – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap
+
+  2p_mama_manual_override_type:
+    name: "2P Máma – typ manuálního override"
+    options:
+      - timed
+      - until_next_schedule
+    icon: mdi:gesture-tap

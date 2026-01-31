@@ -63,6 +63,31 @@ blueprint:
           step: 1
           unit_of_measurement: s
 
+    # -----------------------------------------------------------------
+    # 🧠 MANUÁLNÍ OVERRIDE – nové vstupy (priorita nad Schedulerem)
+    # -----------------------------------------------------------------
+    manual_override_boolean:
+      name: Manuál – override aktivní (input_boolean)
+      description: "ON = manuální override aktivní pro tuto zónu (má prioritu nad rozvrhem)."
+      selector:
+        entity:
+          domain: input_boolean
+
+    manual_override_timer:
+      name: Manuál – timer override (timer)
+      description: "Pokud běží (active), override je časově aktivní. Při idle/paused se ukončí."
+      selector:
+        entity:
+          domain: timer
+
+    manual_override_type:
+      name: Manuál – typ ukončení (input_select)
+      description: "Volba: timed (podle timeru) / until_next_schedule (do další změny rozvrhu)."
+      selector:
+        entity:
+          domain: input_select
+
+
 mode: restart
 initial_state: true
 
@@ -93,6 +118,18 @@ trigger:
   - platform: state
     entity_id: !input eco_temp_default
 
+  # -----------------------------------------------------------------
+  # 🧠 MANUÁLNÍ OVERRIDE – nové triggery
+  # -----------------------------------------------------------------
+  - platform: state
+    entity_id: !input manual_override_boolean
+
+  - platform: state
+    entity_id: !input manual_override_timer
+
+  - platform: state
+    entity_id: !input manual_override_type
+
 # ---------------------------------------------------------------
 # CONDITIONS
 # ---------------------------------------------------------------
@@ -113,6 +150,10 @@ variables:
   boost_active_entity: !input boost_active
   cooldown_seconds: !input cooldown_seconds
 
+  manual_override_boolean: !input manual_override_boolean
+  manual_override_timer: !input manual_override_timer
+  manual_override_type: !input manual_override_type
+
   mode: "{{ states('input_select.topny_rezim') }}"
   eco_temp: "{{ states(eco_temp_entity) | float(15) }}"
   last_comfort: "{{ states(last_comfort_helper) | float(22) }}"
@@ -132,11 +173,98 @@ variables:
   # === OKNO ===
   in_window: "{{ is_state(scheduler_entity_id, 'on') }}"
 
+  # -----------------------------------------------------------------
+  # 🧠 MANUÁLNÍ OVERRIDE – stav
+  # -----------------------------------------------------------------
+  override_active: "{{ is_state(manual_override_boolean, 'on') }}"
+  override_timer_active: "{{ is_state(manual_override_timer, 'active') }}"
+  override_type: "{{ states(manual_override_type) }}"
+
+  # -----------------------------------------------------------------
+  # 🧠 Ruční zásah uživatele (UI / fyzická hlavice)
+  # - user_id != null (změna z Dashboardu/Appky)
+  # - parent_id == null (změna fyzicky na zařízení, která nemá "rodiče" v automatizaci)
+  # - from_state != null (pojistka proti „restore/startup“ událostem)
+  # -----------------------------------------------------------------
+  is_user_action: >
+    {{ trigger is defined
+      and trigger.to_state is defined
+      and trigger.to_state.context is defined
+      and (
+        (trigger.to_state.context.user_id is not none)
+        or (
+          trigger.to_state.context.user_id is none
+          and trigger.to_state.context.parent_id is none
+          and trigger.from_state is not none
+        )
+      ) }}
+
+  override_should_apply: >
+    {{ override_active
+       and (override_type == 'until_next_schedule'
+            or (override_type == 'timed' and override_timer_active)) }}
+
 # ---------------------------------------------------------------
 # ACTION
 # ---------------------------------------------------------------
 action:
+  # ===============================================================
+  # 0) 🧠 MANUÁLNÍ OVERRIDE – ukončení „do další změny rozvrhu“
+  # ===============================================================
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ override_active and override_type == 'until_next_schedule' and is_scheduler_trigger }}"
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: "{{ manual_override_boolean }}"
+          - service: timer.cancel
+            target:
+              entity_id: "{{ manual_override_timer }}"
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Manuální override ukončen (další změna rozvrhu)."
+              entity_id: "{{ climate_entity }}"
+
+  # ===============================================================
+  # 0b) 🧠 MANUÁLNÍ OVERRIDE – priorita nad rozvrhem
+  #     (každá hlavice se nastaví na last_comfort)
+  # ===============================================================
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ override_should_apply and mode in ['Auto','Boost','Eco'] }}"
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              hvac_mode: heat
+
+          - condition: template
+            value_template: >
+              {{ ((state_attr(climate_entity, 'temperature') | float)
+                  - (last_comfort | float)) | abs > 0.1 }}
+
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              temperature: "{{ last_comfort }}"
+
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "MANUAL override – nastaven last comfort {{ last_comfort }} °C"
+              entity_id: "{{ climate_entity }}"
+
+          - stop: "MANUAL override má prioritu – rozvrh se neaplikuje"
+
+  # ---------------------------------------------------------------
   # 1) ZACHYCENÍ KOMFORTNÍ TEPLOTY PŘI RUČNÍ ZMĚNĚ SETPOINTU
+  # ---------------------------------------------------------------
   - choose:
       - conditions:
           - condition: template
@@ -172,7 +300,48 @@ action:
         sequence:
           - stop: "Ruční komfort v okně: uloženo, rozvrh teď nepřepisuje"
 
+  # ===============================================================
+  # 1c) 🧠 Volitelné chování: Ruční změna mimo okno → aktivuj override
+  #     (pokud chceš, aby otočení hlavice mimo okno „zapnulo manuál“)
+  # ===============================================================
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ is_climate_trigger
+                 and is_user_action
+                 and mode in ['Auto','Boost']
+                 and (not in_window)
+                 and (not override_active)
+                 and new_set >= (eco_temp + 0.2) }}
+        sequence:
+          - service: input_select.select_option
+            target:
+              entity_id: "{{ manual_override_type }}"
+            data:
+              option: "until_next_schedule"
+
+          - service: timer.cancel
+            target:
+              entity_id: "{{ manual_override_timer }}"
+
+          - service: input_boolean.turn_on
+            target:
+              entity_id: "{{ manual_override_boolean }}"
+
+          # timed = čekáme, že timer si spustíš z UI (nebo doplníme později)
+          # until_next_schedule = timer se ignoruje
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "Ruční zásah mimo okno – aktivován manuální override (until_next_schedule)."
+              entity_id: "{{ climate_entity }}"
+
+          - stop: "Ruční zásah mimo okno – přepnuto do manuálního override"
+
+  # ---------------------------------------------------------------
   # 0) ANTISPAM – aplikaci rozvrhu throttle (NEPLATÍ pro scheduler trigger a neplatí pro ruční otočení)
+  # ---------------------------------------------------------------
   - choose:
       - conditions:
           - condition: template
@@ -184,7 +353,9 @@ action:
         sequence:
           - stop: "Antispam: cooldown aktivní"
 
+  # ---------------------------------------------------------------
   # 2) APLIKACE REŽIMŮ (Eco / Auto+Boost / Off)
+  # ---------------------------------------------------------------
   - choose:
       # ECO
       - conditions:
