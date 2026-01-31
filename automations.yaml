@@ -25,6 +25,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.prizemi_michal_schedule_active
 - id: '1763973274914'
   alias: Rozvrh 1. patro - Jídelna (BP)
   description: ''
@@ -53,6 +54,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.1p_jidelna_schedule_active
 - id: '1763973555645'
   alias: Rozvrh 2. patro - Máma (BP)
   description: ''
@@ -80,6 +82,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.2p_mama_schedule_active
 - id: '1763997614562'
   alias: Rozvrh 1. patro - Kuchyň (BP)
   description: ''
@@ -107,6 +110,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.1p_kuchyn_schedule_active
 - id: '1764054803049'
   alias: Rozvrh 1. patro - Koupelna (BP)
   description: ''
@@ -134,6 +138,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.1p_koupelna_schedule_active
 - id: '1764055097440'
   alias: Rozvrh 1. patro - Chodba (BP)
   description: ''
@@ -161,6 +166,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.1p_chodba_schedule_active
 - id: '1764055710559'
   alias: Rozvrh Sklep - Michal (BP)
   description: ''
@@ -188,6 +194,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.sklep_michal_schedule_active
 - id: '1764142337779'
   alias: Rozvrh Přízemí - Chodba záchod (BP)
   description: ''
@@ -215,6 +222,7 @@
       eco_temp_default: input_number.eco_temp_default
       boost_active_sensor: binary_sensor.kotel_boost_active
       boost_active: binary_sensor.kotel_boost_active
+      scheduler_entity: input_boolean.prizemi_chodba_zachod_schedule_active
 - id: '1764976713111'
   alias: Externí sensor - 1.P - Jídelna
   description: ''
