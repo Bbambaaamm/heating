@@ -1,5 +1,5 @@
 # =====================================================================
-# Soubor   : config/heating/ui/dashboards/heating_dashboard.yaml
+# Soubor   : config/heating/ui/dashboards/heating_templates.yaml
 # Modul    : UI – Dashboard senzory (aktuální teploty zón)
 # Účel     : Poskytnout UI-friendly senzory pro vizualizaci na dashboardu
 # Autor    : Michal
@@ -114,6 +114,49 @@ template:
           {{ not is_state('climate.2p_mama', 'unavailable') }}
         state: >
           {{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}
+
+      # -----------------------------------------------------------------
+      # 🚨 BOOST – počet zón blokujících Boost (MANUÁL / override lock)
+      # - počítá zóny z group.topne_zony, které mají input_boolean.<zone>_manual_override = on
+      # - aktivní jen když je zapnutý Boost (binary_sensor.kotel_boost_active)
+      # - atribut blocked_zones obsahuje seznam názvů (friendly_name) těchto zón
+      # -----------------------------------------------------------------
+      - name: "BOOST – blokované zóny (počet)"
+        unique_id: boost_blocked_zones_count
+        icon: mdi:alert-circle
+        state: >
+          {% set boost_on = is_state('binary_sensor.kotel_boost_active', 'on') %}
+          {% if not boost_on %}
+            0
+          {% else %}
+            {% set zones = state_attr('group.topne_zony', 'entity_id') | default([], true) %}
+            {% set blocked = namespace(count=0) %}
+            {% for z in zones %}
+              {% set obj = z.split('.')[1] %}
+              {% set helper = 'input_boolean.' ~ obj ~ '_manual_override' %}
+              {% if states(helper) == 'on' %}
+                {% set blocked.count = blocked.count + 1 %}
+              {% endif %}
+            {% endfor %}
+            {{ blocked.count }}
+          {% endif %}
+        attributes:
+          blocked_zones: >
+            {% set boost_on = is_state('binary_sensor.kotel_boost_active', 'on') %}
+            {% if not boost_on %}
+              []
+            {% else %}
+              {% set zones = state_attr('group.topne_zony', 'entity_id') | default([], true) %}
+              {% set names = namespace(list=[]) %}
+              {% for z in zones %}
+                {% set obj = z.split('.')[1] %}
+                {% set helper = 'input_boolean.' ~ obj ~ '_manual_override' %}
+                {% if states(helper) == 'on' %}
+                  {% set names.list = names.list + [state_attr(z, 'friendly_name') | default(states[z].name, true)] %}
+                {% endif %}
+              {% endfor %}
+              {{ names.list }}
+            {% endif %}
 
 input_boolean:
 
