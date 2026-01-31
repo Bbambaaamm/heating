@@ -22,7 +22,13 @@ template:
         availability: >
           {{ not is_state('climate.1p_jidelna', 'unavailable') }}
         state: >
-          {{ state_attr('climate.1p_jidelna', 'pi_heating_demand') | int(0) }}
+          {% set e = states['climate.1p_jidelna'] %}
+          {% set age_sec = (as_timestamp(now()) - as_timestamp(e.last_updated)) if e is not none else 999999 %}
+          {% if age_sec > 120 * 60 %}
+            0
+          {% else %}
+            {{ state_attr('climate.1p_jidelna', 'pi_heating_demand') | int(0) }}
+          {% endif %}
 
   - binary_sensor:
       # ----------------------------------------------------------------
