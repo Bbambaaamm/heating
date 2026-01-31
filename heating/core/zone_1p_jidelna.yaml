@@ -40,6 +40,8 @@ template:
       - name: "zona_1p_jidelna_okno_otevrene"
         unique_id: zona_1p_jidelna_okno_otevrene
         device_class: opening
+        delay_on: 10
+        delay_off: 30
         state: >
           {% set s = states('sensor.1p_jidelna_detekovano_otevrene_okno') | lower %}
           {{ s in ['on', 'open', 'true', '1'] }}
