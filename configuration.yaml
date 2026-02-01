@@ -19,24 +19,6 @@ device_tracker: []
 #    interval_seconds: 30                # 🔸 interval skenování v sekundách
 #    request_rssi: true                  # 📶 zaznamenává i sílu signálu (užitečné pro přesnost)
 
-# 🧠 Template senzory – vlastní logika nebo přepočty hodnot
-template:
-  - binary_sensor:
-      - name: "Opravený stav vrat"       # 🚪 vlastní binární senzor pro stav garážových vrat
-        state: >
-          {{ not is_state('cover.vrata_gatebox_position', 'closed') }}
-        device_class: garage_door        # 🚗 zobrazí se jako garážová vrata v UI
-  - trigger:
-      - trigger: event
-        event_type: bubble_card_update_modules
-    sensor:
-      - name: "Bubble Card Modules"
-        state: "saved"
-        icon: "mdi:puzzle"
-        attributes:
-          modules: "{{ trigger.event.data.modules }}"
-          last_updated: "{{ trigger.event.data.last_updated }}"
-
 # 🌡️ Integrace topení – načte všechny konfigurační soubory ze složky "heating"
 homeassistant:
   packages: !include_dir_named heating

@@ -1,12 +1,17 @@
-cover:
-  - platform: template
-    covers:
-      vrata_ui:
-        friendly_name: "Vrata"
+# =====================================================================
+# TEMPLATE (moderní syntaxe) – cover + template senzory
+# =====================================================================
+template:
+  # -----------------------------
+  # COVER: vrata_ui (migrace z platform: template)
+  # -----------------------------
+  - cover:
+      - name: "Vrata"
+        unique_id: vrata_ui
         device_class: gate
 
         # Stav – překlopí opening -> closed, closing -> open
-        value_template: >
+        state: >
           {% set s = states('cover.vrata_gatebox_position') %}
           {% if s == 'opening' %}closed
           {% elif s == 'closing' %}open
@@ -14,7 +19,7 @@ cover:
           {% endif %}
 
         # Pozice – potlačí „50 % při jízdě“
-        position_template: >
+        position: >
           {% set s = states('cover.vrata_gatebox_position') %}
           {% if s == 'opening' %}0
           {% elif s == 'closing' %}100
@@ -25,22 +30,45 @@ cover:
 
         # Všechna tři tlačítka posílají jeden pulz (toggle) na původní cover
         open_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
         close_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
         stop_cover:
-          - service: cover.open_cover
+          - action: cover.open_cover
             target:
               entity_id: cover.vrata_gatebox_position
 
+  # -----------------------------
+  # TEMPLATE SENSORY (ponecháno)
+  # -----------------------------
+  - binary_sensor:
+      - name: "Opravený stav vrat"
+        state: >
+          {{ not is_state('cover.vrata_gatebox_position', 'closed') }}
+        device_class: garage_door
+
+  - trigger:
+      - trigger: event
+        event_type: bubble_card_update_modules
+    sensor:
+      - name: "Bubble Card Modules"
+        state: "saved"
+        icon: "mdi:puzzle"
+        attributes:
+          modules: "{{ trigger.event.data.modules }}"
+          last_updated: "{{ trigger.event.data.last_updated }}"
+
+# =====================================================================
+# SCRIPT (může být i v scripts.yaml, tady je ponechán)
+# =====================================================================
 script:
   vrata_stop:
-    alias: Vrata – STOP
+    alias: "Vrata – STOP"
     sequence:
-      - service: cover.stop_cover
+      - action: cover.stop_cover
         target:
           entity_id: cover.vrata_ui
