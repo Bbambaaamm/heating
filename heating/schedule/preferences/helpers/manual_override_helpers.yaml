@@ -44,6 +44,37 @@ input_boolean:
     name: "2P Máma – manuální override"
     icon: mdi:hand
 
+  ui_select_sklep_michal:
+    name: "UI výběr – Sklep Michal"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_prizemi_michal:
+    name: "UI výběr – Přízemí Michal"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_prizemi_chodba_zachod:
+    name: "UI výběr – Přízemí chodba/Záchod"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_1p_jidelna:
+    name: "UI výběr – 1P Jídelna"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_1p_kuchyn:
+    name: "UI výběr – 1P Kuchyň"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_1p_koupelna:
+    name: "UI výběr – 1P Koupelna"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_1p_chodba:
+    name: "UI výběr – 1P Chodba"
+    icon: mdi:checkbox-marked-outline
+
+  ui_select_2p_mama:
+    name: "UI výběr – 2P Máma"
+    icon: mdi:checkbox-marked-outline
 
 timer:
   sklep_michal_manual_override:
@@ -112,3 +143,20 @@ input_select:
       - timed
       - until_next_schedule
     icon: mdi:gesture-tap
+
+  ui_global_manual_type:
+    name: "Globální manuál – typ"
+    options:
+      - Časovač
+      - Do další změny rozvrhu
+    icon: mdi:gesture-tap
+
+input_number:
+  ui_global_manual_minutes:
+    name: "Globální manuál – délka (min)"
+    min: 10
+    max: 240
+    step: 5
+    mode: slider
+    unit_of_measurement: min
+    icon: mdi:timer

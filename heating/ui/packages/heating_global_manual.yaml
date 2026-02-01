@@ -1,0 +1,105 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/ui/packages/heating_global_manual.yaml
+# Modul    : Centrální ovládání topení – globální manuál
+# Účel     : Aplikace globálního manuálního režimu na vybrané zóny
+# Autor    : Michal
+# Poslední úprava : 2026-02-01
+# =====================================================================
+
+script:
+  apply_global_manual_override:
+    alias: "Apply global manual override"
+    mode: single
+    sequence:
+      # 1. Příprava proměnných
+      - variables:
+          # Načtení globálního typu (Timed / Until next schedule)
+          global_type: "{{ states('input_select.ui_global_manual_type') }}"
+          
+          # Výpočet času (minuty -> HH:MM:00)
+          duration_hms: >-
+            {% set m = states('input_number.ui_global_manual_minutes')|int(0) %}
+            {% set h = (m // 60) %}
+            {% set mm = (m % 60) %}
+            {{ '%02d:%02d:00'|format(h, mm) }}
+          
+          # Definice mapování zón (propojení UI výběru s konkrétními entitami zóny)
+          zones:
+            - ui_select: input_boolean.ui_select_sklep_michal
+              type_select: input_select.sklep_michal_manual_override_type
+              timer: timer.sklep_michal_manual_override
+              manual: input_boolean.sklep_michal_manual_override
+            
+            - ui_select: input_boolean.ui_select_prizemi_michal
+              type_select: input_select.prizemi_michal_manual_override_type
+              timer: timer.prizemi_michal_manual_override
+              manual: input_boolean.prizemi_michal_manual_override
+              
+            - ui_select: input_boolean.ui_select_prizemi_chodba_zachod
+              type_select: input_select.prizemi_chodba_zachod_manual_override_type
+              timer: timer.prizemi_chodba_zachod_manual_override
+              manual: input_boolean.prizemi_chodba_zachod_manual_override
+              
+            - ui_select: input_boolean.ui_select_1p_jidelna
+              type_select: input_select.1p_jidelna_manual_override_type
+              timer: timer.1p_jidelna_manual_override
+              manual: input_boolean.1p_jidelna_manual_override
+              
+            - ui_select: input_boolean.ui_select_1p_kuchyn
+              type_select: input_select.1p_kuchyn_manual_override_type
+              timer: timer.1p_kuchyn_manual_override
+              manual: input_boolean.1p_kuchyn_manual_override
+              
+            - ui_select: input_boolean.ui_select_1p_koupelna
+              type_select: input_select.1p_koupelna_manual_override_type
+              timer: timer.1p_koupelna_manual_override
+              manual: input_boolean.1p_koupelna_manual_override
+              
+            - ui_select: input_boolean.ui_select_1p_chodba
+              type_select: input_select.1p_chodba_manual_override_type
+              timer: timer.1p_chodba_manual_override
+              manual: input_boolean.1p_chodba_manual_override
+              
+            - ui_select: input_boolean.ui_select_2p_mama
+              type_select: input_select.2p_mama_manual_override_type
+              timer: timer.2p_mama_manual_override
+              manual: input_boolean.2p_mama_manual_override
+
+      # 2. Cyklus přes všechny zóny
+      - repeat:
+          for_each: "{{ zones }}"
+          sequence:
+            # POKUD je zóna vybrána v UI (checkbox ON)
+            - if:
+                - condition: template
+                  value_template: "{{ is_state(repeat.item.ui_select, 'on') }}"
+              then:
+                # A) Změna typu (OPRAVENO: select.select_option -> input_select.select_option)
+                - service: input_select.select_option
+                  target:
+                    entity_id: "{{ repeat.item.type_select }}"
+                  data:
+                    option: "{{ global_type }}"
+                
+                # B) Spuštění časovače (pouze pokud je zvolen typ 'timed')
+                - if:
+                    - condition: template
+                      value_template: "{{ global_type == 'timed' }}"
+                  then:
+                    - service: timer.start
+                      target:
+                        entity_id: "{{ repeat.item.timer }}"
+                      data:
+                        duration: "{{ duration_hms }}"
+                
+                # C) Zapnutí manuálního režimu (hlavní switch)
+                - service: input_boolean.turn_on
+                  target:
+                    entity_id: "{{ repeat.item.manual }}"
+
+      # 3. Zalogování akce
+      - service: logbook.log
+        data:
+          name: "Centrální ovládání"
+          message: "Hromadný manuál aplikován (Typ: {{ global_type }}, Čas: {{ duration_hms }})."

@@ -1,0 +1,53 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/schedule/automation/startup/heating_ui_sync_selection.yaml
+# Modul    : heating_ui_sync_selection
+# Účel     : Synchronizace UI výběru podle manuálního override
+# Autor    : Michal
+# Poslední úprava : 2026-02-1
+# =====================================================================
+
+automation:
+  - id: heating_ui_sync_selection
+    alias: "Heating UI – Sync selection with manual override"
+    mode: queued
+    trigger:
+      - platform: state
+        entity_id:
+          - input_boolean.sklep_michal_manual_override
+          - input_boolean.prizemi_michal_manual_override
+          - input_boolean.prizemi_chodba_zachod_manual_override
+          - input_boolean.1p_jidelna_manual_override
+          - input_boolean.1p_kuchyn_manual_override
+          - input_boolean.1p_koupelna_manual_override
+          - input_boolean.1p_chodba_manual_override
+          - input_boolean.2p_mama_manual_override
+    condition: []
+    action:
+      - variables:
+          map_ui_select:
+            input_boolean.sklep_michal_manual_override: input_boolean.ui_select_sklep_michal
+            input_boolean.prizemi_michal_manual_override: input_boolean.ui_select_prizemi_michal
+            input_boolean.prizemi_chodba_zachod_manual_override: input_boolean.ui_select_prizemi_chodba_zachod
+            input_boolean.1p_jidelna_manual_override: input_boolean.ui_select_1p_jidelna
+            input_boolean.1p_kuchyn_manual_override: input_boolean.ui_select_1p_kuchyn
+            input_boolean.1p_koupelna_manual_override: input_boolean.ui_select_1p_koupelna
+            input_boolean.1p_chodba_manual_override: input_boolean.ui_select_1p_chodba
+            input_boolean.2p_mama_manual_override: input_boolean.ui_select_2p_mama
+          ui_entity: "{{ map_ui_select.get(trigger.entity_id) }}"
+          new_state: "{{ trigger.to_state.state if trigger.to_state else 'off' }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ ui_entity and new_state == 'on' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: "{{ ui_entity }}"
+          - conditions:
+              - condition: template
+                value_template: "{{ ui_entity and new_state == 'off' }}"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: "{{ ui_entity }}"

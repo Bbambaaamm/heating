@@ -191,3 +191,7 @@ input_boolean:
   ui_2p_mama_schedule_expand:
     name: UI – 2. patro Máma rozvrh rozbalit
     icon: mdi:unfold-more-horizontal
+
+  ui_global_manual_launcher:
+    name: UI – Centrální manuál (launcher)
+    icon: mdi:tune-variant

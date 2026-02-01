@@ -1,0 +1,51 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/control/heating_timer_logic.yaml
+# Modul    : Heating – Timer Logic (Auto vypnutí manuálu po doběhu timeru)
+# Účel     : Když doběhne timer zóny (active -> idle), automaticky vypne příslušný
+#            input_boolean.*_manual_override a zapíše událost do logbooku.
+# Autor    : Michal
+# Poslední úprava : 2026-02-01
+# =====================================================================
+
+automation:
+  - alias: "Topení: Vypnout manuál po vypršení časovače"
+    id: heating_timer_finished_turn_off_manual
+    mode: parallel
+
+    trigger:
+      - platform: state
+        entity_id:
+          - timer.sklep_michal_manual_override
+          - timer.prizemi_michal_manual_override
+          - timer.prizemi_chodba_zachod_manual_override
+          - timer.1p_jidelna_manual_override
+          - timer.1p_kuchyn_manual_override
+          - timer.1p_koupelna_manual_override
+          - timer.1p_chodba_manual_override
+          - timer.2p_mama_manual_override
+        from: "active"
+        to: "idle"
+
+    condition: []
+
+    action:
+      - variables:
+          timer_entity: "{{ trigger.entity_id }}"
+          manual_boolean: "{{ timer_entity | replace('timer.', 'input_boolean.') }}"
+          timer_name: "{{ state_attr(timer_entity, 'friendly_name') or timer_entity }}"
+
+      # pojistka: vypínej jen když boolean existuje a je ON
+      - condition: template
+        value_template: >
+          {{ states[manual_boolean] is not none and is_state(manual_boolean, 'on') }}
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: "{{ manual_boolean }}"
+
+      - service: logbook.log
+        data:
+          name: "Topení Timer"
+          message: "Časovač vypršel ({{ timer_name }}) -> Vypínám manuální režim."
+          entity_id: "{{ manual_boolean }}"
