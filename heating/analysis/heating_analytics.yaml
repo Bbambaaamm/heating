@@ -1,0 +1,77 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor : config/heating/analysis/heating_analytics.yaml
+# Účel   : Analýza efektivity vytápění (cyklování, časy hoření)
+# =====================================================================
+
+sensor:
+  # 1. Počet startů hořáku za posledních 24h
+  - platform: history_stats
+    name: "Kotel – počet startů (24h)"
+    entity_id: binary_sensor.boiler_burngas
+    state: "on"
+    type: count
+    start: "{{ now() - timedelta(hours=24) }}"
+    end: "{{ now() }}"
+
+  # 2. Celková doba hoření za posledních 24h (v hodinách)
+  - platform: history_stats
+    name: "Kotel – doba hoření (24h)"
+    entity_id: binary_sensor.boiler_burngas
+    state: "on"
+    type: time
+    start: "{{ now() - timedelta(hours=24) }}"
+    end: "{{ now() }}"
+
+  # 3. Počet startů za poslední hodinu
+  - platform: history_stats
+    name: "Kotel – počet startů (1h)"
+    entity_id: binary_sensor.boiler_burngas
+    state: "on"
+    type: count
+    start: "{{ now() - timedelta(hours=1) }}"
+    end: "{{ now() }}"
+
+template:
+  - sensor:
+      # 4. Průměrná délka jednoho cyklu (24h) v minutách
+      - name: "Kotel – průměrná délka cyklu (24h)"
+        unique_id: boiler_avg_cycle_duration_24h
+        unit_of_measurement: "min"
+        icon: mdi:chart-timeline-variant
+        availability: >
+          {{ states('sensor.kotel_pocet_startu_24h') not in ['unknown','unavailable','none']
+             and states('sensor.kotel_doba_horeni_24h') not in ['unknown','unavailable','none'] }}
+        state: >
+          {% set starts = states('sensor.kotel_pocet_startu_24h') | float(0) %}
+          {% set time_hours = states('sensor.kotel_doba_horeni_24h') | float(0) %}
+          {% if starts > 0 %}
+            {{ ((time_hours * 60) / starts) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+
+      # 5. Skóre efektivity (0-100 %) – orientační
+      - name: "Kotel – skóre efektivity"
+        unique_id: boiler_efficiency_score
+        unit_of_measurement: "%"
+        icon: mdi:speedometer
+        availability: >
+          {{ states('sensor.kotel_prumerna_delka_cyklu_24h') not in ['unknown','unavailable','none'] }}
+        state: >
+          {% set avg_cycle = states('sensor.kotel_prumerna_delka_cyklu_24h') | float(0) %}
+          {% if avg_cycle >= 30 %}
+            100
+          {% elif avg_cycle <= 5 %}
+            {{ (avg_cycle * 20) | round(0) }}
+          {% else %}
+            {{ (20 + (avg_cycle - 5) * 3.2) | round(0) }}
+          {% endif %}
+        attributes:
+          hodnoceni: >
+            {% set s = states('sensor.kotel_skore_efektivity') | int(0) %}
+            {% if s > 80 %}Excelentní (dlouhé cykly)
+            {% elif s > 50 %}Dobré
+            {% elif s > 20 %}Průměrné (časté starty)
+            {% else %}Kritické cyklování!
+            {% endif %}
