@@ -8,7 +8,7 @@
 # 📌 Poznámky:
 # - input_boolean.*_manual_override = manuální override aktivní pro zónu
 # - timer.*_manual_override = časové trvání override (active = override běží)
-# - input_select.*_manual_override_type = typ ukončení: timed / until_next_schedule
+# - input_select.*_manual_override_type = typ ukončení: Časovač / Do další změny rozvrhu
 # =====================================================================
 
 input_boolean:
@@ -91,57 +91,57 @@ input_select:
   sklep_michal_manual_override_type:
     name: "Sklep Michal – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   prizemi_michal_manual_override_type:
     name: "Přízemí Michal – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   prizemi_chodba_zachod_manual_override_type:
     name: "Přízemí chodba/Záchod – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   1p_jidelna_manual_override_type:
     name: "1P Jídelna – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   1p_kuchyn_manual_override_type:
     name: "1P Kuchyň – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   1p_koupelna_manual_override_type:
     name: "1P Koupelna – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   1p_chodba_manual_override_type:
     name: "1P Chodba – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   2p_mama_manual_override_type:
     name: "2P Máma – typ manuálního override"
     options:
-      - timed
-      - until_next_schedule
+      - Časovač
+      - Do další změny rozvrhu
     icon: mdi:gesture-tap
 
   ui_global_manual_type:

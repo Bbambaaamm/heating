@@ -82,10 +82,10 @@ script:
                   data:
                     option: "{{ global_type }}"
                 
-                # B) Spuštění časovače (pouze pokud je zvolen typ 'timed')
+                # B) Spuštění časovače (pouze pokud je zvolen typ 'Časovač')
                 - if:
                     - condition: template
-                      value_template: "{{ global_type == 'timed' }}"
+                      value_template: "{{ global_type == 'Časovač' }}"
                   then:
                     - service: timer.start
                       target:

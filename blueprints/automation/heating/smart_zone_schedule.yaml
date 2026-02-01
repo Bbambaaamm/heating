@@ -82,7 +82,7 @@ blueprint:
 
     manual_override_type:
       name: Manuál – typ ukončení (input_select)
-      description: "Volba: timed (podle timeru) / until_next_schedule (do další změny rozvrhu)."
+      description: "Volba: Časovač (podle timeru) / until_next_schedule (do další změny rozvrhu)."
       selector:
         entity:
           domain: input_select
@@ -202,7 +202,7 @@ variables:
   override_should_apply: >
     {{ override_active
        and (override_type == 'until_next_schedule'
-            or (override_type == 'timed' and override_timer_active)) }}
+            or (override_type == 'Časovač' and override_timer_active)) }}
 
 # ---------------------------------------------------------------
 # ACTION

@@ -4,28 +4,33 @@
 # Účel   : Analýza efektivity vytápění (cyklování, časy hoření)
 # =====================================================================
 
+input_boolean:
+  test_heating_analytics_loaded:
+    name: "TEST – heating analytics loaded"
+    icon: mdi:check-circle-outline
+
 sensor:
-  # 1. Počet startů hořáku za posledních 24h
+  # 1) Počet startů hořáku za posledních 24h
   - platform: history_stats
-    name: "Kotel – počet startů (24h)"
+    name: "kotel_start_count_24h"
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
     start: "{{ now() - timedelta(hours=24) }}"
     end: "{{ now() }}"
 
-  # 2. Celková doba hoření za posledních 24h (v hodinách)
+  # 2) Celková doba hoření za posledních 24h (v hodinách)
   - platform: history_stats
-    name: "Kotel – doba hoření (24h)"
+    name: "kotel_burn_time_24h"
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: time
     start: "{{ now() - timedelta(hours=24) }}"
     end: "{{ now() }}"
 
-  # 3. Počet startů za poslední hodinu
+  # 3) Počet startů za poslední hodinu
   - platform: history_stats
-    name: "Kotel – počet startů (1h)"
+    name: "kotel_start_count_1h"
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
@@ -34,32 +39,32 @@ sensor:
 
 template:
   - sensor:
-      # 4. Průměrná délka jednoho cyklu (24h) v minutách
-      - name: "Kotel – průměrná délka cyklu (24h)"
+      # 4) Průměrná délka cyklu (24h) v minutách
+      - name: "kotel_avg_cycle_min_24h"
         unique_id: boiler_avg_cycle_duration_24h
         unit_of_measurement: "min"
         icon: mdi:chart-timeline-variant
         availability: >
-          {{ states('sensor.kotel_pocet_startu_24h') not in ['unknown','unavailable','none']
-             and states('sensor.kotel_doba_horeni_24h') not in ['unknown','unavailable','none'] }}
+          {{ states('sensor.kotel_start_count_24h') not in ['unknown','unavailable','none']
+             and states('sensor.kotel_burn_time_24h') not in ['unknown','unavailable','none'] }}
         state: >
-          {% set starts = states('sensor.kotel_pocet_startu_24h') | float(0) %}
-          {% set time_hours = states('sensor.kotel_doba_horeni_24h') | float(0) %}
+          {% set starts = states('sensor.kotel_start_count_24h') | float(0) %}
+          {% set time_hours = states('sensor.kotel_burn_time_24h') | float(0) %}
           {% if starts > 0 %}
             {{ ((time_hours * 60) / starts) | round(1) }}
           {% else %}
             0
           {% endif %}
 
-      # 5. Skóre efektivity (0-100 %) – orientační
-      - name: "Kotel – skóre efektivity"
+      # 5) Skóre efektivity (0–100 %)
+      - name: "kotel_efficiency_score"
         unique_id: boiler_efficiency_score
         unit_of_measurement: "%"
         icon: mdi:speedometer
         availability: >
-          {{ states('sensor.kotel_prumerna_delka_cyklu_24h') not in ['unknown','unavailable','none'] }}
+          {{ states('sensor.kotel_avg_cycle_min_24h') not in ['unknown','unavailable','none'] }}
         state: >
-          {% set avg_cycle = states('sensor.kotel_prumerna_delka_cyklu_24h') | float(0) %}
+          {% set avg_cycle = states('sensor.kotel_avg_cycle_min_24h') | float(0) %}
           {% if avg_cycle >= 30 %}
             100
           {% elif avg_cycle <= 5 %}
@@ -69,7 +74,7 @@ template:
           {% endif %}
         attributes:
           hodnoceni: >
-            {% set s = states('sensor.kotel_skore_efektivity') | int(0) %}
+            {% set s = states('sensor.kotel_efficiency_score') | int(0) %}
             {% if s > 80 %}Excelentní (dlouhé cykly)
             {% elif s > 50 %}Dobré
             {% elif s > 20 %}Průměrné (časté starty)
