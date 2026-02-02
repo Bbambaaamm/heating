@@ -55,16 +55,6 @@ sensor:
     start: "{{ now() - timedelta(hours=1) }}"
     end: "{{ now() }}"
 
-  # (stav = text “Excelentní …”)
-  - platform: template
-    sensors:
-      kotel_efficiency_rating:
-        unique_id: kotel_efficiency_rating
-        friendly_name: "Kotel – hodnocení efektivity"
-        icon_template: mdi:label-outline
-        value_template: >
-          {{ state_attr('sensor.kotel_efficiency_score','hodnoceni') or '' }}
-
 # ---------------------------------------------------------------------
 # 2) Odvozené metriky (template)
 # ---------------------------------------------------------------------
@@ -150,3 +140,11 @@ template:
             {% elif s > 20 %}Průměrné (časté starty)
             {% else %}Kritické cyklování!
             {% endif %}
+
+      # (stav = text “Excelentní …”)
+      # Skóre efektivity (0–100 %) odvozené z průměrné délky cyklu (24h)
+      - name: "Kotel – hodnocení efektivity"
+        unique_id: kotel_efficiency_rating
+        icon: mdi:label-outline
+        state: >
+          {{ state_attr('sensor.kotel_efficiency_score','hodnoceni') or '' }}
