@@ -1,78 +1,148 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor : config/heating/analysis/heating_analytics.yaml
-# Účel   : Analýza efektivity vytápění (cyklování, časy hoření)
+# Soubor   : config/heating/analysis/heating_analytics.yaml
+# Modul    : Topení – analytika kotle (cyklování, doba hoření, efektivita)
+# Účel     : Analýza efektivity vytápění pro dashboard/Grafanu (starty, hoření, cykly)
+# Autor    : Michal
+# Poslední úprava : 2026-02-01
+# Poznámka : YAML syntaxe podle HA 2024.10 (template / history_stats)
+# =====================================================================
+# 📌 Obsah:
+#   - History Stats: starty za 1h / 24h, doba hoření za 24h
+#   - Template: průměrná délka cyklu, skóre efektivity, duty cycle (%)
+#
+# 📝 Poznámky:
+# - Zdrojový signál hoření: binary_sensor.boiler_burngas (stav "on" = hoří)
+# - Všechny template senzory vrací vždy číslo a mají ochranu proti neplatným stavům
+# - Atributy jsou připravené pro analýzu v Grafaně (period/source/calc/thresholds)
 # =====================================================================
 
 input_boolean:
   test_heating_analytics_loaded:
-    name: "TEST – heating analytics loaded"
+    name: "TEST – Heating analytics loaded"
     icon: mdi:check-circle-outline
 
+# ---------------------------------------------------------------------
+# 1) Základní metriky z historie (history_stats)
+# ---------------------------------------------------------------------
 sensor:
-  # 1) Počet startů hořáku za posledních 24h
+  # Starty – posledních 24h
   - platform: history_stats
     name: "kotel_start_count_24h"
+    unique_id: kotel_start_count_24h
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
     start: "{{ now() - timedelta(hours=24) }}"
     end: "{{ now() }}"
 
-  # 2) Celková doba hoření za posledních 24h (v hodinách)
+  # Doba hoření – posledních 24h (hodiny)
   - platform: history_stats
     name: "kotel_burn_time_24h"
+    unique_id: kotel_burn_time_24h
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: time
     start: "{{ now() - timedelta(hours=24) }}"
     end: "{{ now() }}"
 
-  # 3) Počet startů za poslední hodinu
+  # Starty – poslední 1h
   - platform: history_stats
     name: "kotel_start_count_1h"
+    unique_id: kotel_start_count_1h
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
     start: "{{ now() - timedelta(hours=1) }}"
     end: "{{ now() }}"
 
+  # (stav = text “Excelentní …”)
+  - platform: template
+    sensors:
+      kotel_efficiency_rating:
+        unique_id: kotel_efficiency_rating
+        friendly_name: "Kotel – hodnocení efektivity"
+        icon_template: mdi:label-outline
+        value_template: >
+          {{ state_attr('sensor.kotel_efficiency_score','hodnoceni') or '' }}
+
+# ---------------------------------------------------------------------
+# 2) Odvozené metriky (template)
+# ---------------------------------------------------------------------
 template:
   - sensor:
-      # 4) Průměrná délka cyklu (24h) v minutách
-      - name: "kotel_avg_cycle_min_24h"
-        unique_id: boiler_avg_cycle_duration_24h
+      # Doba hoření – posledních 24h (minuty)
+      - name: "kotel_burn_time_min_24h"
+        unique_id: kotel_burn_time_min_24h
         unit_of_measurement: "min"
+        state_class: measurement
+        icon: mdi:fire-clock
+        availability: >
+          {{ states('sensor.kotel_burn_time_24h') not in ['unknown','unavailable','none',''] }}
+        state: >
+          {% set h = states('sensor.kotel_burn_time_24h') | float(0) %}
+          {{ (h * 60) | round(1) }}
+        attributes:
+          period: "24h"
+          source_entity: "binary_sensor.boiler_burngas"
+
+      # Průměrná délka cyklu za 24h (minuty) = (doba hoření v minutách / počet startů)
+      - name: "kotel_avg_cycle_min_24h"
+        unique_id: kotel_avg_cycle_min_24h
+        unit_of_measurement: "min"
+        state_class: measurement
         icon: mdi:chart-timeline-variant
         availability: >
-          {{ states('sensor.kotel_start_count_24h') not in ['unknown','unavailable','none']
-             and states('sensor.kotel_burn_time_24h') not in ['unknown','unavailable','none'] }}
+          {{ states('sensor.kotel_start_count_24h') not in ['unknown','unavailable','none','']
+             and states('sensor.kotel_burn_time_24h') not in ['unknown','unavailable','none',''] }}
         state: >
           {% set starts = states('sensor.kotel_start_count_24h') | float(0) %}
           {% set time_hours = states('sensor.kotel_burn_time_24h') | float(0) %}
+          {% set time_min = time_hours * 60 %}
           {% if starts > 0 %}
-            {{ ((time_hours * 60) / starts) | round(1) }}
+            {{ (time_min / starts) | round(1) }}
           {% else %}
             0
           {% endif %}
+        attributes:
+          period: "24h"
+          calc: "(burn_time_24h[h] * 60) / start_count_24h"
 
-      # 5) Skóre efektivity (0–100 %)
-      - name: "kotel_efficiency_score"
-        unique_id: boiler_efficiency_score
+      # TOP metrika navíc: Duty cycle (24h) – podíl času hoření v %
+      - name: "kotel_burn_duty_cycle_24h"
+        unique_id: kotel_burn_duty_cycle_24h
         unit_of_measurement: "%"
+        state_class: measurement
+        icon: mdi:percent
+        availability: >
+          {{ states('sensor.kotel_burn_time_24h') not in ['unknown','unavailable','none',''] }}
+        state: >
+          {% set h = states('sensor.kotel_burn_time_24h') | float(0) %}
+          {% set pct = (h / 24) * 100 %}
+          {{ [pct, 100] | min | round(1) }}
+        attributes:
+          period: "24h"
+          calc: "(burn_time_24h[h] / 24) * 100"
+
+      # Skóre efektivity (0–100 %) odvozené z průměrné délky cyklu (24h)
+      - name: "kotel_efficiency_score"
+        unique_id: kotel_efficiency_score
+        unit_of_measurement: "%"
+        state_class: measurement
         icon: mdi:speedometer
         availability: >
-          {{ states('sensor.kotel_avg_cycle_min_24h') not in ['unknown','unavailable','none'] }}
+          {{ states('sensor.kotel_avg_cycle_min_24h') not in ['unknown','unavailable','none',''] }}
         state: >
-          {% set avg_cycle = states('sensor.kotel_avg_cycle_min_24h') | float(0) %}
-          {% if avg_cycle >= 30 %}
+          {% set avg = states('sensor.kotel_avg_cycle_min_24h') | float(0) %}
+          {% if avg >= 30 %}
             100
-          {% elif avg_cycle <= 5 %}
-            {{ (avg_cycle * 20) | round(0) }}
+          {% elif avg <= 5 %}
+            {{ (avg * 20) | round(0) }}
           {% else %}
-            {{ (20 + (avg_cycle - 5) * 3.2) | round(0) }}
+            {{ (20 + (avg - 5) * 3.2) | round(0) }}
           {% endif %}
         attributes:
+          period: "24h"
+          source_entity: "binary_sensor.boiler_burngas"
           hodnoceni: >
             {% set s = states('sensor.kotel_efficiency_score') | int(0) %}
             {% if s > 80 %}Excelentní (dlouhé cykly)
