@@ -1,0 +1,66 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/control/watchdog_connectivity.yaml
+# Modul    : Heating – Watchdog Connectivity (dostupnost & čerstvost dat)
+# Účel     : Hlídá Zigbee hlavice (climate.*) – unavailable/unknown nebo data starší než 2h
+# Autor    : Michal
+# Poslední úprava : 2026-02-02
+# =====================================================================
+
+automation:
+  - alias: "Heating Watchdog – Dostupnost hlavic"
+    id: heating_watchdog_connectivity
+    mode: single
+
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+
+    condition: []
+
+    action:
+      - repeat:
+          for_each:
+            - climate.sklep_michal
+            - climate.prizemi_michal
+            - climate.prizemi_chodba_zachod
+            - climate.1p_jidelna
+            - climate.1p_kuchyn
+            - climate.1p_koupelna
+            - climate.1p_chodba
+            - climate.2p_mama
+
+          sequence:
+            - variables:
+                ent: "{{ repeat.item }}"
+                fn: >-
+                  {{ state_attr(repeat.item, 'friendly_name')
+                     or states[repeat.item].name
+                     or repeat.item }}
+
+                is_bad_state: >-
+                  {{ states(ent) in ['unavailable', 'unknown'] }}
+
+                is_stale_2h: >-
+                  {% set s = states[ent] %}
+                  {% set lu = s.last_updated if s is not none else none %}
+                  {% set ts = as_timestamp(lu) if lu is not none else 0 %}
+                  {{ (as_timestamp(now()) - ts) > 7200 }}
+
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ is_bad_state or is_stale_2h }}"
+                  sequence:
+                    - service: notify.mobile_app_sm_s938b
+                      data:
+                        message: >-
+                          ⚠️ POZOR: Hlavice {{ fn }} nekomunikuje déle než 2 hodiny!
+                          Zkontrolujte baterie nebo Zigbee.
+                    - service: logbook.log
+                      data:
+                        name: "Heating Watchdog – Dostupnost hlavic"
+                        message: >-
+                          Hlavice {{ fn }}: stav={{ states(ent) }},
+                          last_updated={{ states[ent].last_updated if states[ent] is not none else 'n/a' }}
+                        entity_id: "{{ ent }}"
