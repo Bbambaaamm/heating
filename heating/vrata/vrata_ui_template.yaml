@@ -1,0 +1,43 @@
+# =====================================================================
+# Soubor : config/heating/ui/vrata/vrata_ui_template.yaml
+# Modul  : Vrata – UI (Template Cover) – mapování stavů senzoru
+# Účel   : opening=ZAVŘENO, closing=OTEVŘENO + fix pozice
+# =====================================================================
+
+template:
+  - cover:
+      - name: "Vrata UI"
+        unique_id: vrata_ui
+        device_class: gate
+
+        # Stav: u tebe jsou to stabilní stavy ze senzoru
+        state: >
+          {% set s = states('cover.vrata_gatebox_position') %}
+          {% if s == 'opening' %}closed
+          {% elif s == 'closing' %}open
+          {% else %}{{ s }}
+          {% endif %}
+
+        # Pozice: potlačíme current_position=50 a dáme pevně 0/100
+        position: >
+          {% set s = states('cover.vrata_gatebox_position') %}
+          {% if s == 'opening' %}0
+          {% elif s == 'closing' %}100
+          {% else %}{{ state_attr('cover.vrata_gatebox_position','current_position') | default(0) | int }}
+          {% endif %}
+
+        # Ovládání posílá na původní entitu
+        open_cover:
+          service: cover.open_cover
+          target:
+            entity_id: cover.vrata_gatebox_position
+
+        close_cover:
+          service: cover.close_cover
+          target:
+            entity_id: cover.vrata_gatebox_position
+
+        stop_cover:
+          service: cover.stop_cover
+          target:
+            entity_id: cover.vrata_gatebox_position
