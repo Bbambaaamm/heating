@@ -1,0 +1,66 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/schedule/automation/startup/manual_override_startup_reconcile.yaml
+# Modul    : Startup reconcile manuálních override
+# Účel     : Po restartu HA odstranit neplatné "Časovač" override bez běžícího timeru
+# Autor    : Michal
+# Poslední úprava : 2026-04-06
+# =====================================================================
+
+automation:
+  - id: heating_startup_reconcile_manual_override_timers
+    alias: "Topení – po startu srovnat manuální override (časovače)"
+    description: >
+      Po startu Home Assistanta projde všechny zóny a vypne manuální override,
+      které jsou typu "Časovač", ale jejich timer neběží. Zamezí tím stavu,
+      kdy je override "visící" po restartu.
+    mode: single
+    initial_state: true
+
+    triggers:
+      - trigger: homeassistant
+        event: start
+
+    actions:
+      - delay: "00:00:15"
+
+      - variables:
+          zones: >
+            {{ [
+              dict(name='Sklep – Michal', manual='input_boolean.sklep_michal_manual_override', timer='timer.sklep_michal_manual_override', manual_type='input_select.sklep_michal_manual_override_type'),
+              dict(name='Přízemí – Michal', manual='input_boolean.prizemi_michal_manual_override', timer='timer.prizemi_michal_manual_override', manual_type='input_select.prizemi_michal_manual_override_type'),
+              dict(name='Přízemí – Chodba záchod', manual='input_boolean.prizemi_chodba_zachod_manual_override', timer='timer.prizemi_chodba_zachod_manual_override', manual_type='input_select.prizemi_chodba_zachod_manual_override_type'),
+              dict(name='1. patro – Jídelna', manual='input_boolean.1p_jidelna_manual_override', timer='timer.1p_jidelna_manual_override', manual_type='input_select.1p_jidelna_manual_override_type'),
+              dict(name='1. patro – Kuchyň', manual='input_boolean.1p_kuchyn_manual_override', timer='timer.1p_kuchyn_manual_override', manual_type='input_select.1p_kuchyn_manual_override_type'),
+              dict(name='1. patro – Koupelna', manual='input_boolean.1p_koupelna_manual_override', timer='timer.1p_koupelna_manual_override', manual_type='input_select.1p_koupelna_manual_override_type'),
+              dict(name='1. patro – Chodba', manual='input_boolean.1p_chodba_manual_override', timer='timer.1p_chodba_manual_override', manual_type='input_select.1p_chodba_manual_override_type'),
+              dict(name='2. patro – Máma', manual='input_boolean.2p_mama_manual_override', timer='timer.2p_mama_manual_override', manual_type='input_select.2p_mama_manual_override_type')
+            ] }}
+
+      - repeat:
+          for_each: "{{ zones }}"
+          sequence:
+            - variables:
+                manual: "{{ repeat.item.manual }}"
+                timer: "{{ repeat.item.timer }}"
+                manual_type: "{{ repeat.item.manual_type }}"
+                broken_timed_override: >-
+                  {{ is_state(manual, 'on')
+                     and states(manual_type) == 'Časovač'
+                     and not is_state(timer, 'active') }}
+
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ broken_timed_override }}"
+                  sequence:
+                    - action: input_boolean.turn_off
+                      target:
+                        entity_id: "{{ manual }}"
+                    - action: logbook.log
+                      data:
+                        name: "Topení – startup reconcile"
+                        message: >-
+                          {{ repeat.item.name }}: vypínám "visící" timed manuální override
+                          (po startu byl timer neaktivní).
+                        entity_id: "{{ manual }}"

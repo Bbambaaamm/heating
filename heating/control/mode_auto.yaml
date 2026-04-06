@@ -64,6 +64,15 @@ automation:
           datetime: "{{ now().isoformat() }}"
 
       # ---------------------------------------------------------------
+      # 2b) Počkej na reálné vyhodnocení Boost OFF
+      # Důvod: bez čekání může smart rozvrh spadnout do větve
+      # "Boost aktivní – nepřepisuj", pokud se template ještě nepřepočetl.
+      # ---------------------------------------------------------------
+      - wait_template: "{{ is_state('binary_sensor.kotel_boost_active', 'off') }}"
+        timeout: "00:00:05"
+        continue_on_timeout: true
+
+      # ---------------------------------------------------------------
       # 3) Znovu aplikovat rozvrhy ve všech zónách
       # ---------------------------------------------------------------
       - action: automation.trigger
@@ -80,5 +89,9 @@ automation:
       - action: logbook.log
         data:
           name: "Topení – režimy"
-          message: "Auto → zrušen Boost, rozvrhy znovu aplikovány."
+          message: >-
+            Auto → zrušen Boost, rozvrhy znovu aplikovány.
+            {% if not is_state('binary_sensor.kotel_boost_active','off') %}
+              Pozor: timeout při čekání na přepočet boost senzoru.
+            {% endif %}
           entity_id: input_select.topny_rezim
