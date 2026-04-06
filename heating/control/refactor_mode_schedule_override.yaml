@@ -48,8 +48,29 @@ script:
     max: 50
     fields:
       climate_entity:
+        name: Climate entity
+        description: "Cílová climate entita pro nastavení teploty."
+        required: true
+        selector:
+          entity:
+            filter:
+              domain: climate
       requested_temp:
+        name: Requested temperature
+        description: "Požadovaná teplota před clampem na min/max atribut entity."
+        required: true
+        selector:
+          number:
+            min: 5
+            max: 30
+            step: 0.1
+            mode: box
       reason:
+        name: Reason
+        description: "Textový důvod pro zápis do logbooku."
+        required: true
+        selector:
+          text:
     sequence:
       - variables:
           tmin: "{{ state_attr(climate_entity, 'min_temp') | float(5) }}"
