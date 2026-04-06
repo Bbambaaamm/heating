@@ -75,13 +75,31 @@ automation:
       # ---------------------------------------------------------------
       # 3) Znovu aplikovat rozvrhy ve všech zónách
       # ---------------------------------------------------------------
-      - action: automation.trigger
-        target:
-          entity_id: >-
-            {{ states.automation
-              | selectattr('entity_id', 'search', '_bp$')
-              | map(attribute='entity_id')
-              | list }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            sequence:
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('attributes.id', 'eq', 'heating_dispatch_mode_schedule_override')
+                      | map(attribute='entity_id')
+                      | list }}
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "off"
+            sequence:
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('entity_id', 'search', '_bp$')
+                      | map(attribute='entity_id')
+                      | list }}
 
       # ---------------------------------------------------------------
       # 4) Zapsat událost do Logbooku
