@@ -41,6 +41,8 @@ automation:
         state: "on"
 
     actions:
+      - variables:
+          boost_was_active: "{{ is_state('binary_sensor.kotel_boost_active', 'on') }}"
       # ---------------------------------------------------------------
       # 1) Zrušit Boost, pokud byl zapnutý
       # ---------------------------------------------------------------
@@ -74,9 +76,14 @@ automation:
 
       # ---------------------------------------------------------------
       # 3) Znovu aplikovat rozvrhy ve všech zónách
+      # Pozn.: pokud byl Boost aktivní, návrat po Boost OFF řeší
+      #       automation.heating_boost_reapply_schedule_off.
+      #       Tím se vyhneme duplicitní orchestraci.
       # ---------------------------------------------------------------
       - choose:
           - conditions:
+              - condition: template
+                value_template: "{{ not boost_was_active }}"
               - condition: state
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "on"
@@ -89,6 +96,8 @@ automation:
                       | map(attribute='entity_id')
                       | list }}
           - conditions:
+              - condition: template
+                value_template: "{{ not boost_was_active }}"
               - condition: state
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "off"
@@ -100,6 +109,15 @@ automation:
                       | selectattr('entity_id', 'search', '_bp$')
                       | map(attribute='entity_id')
                       | list }}
+          - conditions:
+              - condition: template
+                value_template: "{{ boost_was_active }}"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Topení – režimy"
+                  message: "Auto: přeskočen přímý re-apply, čekám na trigger po Boost OFF."
+                  entity_id: input_select.topny_rezim
 
       # ---------------------------------------------------------------
       # 4) Zapsat událost do Logbooku
