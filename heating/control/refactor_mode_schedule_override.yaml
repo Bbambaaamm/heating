@@ -44,7 +44,8 @@ template:
 script:
   heating_apply_zone_target:
     alias: "Heating – apply zone target (central)"
-    mode: parallel
+    mode: queued
+    max: 50
     fields:
       climate_entity:
       requested_temp:
@@ -185,6 +186,7 @@ automation:
         ] }}
 
     actions:
+      - delay: "00:00:01"
       - choose:
           - conditions:
               - condition: template

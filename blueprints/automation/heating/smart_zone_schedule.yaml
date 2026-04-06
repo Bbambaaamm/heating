@@ -113,6 +113,7 @@ trigger:
   - platform: state
     entity_id: !input climate_entity
     attribute: temperature
+    for: "00:00:02"
 
   # Změna ECO teploty
   - platform: state
@@ -219,6 +220,14 @@ variables:
         )
       ) }}
 
+  is_internal_climate_change: >
+    {{ is_climate_trigger
+       and trigger is defined
+       and trigger.to_state is defined
+       and trigger.to_state.context is defined
+       and trigger.to_state.context.user_id is none
+       and trigger.to_state.context.parent_id is not none }}
+
   override_should_apply: >
     {{ override_active
        and (override_type == 'Do další změny rozvrhu'
@@ -228,6 +237,17 @@ variables:
 # ACTION
 # ---------------------------------------------------------------
 action:
+  # ===============================================================
+  # 0) Interní změna teploty z automatizace/scriptu
+  #    -> nevyhodnocovat znovu (omezí pseudo-smyčky)
+  # ===============================================================
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ is_internal_climate_change }}"
+        sequence:
+          - stop: "Interní climate změna – skip (anti-loop)"
+
   # ===============================================================
   # 0) 🧠 MANUÁLNÍ OVERRIDE – ukončení „do další změny rozvrhu“
   # ===============================================================
