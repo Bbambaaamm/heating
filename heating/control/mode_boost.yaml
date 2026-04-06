@@ -113,14 +113,14 @@ automation:
       # Zde definujeme zóny + jejich "last comfort" helper
       zones: >
         {{ [
-          dict(name='Sklep – Michal', climate='climate.sklep_michal', last='input_number.sklep_michal_last_comfort', manual='input_boolean.sklep_michal_manual_override'),
-          dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort', manual='input_boolean.prizemi_michal_manual_override'),
-          dict(name='Přízemí – Chodba zachod', climate='climate.prizemi_chodba_zachod', last='input_number.prizemi_chodba_zachod_last_comfort', manual='input_boolean.prizemi_chodba_zachod_manual_override'),
-          dict(name='1. patro – Jídelna', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort', manual='input_boolean.1p_jidelna_manual_override'),
-          dict(name='1. patro – Kuchyň', climate='climate.1p_kuchyn', last='input_number.1p_kuchyn_last_comfort', manual='input_boolean.1p_kuchyn_manual_override'),
-          dict(name='1. patro – Koupelna', climate='climate.1p_koupelna', last='input_number.1p_koupelna_last_comfort', manual='input_boolean.1p_koupelna_manual_override'),
-          dict(name='1. patro – Chodba', climate='climate.1p_chodba', last='input_number.1p_chodba_last_comfort', manual='input_boolean.1p_chodba_manual_override'),
-          dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort', manual='input_boolean.2p_mama_manual_override')
+          dict(name='Sklep – Michal', climate='climate.sklep_michal', last='input_number.sklep_michal_last_comfort', manual='input_boolean.sklep_michal_manual_override', timer='timer.sklep_michal_manual_override', manual_type='input_select.sklep_michal_manual_override_type'),
+          dict(name='Přízemí – Michal', climate='climate.prizemi_michal', last='input_number.prizemi_michal_last_comfort', manual='input_boolean.prizemi_michal_manual_override', timer='timer.prizemi_michal_manual_override', manual_type='input_select.prizemi_michal_manual_override_type'),
+          dict(name='Přízemí – Chodba zachod', climate='climate.prizemi_chodba_zachod', last='input_number.prizemi_chodba_zachod_last_comfort', manual='input_boolean.prizemi_chodba_zachod_manual_override', timer='timer.prizemi_chodba_zachod_manual_override', manual_type='input_select.prizemi_chodba_zachod_manual_override_type'),
+          dict(name='1. patro – Jídelna', climate='climate.1p_jidelna', last='input_number.1p_jidelna_last_comfort', manual='input_boolean.1p_jidelna_manual_override', timer='timer.1p_jidelna_manual_override', manual_type='input_select.1p_jidelna_manual_override_type'),
+          dict(name='1. patro – Kuchyň', climate='climate.1p_kuchyn', last='input_number.1p_kuchyn_last_comfort', manual='input_boolean.1p_kuchyn_manual_override', timer='timer.1p_kuchyn_manual_override', manual_type='input_select.1p_kuchyn_manual_override_type'),
+          dict(name='1. patro – Koupelna', climate='climate.1p_koupelna', last='input_number.1p_koupelna_last_comfort', manual='input_boolean.1p_koupelna_manual_override', timer='timer.1p_koupelna_manual_override', manual_type='input_select.1p_koupelna_manual_override_type'),
+          dict(name='1. patro – Chodba', climate='climate.1p_chodba', last='input_number.1p_chodba_last_comfort', manual='input_boolean.1p_chodba_manual_override', timer='timer.1p_chodba_manual_override', manual_type='input_select.1p_chodba_manual_override_type'),
+          dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort', manual='input_boolean.2p_mama_manual_override', timer='timer.2p_mama_manual_override', manual_type='input_select.2p_mama_manual_override_type')
         ] }}
 
     actions:
@@ -131,6 +131,8 @@ automation:
                 climate: "{{ repeat.item.climate }}"
                 last: "{{ repeat.item.last }}"
                 manual: "{{ repeat.item.manual }}"
+                timer: "{{ repeat.item.timer }}"
+                manual_type: "{{ repeat.item.manual_type }}"
                 # Základ komfortu: preferuj input_number.*_last_comfort,
                 # když je unknown/unavailable → vezmi aktuální setpoint
                 comfort_base: >-
@@ -147,12 +149,27 @@ automation:
                   {% elif x > tmax %}{{ tmax }}
                   {% else %}{{ x }}
                   {% endif %}
+                effective_manual: >-
+                  {{ is_state(manual, 'on')
+                     and (
+                       states(manual_type) == 'Do další změny rozvrhu'
+                       or (states(manual_type) == 'Časovač' and is_state(timer, 'active'))
+                     ) }}
 
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: "{{ not is_state(manual, 'on') }}"
+                      value_template: "{{ not effective_manual }}"
                   sequence:
+                    - action: climate.set_hvac_mode
+                      target:
+                        entity_id: "{{ climate }}"
+                      data:
+                        hvac_mode: heat
+                    - condition: template
+                      value_template: >-
+                        {{ ((state_attr(climate, 'temperature') | float)
+                            - (target | float)) | abs > 0.1 }}
                     - action: climate.set_temperature
                       target:
                         entity_id: "{{ climate }}"
@@ -163,8 +180,8 @@ automation:
               data:
                 name: "Boost → {{ repeat.item.name }}"
                 message: >-
-                  {% if is_state(manual, 'on') %}
-                    Přeskočeno (aktivní manuální override).
+                  {% if effective_manual %}
+                    Přeskočeno (aktivní účinný manuální override).
                   {% else %}
                     Cíl {{ target|round(1) }} °C (zdroj={{ last }}, offset={{ boost_offset }})
                   {% endif %}
