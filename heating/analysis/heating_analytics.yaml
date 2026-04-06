@@ -16,11 +16,6 @@
 # - Atributy jsou připravené pro analýzu v Grafaně (period/source/calc/thresholds)
 # =====================================================================
 
-input_boolean:
-  test_heating_analytics_loaded:
-    name: "TEST – Heating analytics loaded"
-    icon: mdi:check-circle-outline
-
 # ---------------------------------------------------------------------
 # 1) Základní metriky z historie (history_stats)
 # ---------------------------------------------------------------------
