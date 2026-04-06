@@ -267,3 +267,22 @@
       source_temp_sensor: sensor.mi_air_purifier_2h_teplota
       danfoss_external_temp_number: number.sklep_michal_senzor_externi_teploty
       danfoss_prefer_external_switch: switch.sklep_michal_uprednostnit_externi_teplotni_senzor
+- id: '1771525903912'
+  alias: 'Přítomnost Mámy '
+  description: ''
+  triggers:
+  - device_id: 7f7e7655eb51a2b8bcf3e7353a846706
+    domain: device_tracker
+    entity_id: cbc610fbc9f2421851d9a6726d9a192f
+    type: enters
+    metadata:
+      secondary: true
+    trigger: device
+    zone: zone.home
+  conditions: []
+  actions:
+  - action: notify.notify
+    metadata: {}
+    data:
+      message: Máma je doma
+  mode: single
