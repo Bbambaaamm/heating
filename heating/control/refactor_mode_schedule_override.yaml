@@ -45,7 +45,7 @@ script:
   heating_apply_zone_target:
     alias: "Heating – apply zone target (central)"
     mode: queued
-    max: 1
+    max: 2
     fields:
       climate_entity:
         name: Climate entity
