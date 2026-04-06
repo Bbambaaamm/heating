@@ -27,14 +27,31 @@ automation:
       # Malé zpoždění, aby se po startu načetly všechny helpery/automations
       - delay: "00:00:10"
 
-      # Spusť smart rozvrh pro všechny zóny (používají vlastní logiku in_window + mód)
-      - action: automation.trigger
-        target:
-          entity_id: >-
-            {{ states.automation
-              | selectattr('entity_id', 'search', '_bp$')
-              | map(attribute='entity_id')
-              | list }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            sequence:
+              - action: event.fire
+                data:
+                  event_type: heating_reconcile_requested
+                  event_data:
+                    source: heating_startup_schedule_sync
+                    reason: startup
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "off"
+            sequence:
+              # Spusť smart rozvrh pro všechny zóny (legacy fallback)
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('entity_id', 'search', '_bp$')
+                      | map(attribute='entity_id')
+                      | list }}
 
       # Záznam do logbooku – pro přehled po restartu
       - action: logbook.log
