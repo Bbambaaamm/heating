@@ -60,9 +60,10 @@ automation:
           name: "Topení Fail-safe"
           message: "Detekován výpadek klíčových helperů >2 min. Systém přepnut do Eco."
           entity_id: input_select.topny_rezim
-      - action: notify.mobile_app_sm_s938b
+      - action: persistent_notification.create
         data:
-          message: "⚠️ Topení fail-safe: klíčové helpery nedostupné, přepínám na Eco."
+          title: "Topení fail-safe"
+          message: "⚠️ Klíčové helpery byly nedostupné >2 min. Systém byl přepnut do Eco."
 
   - id: heating_startup_reconcile_boost
     alias: "Topení – po startu srovnat Boost"
@@ -80,12 +81,32 @@ automation:
               - condition: template
                 value_template: "{{ boost_should_be_active }}"
             sequence:
-              - action: input_boolean.turn_on
-                target:
-                  entity_id: input_boolean.boost_now
-              - action: automation.trigger
-                target:
-                  entity_id: automation.heating_boost_apply_comfort_on
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: input_boolean.heating_central_dispatch_enable
+                        state: "on"
+                    sequence:
+                      - action: automation.trigger
+                        target:
+                          entity_id: >-
+                            {{ states.automation
+                              | selectattr('attributes.id', 'eq', 'heating_dispatch_mode_schedule_override')
+                              | map(attribute='entity_id')
+                              | list }}
+                  - conditions:
+                      - condition: state
+                        entity_id: input_boolean.heating_central_dispatch_enable
+                        state: "off"
+                    sequence:
+                      - action: automation.trigger
+                        target:
+                          entity_id: automation.heating_boost_apply_comfort_on
+              - action: logbook.log
+                data:
+                  name: "Topení – startup reconcile"
+                  message: "Boost byl po restartu stále aktivní, proběhla re-aplikace setpointů."
+                  entity_id: input_datetime.boost_until
 
           - conditions:
               - condition: template
@@ -117,6 +138,7 @@ automation:
                   name: "Heating Watchdog"
                   message: "Některé klíčové automace jsou vypnuté nebo nefunkční."
                   entity_id: input_select.topny_rezim
-              - action: notify.mobile_app_sm_s938b
+              - action: persistent_notification.create
                 data:
-                  message: "⚠️ Heating Watchdog: klíčové automace nejsou healthy. Zkontrolujte automation.*"
+                  title: "Heating Watchdog"
+                  message: "⚠️ Klíčové automace nejsou healthy. Zkontrolujte automation.*"
