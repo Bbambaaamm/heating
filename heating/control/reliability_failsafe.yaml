@@ -51,15 +51,36 @@ template:
         unique_id: heating_core_automations_healthy
         device_class: connectivity
         state: >-
-          {% set list = [
-            'automation.heating_boost_start',
-            'automation.heating_boost_apply_comfort_on',
-            'automation.heating_boost_reapply_schedule_off',
-            'automation.kotel_turn_on_by_policy',
-            'automation.kotel_turn_off_by_policy',
-            'automation.heating_startup_schedule_sync'
+          {% set required_ids = [
+            'heating_boost_start',
+            'heating_boost_apply_comfort_on',
+            'heating_boost_reapply_schedule_off',
+            'kotel_turn_on_by_policy',
+            'kotel_turn_off_by_policy',
+            'heating_startup_schedule_sync'
           ] %}
-          {{ list | select('is_state', 'on') | list | count == (list|count) }}
+          {% set healthy_ids = states.automation
+             | selectattr('attributes.id', 'defined')
+             | selectattr('state', 'eq', 'on')
+             | map(attribute='attributes.id')
+             | list %}
+          {{ required_ids | reject('in', healthy_ids) | list | count == 0 }}
+        attributes:
+          missing_ids: >-
+            {% set required_ids = [
+              'heating_boost_start',
+              'heating_boost_apply_comfort_on',
+              'heating_boost_reapply_schedule_off',
+              'kotel_turn_on_by_policy',
+              'kotel_turn_off_by_policy',
+              'heating_startup_schedule_sync'
+            ] %}
+            {% set healthy_ids = states.automation
+               | selectattr('attributes.id', 'defined')
+               | selectattr('state', 'eq', 'on')
+               | map(attribute='attributes.id')
+               | list %}
+            {{ required_ids | reject('in', healthy_ids) | list }}
 
 automation:
   - id: heating_failsafe_helpers_unavailable
@@ -130,9 +151,18 @@ automation:
                         entity_id: input_boolean.heating_central_dispatch_enable
                         state: "off"
                     sequence:
+                      - variables:
+                          boost_apply_automation: >-
+                            {{ states.automation
+                               | selectattr('attributes.id', 'eq', 'heating_boost_apply_comfort_on')
+                               | map(attribute='entity_id')
+                               | list
+                               | first }}
+                      - condition: template
+                        value_template: "{{ boost_apply_automation is not none and boost_apply_automation != '' }}"
                       - action: automation.trigger
                         target:
-                          entity_id: automation.heating_boost_apply_comfort_on
+                          entity_id: "{{ boost_apply_automation }}"
               - action: logbook.log
                 data:
                   name: "Topení – startup reconcile"

@@ -52,7 +52,7 @@
   use_blueprint:
     path: heating/smart_zone_schedule.yaml
     input:
-      zone_name: '1P Kuchyň '
+      zone_name: 1. patro - Kuchyň
       climate_entity: climate.1p_kuchyn
       schedule_enable: input_boolean.schedule_enable_1p_kuchyn
       last_comfort_helper: input_number.1p_kuchyn_last_comfort
@@ -68,7 +68,7 @@
   use_blueprint:
     path: heating/smart_zone_schedule.yaml
     input:
-      zone_name: 1P Koupelna
+      zone_name: 1. patro - Koupelna
       climate_entity: climate.1p_koupelna
       schedule_enable: input_boolean.schedule_enable_1p_koupelna
       last_comfort_helper: input_number.1p_koupelna_last_comfort
@@ -84,7 +84,7 @@
   use_blueprint:
     path: heating/smart_zone_schedule.yaml
     input:
-      zone_name: 1P Chodba
+      zone_name: 1. patro - Chodba
       climate_entity: climate.1p_chodba
       schedule_enable: input_boolean.schedule_enable_1p_chodba
       last_comfort_helper: input_number.1p_chodba_last_comfort
@@ -100,7 +100,7 @@
   use_blueprint:
     path: heating/smart_zone_schedule.yaml
     input:
-      zone_name: Sklep Michal
+      zone_name: Sklep - Michal
       climate_entity: climate.sklep_michal
       schedule_enable: input_boolean.schedule_enable_sklep_michal
       last_comfort_helper: input_number.sklep_michal_last_comfort
