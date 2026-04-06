@@ -162,6 +162,20 @@ variables:
   eco_temp: "{{ states(eco_temp_entity) | float(15) }}"
   last_comfort: "{{ states(last_comfort_helper) | float(22) }}"
   new_set: "{{ state_attr(climate_entity, 'temperature') | float(0) }}"
+  min_temp: "{{ state_attr(climate_entity, 'min_temp') | float(5) }}"
+  max_temp: "{{ state_attr(climate_entity, 'max_temp') | float(30) }}"
+
+  safe_eco: >-
+    {% set x = eco_temp | float(15) %}
+    {% if x < min_temp %}{{ min_temp }}
+    {% elif x > max_temp %}{{ max_temp }}
+    {% else %}{{ x }}{% endif %}
+
+  safe_comfort: >-
+    {% set x = last_comfort | float(22) %}
+    {% if x < min_temp %}{{ min_temp }}
+    {% elif x > max_temp %}{{ max_temp }}
+    {% else %}{{ x }}{% endif %}
 
   # Co spustilo automatizaci
   is_scheduler_trigger: "{{ trigger.platform == 'state' and trigger.entity_id == scheduler_entity_id }}"
@@ -251,18 +265,18 @@ action:
           - condition: template
             value_template: >
               {{ ((state_attr(climate_entity, 'temperature') | float)
-                  - (last_comfort | float)) | abs > 0.1 }}
+                  - (safe_comfort | float)) | abs > 0.1 }}
 
           - service: climate.set_temperature
             target:
               entity_id: "{{ climate_entity }}"
             data:
-              temperature: "{{ last_comfort }}"
+              temperature: "{{ safe_comfort }}"
 
           - service: logbook.log
             data:
               name: "{{ zone_name }}"
-              message: "MANUAL override – nastaven last comfort {{ last_comfort }} °C"
+              message: "MANUAL override – nastaven last comfort {{ safe_comfort }} °C"
               entity_id: "{{ climate_entity }}"
 
           - stop: "MANUAL override má prioritu – rozvrh se neaplikuje"
@@ -287,7 +301,11 @@ action:
             target:
               entity_id: !input last_comfort_helper
             data:
-              value: "{{ new_set }}"
+              value: >-
+                {% set x = new_set | float %}
+                {% if x < min_temp %}{{ min_temp }}
+                {% elif x > max_temp %}{{ max_temp }}
+                {% else %}{{ x }}{% endif %}
 
           - service: logbook.log
             data:
@@ -392,18 +410,18 @@ action:
           - condition: template
             value_template: >
               {{ ((state_attr(climate_entity, 'temperature') | float)
-                  - (eco_temp | float)) | abs > 0.1 }}
+                  - (safe_eco | float)) | abs > 0.1 }}
 
           - service: climate.set_temperature
             target:
               entity_id: "{{ climate_entity }}"
             data:
-              temperature: "{{ eco_temp }}"
+              temperature: "{{ safe_eco }}"
 
           - service: logbook.log
             data:
               name: "{{ zone_name }}"
-              message: "Globální ECO režim – cílová teplota {{ eco_temp }} °C"
+              message: "Globální ECO režim – cílová teplota {{ safe_eco }} °C"
               entity_id: "{{ climate_entity }}"
 
       # Auto / Boost
@@ -426,18 +444,18 @@ action:
                   - condition: template
                     value_template: >
                       {{ ((state_attr(climate_entity, 'temperature') | float)
-                          - (last_comfort | float)) | abs > 0.1 }}
+                          - (safe_comfort | float)) | abs > 0.1 }}
 
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ climate_entity }}"
                     data:
-                      temperature: "{{ last_comfort }}"
+                      temperature: "{{ safe_comfort }}"
 
                   - service: logbook.log
                     data:
                       name: "{{ zone_name }}"
-                      message: "Komfortní režim {{ last_comfort }} °C (inteligentní spuštění)"
+                      message: "Komfortní režim {{ safe_comfort }} °C (inteligentní spuštění)"
                       entity_id: "{{ climate_entity }}"
 
               # MIMO OKNO → ECO
@@ -454,18 +472,18 @@ action:
                   - condition: template
                     value_template: >
                       {{ ((state_attr(climate_entity, 'temperature') | float)
-                          - (eco_temp | float)) | abs > 0.1 }}
+                          - (safe_eco | float)) | abs > 0.1 }}
 
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ climate_entity }}"
                     data:
-                      temperature: "{{ eco_temp }}"
+                      temperature: "{{ safe_eco }}"
 
                   - service: logbook.log
                     data:
                       name: "{{ zone_name }}"
-                      message: "ECO {{ eco_temp }} °C (inteligentní spuštění)"
+                      message: "ECO {{ safe_eco }} °C (inteligentní spuštění)"
                       entity_id: "{{ climate_entity }}"
 
       # Off

@@ -1,0 +1,122 @@
+# YAML 2024.10
+# =====================================================================
+# Soubor   : config/heating/control/reliability_failsafe.yaml
+# Modul    : Topení – reliability fail-safe + watchdog
+# Účel     : Reakce na výpadek helperů, restart během Boostu, health-check automací
+# Autor    : Codex návrh
+# Poslední úprava : 2026-04-06
+# =====================================================================
+
+template:
+  - binary_sensor:
+      - name: "heating_helpers_all_available"
+        unique_id: heating_helpers_all_available
+        device_class: connectivity
+        state: >-
+          {% set required = [
+            'input_select.topny_rezim',
+            'input_boolean.topny_system_enable',
+            'input_number.eco_temp_default',
+            'input_number.boost_minutes',
+            'input_datetime.boost_until'
+          ] %}
+          {{ required
+             | map('states')
+             | select('in', ['unknown', 'unavailable', ''])
+             | list
+             | count == 0 }}
+
+      - name: "heating_core_automations_healthy"
+        unique_id: heating_core_automations_healthy
+        device_class: connectivity
+        state: >-
+          {% set list = [
+            'automation.heating_boost_start',
+            'automation.heating_boost_apply_comfort_on',
+            'automation.heating_boost_reapply_schedule_off',
+            'automation.kotel_turn_on_by_policy',
+            'automation.kotel_turn_off_by_policy',
+            'automation.heating_startup_schedule_sync'
+          ] %}
+          {{ list | select('is_state', 'on') | list | count == (list|count) }}
+
+automation:
+  - id: heating_failsafe_helpers_unavailable
+    alias: "Topení Fail-safe – helpery nedostupné => Eco"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.heating_helpers_all_available
+        to: "off"
+        for: "00:02:00"
+    actions:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topny_rezim
+        data:
+          option: "Eco"
+      - action: logbook.log
+        data:
+          name: "Topení Fail-safe"
+          message: "Detekován výpadek klíčových helperů >2 min. Systém přepnut do Eco."
+          entity_id: input_select.topny_rezim
+      - action: notify.mobile_app_sm_s938b
+        data:
+          message: "⚠️ Topení fail-safe: klíčové helpery nedostupné, přepínám na Eco."
+
+  - id: heating_startup_reconcile_boost
+    alias: "Topení – po startu srovnat Boost"
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+    actions:
+      - delay: "00:00:20"
+      - variables:
+          boost_until_ts: "{{ as_timestamp(states('input_datetime.boost_until'), default=0) }}"
+          boost_should_be_active: "{{ now().timestamp() < boost_until_ts }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ boost_should_be_active }}"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.boost_now
+              - action: automation.trigger
+                target:
+                  entity_id: automation.heating_boost_apply_comfort_on
+
+          - conditions:
+              - condition: template
+                value_template: "{{ not boost_should_be_active }}"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.boost_now
+
+  - id: heating_watchdog_core_automations
+    alias: "Heating Watchdog – zdraví klíčových automací"
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: "/15"
+      - trigger: state
+        entity_id: binary_sensor.heating_core_automations_healthy
+        to: "off"
+        for: "00:05:00"
+    actions:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.heating_core_automations_healthy
+                state: "off"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Heating Watchdog"
+                  message: "Některé klíčové automace jsou vypnuté nebo nefunkční."
+                  entity_id: input_select.topny_rezim
+              - action: notify.mobile_app_sm_s938b
+                data:
+                  message: "⚠️ Heating Watchdog: klíčové automace nejsou healthy. Zkontrolujte automation.*"
