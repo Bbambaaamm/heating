@@ -82,7 +82,7 @@ blueprint:
 
     manual_override_type:
       name: Manuál – typ ukončení (input_select)
-      description: "Volba: Časovač (podle timeru) / until_next_schedule (do další změny rozvrhu)."
+      description: "Volba: Časovač (podle timeru) / Do další změny rozvrhu (do další změny rozvrhu)."
       selector:
         entity:
           domain: input_select
@@ -201,7 +201,7 @@ variables:
 
   override_should_apply: >
     {{ override_active
-       and (override_type == 'until_next_schedule'
+       and (override_type == 'Do další změny rozvrhu'
             or (override_type == 'Časovač' and override_timer_active)) }}
 
 # ---------------------------------------------------------------
@@ -214,7 +214,7 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ override_active and override_type == 'until_next_schedule' and is_scheduler_trigger }}"
+            value_template: "{{ override_active and override_type == 'Do další změny rozvrhu' and is_scheduler_trigger }}"
         sequence:
           - service: input_boolean.turn_off
             target:
@@ -309,7 +309,6 @@ action:
           - condition: template
             value_template: >
               {{ is_climate_trigger
-                 and is_user_action
                  and mode in ['Auto','Boost']
                  and (not in_window)
                  and (not override_active)
@@ -319,7 +318,7 @@ action:
             target:
               entity_id: "{{ manual_override_type }}"
             data:
-              option: "until_next_schedule"
+              option: "Do další změny rozvrhu"
 
           - service: timer.cancel
             target:
@@ -330,11 +329,11 @@ action:
               entity_id: "{{ manual_override_boolean }}"
 
           # timed = čekáme, že timer si spustíš z UI (nebo doplníme později)
-          # until_next_schedule = timer se ignoruje
+          # Do další změny rozvrhu = timer se ignoruje
           - service: logbook.log
             data:
               name: "{{ zone_name }}"
-              message: "Ruční zásah mimo okno – aktivován manuální override (until_next_schedule)."
+              message: "Ruční zásah mimo okno – aktivován manuální override (Do další změny rozvrhu)."
               entity_id: "{{ climate_entity }}"
 
           - stop: "Ruční zásah mimo okno – přepnuto do manuálního override"
