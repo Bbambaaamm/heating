@@ -163,7 +163,7 @@
       zone_name: 1P Chodba
       climate_entity: climate.1p_chodba
       schedule_enable: input_boolean.schedule_enable_1p_chodba
-      last_comfort_helper: input_number.prizemi_chodba_last_comfort
+      last_comfort_helper: input_number.1p_chodba_last_comfort
       monday_start: input_datetime.1p_chodba_monday_start
       monday_end: input_datetime.1p_chodba_monday_end
       tuesday_start: input_datetime.1p_chodba_tuesday_start
