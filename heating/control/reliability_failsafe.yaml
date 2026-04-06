@@ -193,8 +193,10 @@ automation:
     mode: single
     triggers:
       - trigger: time_pattern
+        id: periodic_check
         minutes: "/15"
       - trigger: state
+        id: unhealthy_5m
         entity_id: binary_sensor.heating_core_automations_healthy
         to: "off"
         for: "00:05:00"
@@ -212,8 +214,13 @@ automation:
                   entity_id: input_select.topny_rezim
               - action: persistent_notification.create
                 data:
+                  notification_id: heating_watchdog_core_automations_unhealthy
                   title: "Heating Watchdog"
                   message: "⚠️ Klíčové automace nejsou healthy. Zkontrolujte automation.*"
+        default:
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: heating_watchdog_core_automations_unhealthy
 
   - id: heating_watchdog_periodic_reconcile
     alias: "Heating Watchdog – periodická reconciliace režimu"
