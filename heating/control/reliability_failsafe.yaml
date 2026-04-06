@@ -87,13 +87,12 @@ automation:
                         entity_id: input_boolean.heating_central_dispatch_enable
                         state: "on"
                     sequence:
-                      - action: automation.trigger
-                        target:
-                          entity_id: >-
-                            {{ states.automation
-                              | selectattr('attributes.id', 'eq', 'heating_dispatch_mode_schedule_override')
-                              | map(attribute='entity_id')
-                              | list }}
+                      - action: event.fire
+                        data:
+                          event_type: heating_reconcile_requested
+                          event_data:
+                            source: heating_startup_reconcile_boost
+                            reason: startup_boost_still_active
                   - conditions:
                       - condition: state
                         entity_id: input_boolean.heating_central_dispatch_enable
