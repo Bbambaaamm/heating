@@ -1,0 +1,243 @@
+# =====================================================================
+# Central dispatch (produkční varianta)
+# - Jedno rozhodovací místo pro mode/schedule/override
+# - Jedno aktuační místo pro clamp + set_temperature
+# - Feature flag pro bezpečný cutover bez mazání staré logiky
+# =====================================================================
+
+input_boolean:
+  heating_central_dispatch_enable:
+    name: "Heating – central dispatch enable"
+    icon: mdi:source-branch-check
+    initial: off
+
+template:
+  - sensor:
+      - name: heating_global_intent
+        unique_id: heating_global_intent
+        state: >-
+          {% set mode = states('input_select.topny_rezim') %}
+          {% if mode == 'Off' %}off
+          {% elif is_state('binary_sensor.kotel_boost_active', 'on') %}boost
+          {% elif mode == 'Eco' %}eco
+          {% else %}auto
+          {% endif %}
+
+  - binary_sensor:
+      - name: heating_dispatch_inputs_available
+        unique_id: heating_dispatch_inputs_available
+        device_class: connectivity
+        state: >-
+          {% set required = [
+            'input_select.topny_rezim',
+            'input_boolean.topny_system_enable',
+            'input_number.eco_temp_default',
+            'input_number.boost_comfort_offset_c',
+            'binary_sensor.kotel_boost_active'
+          ] %}
+          {{ required
+             | map('states')
+             | select('in', ['unknown', 'unavailable', ''])
+             | list
+             | count == 0 }}
+
+script:
+  heating_apply_zone_target:
+    alias: "Heating – apply zone target (central)"
+    mode: parallel
+    fields:
+      climate_entity:
+      requested_temp:
+      reason:
+    sequence:
+      - variables:
+          tmin: "{{ state_attr(climate_entity, 'min_temp') | float(5) }}"
+          tmax: "{{ state_attr(climate_entity, 'max_temp') | float(30) }}"
+          target: >-
+            {% set x = requested_temp | float(0) %}
+            {% if x < tmin %}{{ tmin }}
+            {% elif x > tmax %}{{ tmax }}
+            {% else %}{{ x }}{% endif %}
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: "{{ climate_entity }}"
+        data:
+          hvac_mode: heat
+      - condition: template
+        value_template: >-
+          {{ ((state_attr(climate_entity, 'temperature') | float)
+              - (target | float)) | abs > 0.1 }}
+      - action: climate.set_temperature
+        target:
+          entity_id: "{{ climate_entity }}"
+        data:
+          temperature: "{{ target | round(1) }}"
+      - action: logbook.log
+        data:
+          name: "Heating dispatch"
+          message: "{{ climate_entity }} -> {{ target | round(1) }} °C ({{ reason }})"
+          entity_id: "{{ climate_entity }}"
+
+automation:
+  - id: heating_failsafe_dispatch_inputs_unavailable
+    alias: "Heating – fail-safe při výpadku dispatch vstupů"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.heating_dispatch_inputs_available
+        to: "off"
+        for: "00:02:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        state: "on"
+    actions:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topny_rezim
+        data:
+          option: "Eco"
+      - action: logbook.log
+        data:
+          name: "Heating fail-safe"
+          message: "Dispatch vstupy nedostupné > 2 min. Přepínám na Eco."
+          entity_id: input_select.topny_rezim
+
+  - id: heating_dispatch_mode_schedule_override
+    alias: "Heating – central dispatch (mode/schedule/override)"
+    mode: restart
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id:
+          - input_select.topny_rezim
+          - input_boolean.topny_system_enable
+          - input_number.eco_temp_default
+          - input_number.boost_comfort_offset_c
+          - binary_sensor.kotel_boost_active
+          - input_number.sklep_michal_last_comfort
+          - input_number.prizemi_michal_last_comfort
+          - input_number.prizemi_chodba_zachod_last_comfort
+          - input_number.1p_jidelna_last_comfort
+          - input_number.1p_kuchyn_last_comfort
+          - input_number.1p_koupelna_last_comfort
+          - input_number.1p_chodba_last_comfort
+          - input_number.2p_mama_last_comfort
+          - input_boolean.sklep_michal_schedule_active
+          - input_boolean.prizemi_michal_schedule_active
+          - input_boolean.prizemi_chodba_zachod_schedule_active
+          - input_boolean.1p_jidelna_schedule_active
+          - input_boolean.1p_kuchyn_schedule_active
+          - input_boolean.1p_koupelna_schedule_active
+          - input_boolean.1p_chodba_schedule_active
+          - input_boolean.2p_mama_schedule_active
+          - input_boolean.sklep_michal_manual_override
+          - input_boolean.prizemi_michal_manual_override
+          - input_boolean.prizemi_chodba_zachod_manual_override
+          - input_boolean.1p_jidelna_manual_override
+          - input_boolean.1p_kuchyn_manual_override
+          - input_boolean.1p_koupelna_manual_override
+          - input_boolean.1p_chodba_manual_override
+          - input_boolean.2p_mama_manual_override
+          - input_select.sklep_michal_manual_override_type
+          - input_select.prizemi_michal_manual_override_type
+          - input_select.prizemi_chodba_zachod_manual_override_type
+          - input_select.1p_jidelna_manual_override_type
+          - input_select.1p_kuchyn_manual_override_type
+          - input_select.1p_koupelna_manual_override_type
+          - input_select.1p_chodba_manual_override_type
+          - input_select.2p_mama_manual_override_type
+          - timer.sklep_michal_manual_override
+          - timer.prizemi_michal_manual_override
+          - timer.prizemi_chodba_zachod_manual_override
+          - timer.1p_jidelna_manual_override
+          - timer.1p_kuchyn_manual_override
+          - timer.1p_koupelna_manual_override
+          - timer.1p_chodba_manual_override
+          - timer.2p_mama_manual_override
+
+    conditions:
+      - condition: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.heating_dispatch_inputs_available
+        state: "on"
+
+    variables:
+      eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
+      boost_offset: "{{ states('input_number.boost_comfort_offset_c') | float(0) }}"
+      intent: "{{ states('sensor.heating_global_intent') }}"
+      zones: >-
+        {{ [
+          dict(climate='climate.sklep_michal', schedule='input_boolean.sklep_michal_schedule_active', last='input_number.sklep_michal_last_comfort', manual='input_boolean.sklep_michal_manual_override', manual_type='input_select.sklep_michal_manual_override_type', timer='timer.sklep_michal_manual_override'),
+          dict(climate='climate.prizemi_michal', schedule='input_boolean.prizemi_michal_schedule_active', last='input_number.prizemi_michal_last_comfort', manual='input_boolean.prizemi_michal_manual_override', manual_type='input_select.prizemi_michal_manual_override_type', timer='timer.prizemi_michal_manual_override'),
+          dict(climate='climate.prizemi_chodba_zachod', schedule='input_boolean.prizemi_chodba_zachod_schedule_active', last='input_number.prizemi_chodba_zachod_last_comfort', manual='input_boolean.prizemi_chodba_zachod_manual_override', manual_type='input_select.prizemi_chodba_zachod_manual_override_type', timer='timer.prizemi_chodba_zachod_manual_override'),
+          dict(climate='climate.1p_jidelna', schedule='input_boolean.1p_jidelna_schedule_active', last='input_number.1p_jidelna_last_comfort', manual='input_boolean.1p_jidelna_manual_override', manual_type='input_select.1p_jidelna_manual_override_type', timer='timer.1p_jidelna_manual_override'),
+          dict(climate='climate.1p_kuchyn', schedule='input_boolean.1p_kuchyn_schedule_active', last='input_number.1p_kuchyn_last_comfort', manual='input_boolean.1p_kuchyn_manual_override', manual_type='input_select.1p_kuchyn_manual_override_type', timer='timer.1p_kuchyn_manual_override'),
+          dict(climate='climate.1p_koupelna', schedule='input_boolean.1p_koupelna_schedule_active', last='input_number.1p_koupelna_last_comfort', manual='input_boolean.1p_koupelna_manual_override', manual_type='input_select.1p_koupelna_manual_override_type', timer='timer.1p_koupelna_manual_override'),
+          dict(climate='climate.1p_chodba', schedule='input_boolean.1p_chodba_schedule_active', last='input_number.1p_chodba_last_comfort', manual='input_boolean.1p_chodba_manual_override', manual_type='input_select.1p_chodba_manual_override_type', timer='timer.1p_chodba_manual_override'),
+          dict(climate='climate.2p_mama', schedule='input_boolean.2p_mama_schedule_active', last='input_number.2p_mama_last_comfort', manual='input_boolean.2p_mama_manual_override', manual_type='input_select.2p_mama_manual_override_type', timer='timer.2p_mama_manual_override')
+        ] }}
+
+    actions:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ intent == 'off' }}"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Heating dispatch"
+                  message: "Intent OFF: dispatch neaplikuje setpointy."
+                  entity_id: input_select.topny_rezim
+              - stop: "Režim Off"
+
+      - repeat:
+          for_each: "{{ zones }}"
+          sequence:
+            - variables:
+                in_window: "{{ is_state(repeat.item.schedule, 'on') }}"
+                raw_last: "{{ states(repeat.item.last) }}"
+                last_comfort: >-
+                  {% if raw_last not in ['unknown','unavailable',''] %}
+                    {{ raw_last | float(22) }}
+                  {% else %}
+                    {{ eco }}
+                  {% endif %}
+                override_effective: >-
+                  {{ is_state(repeat.item.manual, 'on')
+                     and (
+                       states(repeat.item.manual_type) == 'Do další změny rozvrhu'
+                       or (states(repeat.item.manual_type) == 'Časovač'
+                           and is_state(repeat.item.timer, 'active'))
+                     ) }}
+                target: >-
+                  {% if override_effective %}
+                    {{ last_comfort }}
+                  {% elif intent == 'boost' %}
+                    {{ last_comfort + boost_offset }}
+                  {% elif intent == 'eco' %}
+                    {{ eco }}
+                  {% elif in_window %}
+                    {{ last_comfort }}
+                  {% else %}
+                    {{ eco }}
+                  {% endif %}
+                reason: >-
+                  {% if override_effective %}override
+                  {% elif intent == 'boost' %}boost
+                  {% elif intent == 'eco' %}eco
+                  {% elif in_window %}schedule_comfort
+                  {% else %}schedule_eco
+                  {% endif %}
+
+            - action: script.heating_apply_zone_target
+              data:
+                climate_entity: "{{ repeat.item.climate }}"
+                requested_temp: "{{ target }}"
+                reason: "{{ reason }}"

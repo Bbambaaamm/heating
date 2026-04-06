@@ -107,6 +107,9 @@ automation:
       - condition: state
         entity_id: binary_sensor.kotel_mode_off_block
         state: "off"
+      - condition: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        state: "off"
 
     variables:
       boost_offset: "{{ states('input_number.boost_comfort_offset_c')|float(0) }}"
@@ -236,10 +239,28 @@ automation:
     conditions: []
 
     actions:
-      - action: automation.trigger
-        target:
-          entity_id: >-
-            {{ states.automation
-              | selectattr('entity_id', 'search', '_bp$')
-              | map(attribute='entity_id')
-              | list }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            sequence:
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('attributes.id', 'eq', 'heating_dispatch_mode_schedule_override')
+                      | map(attribute='entity_id')
+                      | list }}
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "off"
+            sequence:
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('entity_id', 'search', '_bp$')
+                      | map(attribute='entity_id')
+                      | list }}

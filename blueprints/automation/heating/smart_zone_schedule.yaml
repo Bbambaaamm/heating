@@ -198,6 +198,7 @@ variables:
   override_timer_active: "{{ is_state(manual_override_timer, 'active') }}"
   override_type: "{{ states(manual_override_type) }}"
   boost_active_now: "{{ is_state(boost_active_entity, 'on') }}"
+  central_dispatch_enabled: "{{ is_state('input_boolean.heating_central_dispatch_enable', 'on') }}"
 
   # -----------------------------------------------------------------
   # 🧠 Ruční zásah uživatele (UI / fyzická hlavice)
@@ -254,7 +255,7 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ override_should_apply and mode in ['Auto','Boost','Eco'] }}"
+            value_template: "{{ override_should_apply and mode in ['Auto','Boost','Eco'] and not central_dispatch_enabled }}"
         sequence:
           - service: climate.set_hvac_mode
             target:
@@ -378,6 +379,18 @@ action:
                  and (since_last | float(999999)) < (cooldown_seconds | int(0)) }}
         sequence:
           - stop: "Antispam: cooldown aktivní"
+
+  # ---------------------------------------------------------------
+  # 0e) CENTRAL DISPATCH ENABLED
+  # Blueprint běží v ingest režimu (capture + override lifecycle),
+  # ale neprovádí vlastní aplikaci setpointu.
+  # ---------------------------------------------------------------
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ central_dispatch_enabled }}"
+        sequence:
+          - stop: "Central dispatch aktivní – blueprint neaplikuje setpoint"
 
   # ---------------------------------------------------------------
   # 1d) BOOST AKTIVNÍ → scheduler nepřepisuje boostové setpointy
