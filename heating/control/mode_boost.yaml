@@ -30,10 +30,9 @@ template:
 
         # ON když: režim Boost, tlačítko ON, nebo boost_until v budoucnu
         state: >-
-          {% set mode = states('input_select.topny_rezim') %}
           {% set btn  = is_state('input_boolean.boost_now','on') %}
           {% set uts  = as_timestamp(states('input_datetime.boost_until'), default=0) %}
-          {{ mode == 'Boost' or btn or (now().timestamp() < uts) }}
+          {{ btn or (now().timestamp() < uts) }}
 
         attributes:
           until: "{{ states('input_datetime.boost_until') }}"
@@ -73,7 +72,13 @@ automation:
 
     actions:
       - variables:
-          minutes: "{{ states('input_number.boost_minutes') | int(60) }}"
+          minutes_raw: "{{ states('input_number.boost_minutes') | int(60) }}"
+          minutes: >-
+            {% set x = minutes_raw | int(60) %}
+            {% if x < 5 %}5
+            {% elif x > 180 %}180
+            {% else %}{{ x }}
+            {% endif %}
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
@@ -217,6 +222,22 @@ automation:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Boost"
+            sequence:
+              - action: input_select.select_option
+                target:
+                  entity_id: input_select.topny_rezim
+                data:
+                  option: "Auto"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boost_until
+        data:
+          datetime: "{{ now().isoformat() }}"
 
   # -------------------------------------------------------------------
   # AUTOMATIZACE: Po skončení Boostu znovu aplikovat rozvrhy

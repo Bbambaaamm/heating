@@ -26,6 +26,27 @@ template:
              | list
              | count == 0 }}
 
+      - name: "heating_core_entities_available"
+        unique_id: heating_core_entities_available
+        device_class: connectivity
+        state: >-
+          {% set required = [
+            'climate.sklep_michal',
+            'climate.prizemi_michal',
+            'climate.prizemi_chodba_zachod',
+            'climate.1p_jidelna',
+            'climate.1p_kuchyn',
+            'climate.1p_koupelna',
+            'climate.1p_chodba',
+            'climate.2p_mama',
+            'switch.kotel_rele_spinac'
+          ] %}
+          {{ required
+             | map('states')
+             | select('in', ['unknown', 'unavailable', ''])
+             | list
+             | count == 0 }}
+
       - name: "heating_core_automations_healthy"
         unique_id: heating_core_automations_healthy
         device_class: connectivity
@@ -55,6 +76,14 @@ automation:
           entity_id: input_select.topny_rezim
         data:
           option: "Eco"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boost_until
+        data:
+          datetime: "{{ now().isoformat() }}"
       - action: logbook.log
         data:
           name: "Topení Fail-safe"
@@ -81,6 +110,9 @@ automation:
               - condition: template
                 value_template: "{{ boost_should_be_active }}"
             sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.boost_now
               - choose:
                   - conditions:
                       - condition: state
@@ -114,6 +146,47 @@ automation:
               - action: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.boost_now
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: input_select.topny_rezim
+                        state: "Boost"
+                    sequence:
+                      - action: input_select.select_option
+                        target:
+                          entity_id: input_select.topny_rezim
+                        data:
+                          option: "Auto"
+
+  - id: heating_failsafe_entities_unavailable
+    alias: "Topení Fail-safe – klíčové entity nedostupné"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.heating_core_entities_available
+        to: "off"
+        for: "00:05:00"
+    actions:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topny_rezim
+        data:
+          option: "Eco"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - action: logbook.log
+        data:
+          name: "Topení Fail-safe"
+          message: "Klíčová entita nedostupná >5 min. Režim Eco + kotel vypnut (fail-safe)."
+          entity_id: switch.kotel_rele_spinac
+      - action: persistent_notification.create
+        data:
+          title: "Topení fail-safe"
+          message: "⚠️ Některá klíčová entita je nedostupná >5 min. Kotel byl preventivně vypnut."
 
   - id: heating_watchdog_core_automations
     alias: "Heating Watchdog – zdraví klíčových automací"
@@ -141,3 +214,44 @@ automation:
                 data:
                   title: "Heating Watchdog"
                   message: "⚠️ Klíčové automace nejsou healthy. Zkontrolujte automation.*"
+
+  - id: heating_watchdog_periodic_reconcile
+    alias: "Heating Watchdog – periodická reconciliace režimu"
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: "/30"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_select.topny_rezim') in ['Auto', 'Eco'] }}"
+      - condition: state
+        entity_id: binary_sensor.kotel_boost_active
+        state: "off"
+    actions:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            sequence:
+              - action: event.fire
+                data:
+                  event_type: heating_reconcile_requested
+                  event_data:
+                    source: heating_watchdog_periodic_reconcile
+                    reason: periodic_safety_reconcile
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "off"
+            sequence:
+              - action: automation.trigger
+                target:
+                  entity_id: >-
+                    {{ states.automation
+                      | selectattr('entity_id', 'search', '_bp$')
+                      | map(attribute='entity_id')
+                      | list }}
