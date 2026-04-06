@@ -246,7 +246,14 @@ automation:
                 data:
                   notification_id: heating_watchdog_core_automations_unhealthy
                   title: "Heating Watchdog"
-                  message: "⚠️ Klíčové automace nejsou healthy. Zkontrolujte automation.*"
+                  message: >-
+                    {% set missing_ids = state_attr('binary_sensor.heating_core_automations_healthy', 'missing_ids') | default([], true) %}
+                    ⚠️ Klíčové automace nejsou healthy.
+                    {% if missing_ids | count > 0 %}
+                    Chybějící/vypnuté automation.id: {{ missing_ids | join(', ') }}.
+                    {% else %}
+                    Zkontrolujte automation.*.
+                    {% endif %}
         default:
           - action: persistent_notification.dismiss
             data:
