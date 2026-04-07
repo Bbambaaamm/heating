@@ -13,8 +13,8 @@ automation:
     id: heating_timer_finished_turn_off_manual
     mode: parallel
 
-    trigger:
-      - platform: state
+    triggers:
+      - trigger: state
         entity_id:
           - timer.sklep_michal_manual_override
           - timer.prizemi_michal_manual_override
@@ -27,9 +27,9 @@ automation:
         from: "active"
         to: "idle"
 
-    condition: []
+    conditions: []
 
-    action:
+    actions:
       - variables:
           timer_entity: "{{ trigger.entity_id }}"
           manual_boolean: "{{ timer_entity | replace('timer.', 'input_boolean.') }}"
