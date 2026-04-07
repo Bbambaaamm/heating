@@ -31,6 +31,8 @@ automation:
       - trigger: state
         entity_id: input_select.topny_rezim
         to: "Auto"
+      - trigger: homeassistant
+        event: start
 
     conditions:
       - condition: state
