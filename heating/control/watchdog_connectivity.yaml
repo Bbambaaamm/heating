@@ -1,66 +1,251 @@
 # YAML 2024.10
 # =====================================================================
 # Soubor   : config/heating/control/watchdog_connectivity.yaml
-# Modul    : Heating – Watchdog Connectivity (dostupnost & čerstvost dat)
-# Účel     : Hlídá Zigbee hlavice (climate.*) – unavailable/unknown nebo data starší než 2h
-# Autor    : Michal
-# Poslední úprava : 2026-02-02
+# Modul    : Heating – Watchdog Connectivity (hlavice)
+# Účel     : Jednotná diagnostika živosti hlavic + notifikace + eskalace
+# Autor    : Michal + Codex refactor
+# Poslední úprava : 2026-04-07
 # =====================================================================
 
+# Parametry watchdogu:
+# - alive timeout: 90 minut (hlavice musí aspoň jednou aktualizovat entitu)
+# - warning: problém trvá >= 10 minut
+# - periodic repeat: každých 10 minut při trvání problému
+# - escalation: >= 2 unhealthy hlavice po dobu 30 minut => fail-safe (Eco + kotel off)
+
+template:
+  - binary_sensor:
+      - name: "heating_valve_sklep_michal_alive"
+        unique_id: heating_valve_sklep_michal_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.sklep_michal'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.sklep_michal') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_prizemi_michal_alive"
+        unique_id: heating_valve_prizemi_michal_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.prizemi_michal'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.prizemi_michal') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_prizemi_chodba_zachod_alive"
+        unique_id: heating_valve_prizemi_chodba_zachod_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.prizemi_chodba_zachod'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.prizemi_chodba_zachod') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_1p_jidelna_alive"
+        unique_id: heating_valve_1p_jidelna_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.1p_jidelna'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.1p_jidelna') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_1p_kuchyn_alive"
+        unique_id: heating_valve_1p_kuchyn_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.1p_kuchyn'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.1p_kuchyn') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_1p_koupelna_alive"
+        unique_id: heating_valve_1p_koupelna_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.1p_koupelna'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.1p_koupelna') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_1p_chodba_alive"
+        unique_id: heating_valve_1p_chodba_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.1p_chodba'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.1p_chodba') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valve_2p_mama_alive"
+        unique_id: heating_valve_2p_mama_alive
+        device_class: connectivity
+        state: >-
+          {% set e = states['climate.2p_mama'] %}
+          {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
+          {{ states('climate.2p_mama') not in ['unknown', 'unavailable', '']
+             and (as_timestamp(now()) - ts) <= 5400 }}
+
+      - name: "heating_valves_all_healthy"
+        unique_id: heating_valves_all_healthy
+        device_class: connectivity
+        state: >-
+          {{ is_state('binary_sensor.heating_valve_sklep_michal_alive', 'on')
+             and is_state('binary_sensor.heating_valve_prizemi_michal_alive', 'on')
+             and is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive', 'on')
+             and is_state('binary_sensor.heating_valve_1p_jidelna_alive', 'on')
+             and is_state('binary_sensor.heating_valve_1p_kuchyn_alive', 'on')
+             and is_state('binary_sensor.heating_valve_1p_koupelna_alive', 'on')
+             and is_state('binary_sensor.heating_valve_1p_chodba_alive', 'on')
+             and is_state('binary_sensor.heating_valve_2p_mama_alive', 'on') }}
+
+  - sensor:
+      - name: "heating_valves_unhealthy_count"
+        unique_id: heating_valves_unhealthy_count
+        state: >-
+          {% set lst = [
+            'binary_sensor.heating_valve_sklep_michal_alive',
+            'binary_sensor.heating_valve_prizemi_michal_alive',
+            'binary_sensor.heating_valve_prizemi_chodba_zachod_alive',
+            'binary_sensor.heating_valve_1p_jidelna_alive',
+            'binary_sensor.heating_valve_1p_kuchyn_alive',
+            'binary_sensor.heating_valve_1p_koupelna_alive',
+            'binary_sensor.heating_valve_1p_chodba_alive',
+            'binary_sensor.heating_valve_2p_mama_alive'
+          ] %}
+          {{ lst | map('states') | select('eq', 'off') | list | count }}
+        attributes:
+          unhealthy_entities: >-
+            {% set pairs = [
+              ('Sklep – Michal', 'binary_sensor.heating_valve_sklep_michal_alive', 'climate.sklep_michal'),
+              ('Přízemí – Michal', 'binary_sensor.heating_valve_prizemi_michal_alive', 'climate.prizemi_michal'),
+              ('Přízemí – Chodba záchod', 'binary_sensor.heating_valve_prizemi_chodba_zachod_alive', 'climate.prizemi_chodba_zachod'),
+              ('1. patro – Jídelna', 'binary_sensor.heating_valve_1p_jidelna_alive', 'climate.1p_jidelna'),
+              ('1. patro – Kuchyň', 'binary_sensor.heating_valve_1p_kuchyn_alive', 'climate.1p_kuchyn'),
+              ('1. patro – Koupelna', 'binary_sensor.heating_valve_1p_koupelna_alive', 'climate.1p_koupelna'),
+              ('1. patro – Chodba', 'binary_sensor.heating_valve_1p_chodba_alive', 'climate.1p_chodba'),
+              ('2. patro – Máma', 'binary_sensor.heating_valve_2p_mama_alive', 'climate.2p_mama')
+            ] %}
+            {% set out = namespace(items=[]) %}
+            {% for p in pairs %}
+              {% set label = p[0] %}
+              {% set alive = p[1] %}
+              {% set climate = p[2] %}
+              {% if is_state(alive, 'off') %}
+                {% set e = states[climate] if climate in states else none %}
+                {% set lu = e.last_updated if e is not none else none %}
+                {% set age_min = ((as_timestamp(now()) - as_timestamp(lu)) / 60) | int(0) if lu is not none else -1 %}
+                {% set out.items = out.items + [
+                  dict(
+                    zone=label,
+                    climate=climate,
+                    state=states(climate),
+                    last_updated=(lu|string if lu is not none else 'n/a'),
+                    age_min=age_min
+                  )
+                ] %}
+              {% endif %}
+            {% endfor %}
+            {{ out.items }}
+
 automation:
-  - alias: "Heating Watchdog – Dostupnost hlavic"
+  - alias: "Heating Watchdog – Hlavice unhealthy notifikace"
     id: heating_watchdog_connectivity
     mode: single
+    triggers:
+      - trigger: state
+        id: sustained_problem
+        entity_id: binary_sensor.heating_valves_all_healthy
+        to: "off"
+        for: "00:10:00"
+      - trigger: time_pattern
+        id: periodic_repeat
+        minutes: "/10"
+    conditions:
+      - condition: template
+        value_template: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) > 0 }}"
+    actions:
+      - variables:
+          count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
+          items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
+      - service: persistent_notification.create
+        data:
+          notification_id: heating_watchdog_connectivity_unhealthy
+          title: "Heating Watchdog – hlavice unhealthy"
+          message: >-
+            ⚠️ Detekováno {{ count }} problematických hlavic.
+            Detail: {{ items }}
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.id == 'sustained_problem' }}"
+            sequence:
+              - service: notify.mobile_app_sm_s938b
+                data:
+                  message: >-
+                    ⚠️ Heating watchdog: {{ count }} hlavice jsou unhealthy déle než 10 min.
+      - service: logbook.log
+        data:
+          name: "Heating Watchdog – Hlavice"
+          message: >-
+            unhealthy_count={{ count }}, detail={{ items }}
+          entity_id: sensor.heating_valves_unhealthy_count
 
-    trigger:
-      - platform: time_pattern
-        minutes: "/30"
+  - alias: "Heating Watchdog – eskalace výpadku hlavic"
+    id: heating_watchdog_connectivity_escalation
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.heating_valves_unhealthy_count
+        above: 1
+        for: "00:30:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+    actions:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.topny_rezim
+        data:
+          option: "Eco"
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now
+      - service: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - service: persistent_notification.create
+        data:
+          notification_id: heating_watchdog_connectivity_escalation
+          title: "Heating Fail-safe – více hlavic unhealthy"
+          message: >-
+            🚨 Eskalace watchdogu: {{ states('sensor.heating_valves_unhealthy_count') }} hlavice unhealthy >= 30 min.
+            Reakce: režim Eco + vypnutí Boost + vypnutí kotle.
+      - service: logbook.log
+        data:
+          name: "Heating Fail-safe"
+          message: "Eskalace watchdogu hlavic: Eco + kotel OFF (>=2 unhealthy po 30 min)."
+          entity_id: switch.kotel_rele_spinac
 
-    condition: []
-
-    action:
-      - repeat:
-          for_each:
-            - climate.sklep_michal
-            - climate.prizemi_michal
-            - climate.prizemi_chodba_zachod
-            - climate.1p_jidelna
-            - climate.1p_kuchyn
-            - climate.1p_koupelna
-            - climate.1p_chodba
-            - climate.2p_mama
-
-          sequence:
-            - variables:
-                ent: "{{ repeat.item }}"
-                fn: >-
-                  {{ state_attr(repeat.item, 'friendly_name')
-                     or states[repeat.item].name
-                     or repeat.item }}
-
-                is_bad_state: >-
-                  {{ states(ent) in ['unavailable', 'unknown'] }}
-
-                is_stale_2h: >-
-                  {% set s = states[ent] %}
-                  {% set lu = s.last_updated if s is not none else none %}
-                  {% set ts = as_timestamp(lu) if lu is not none else 0 %}
-                  {{ (as_timestamp(now()) - ts) > 7200 }}
-
-            - choose:
-                - conditions:
-                    - condition: template
-                      value_template: "{{ is_bad_state or is_stale_2h }}"
-                  sequence:
-                    - service: notify.mobile_app_sm_s938b
-                      data:
-                        message: >-
-                          ⚠️ POZOR: Hlavice {{ fn }} nekomunikuje déle než 2 hodiny!
-                          Zkontrolujte baterie nebo Zigbee.
-                    - service: logbook.log
-                      data:
-                        name: "Heating Watchdog – Dostupnost hlavic"
-                        message: >-
-                          Hlavice {{ fn }}: stav={{ states(ent) }},
-                          last_updated={{ states[ent].last_updated if states[ent] is not none else 'n/a' }}
-                        entity_id: "{{ ent }}"
+  - alias: "Heating Watchdog – clear notifikace hlavic"
+    id: heating_watchdog_connectivity_clear
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.heating_valves_all_healthy
+        to: "on"
+        for: "00:05:00"
+    actions:
+      - service: persistent_notification.dismiss
+        data:
+          notification_id: heating_watchdog_connectivity_unhealthy
+      - service: persistent_notification.dismiss
+        data:
+          notification_id: heating_watchdog_connectivity_escalation
+      - service: logbook.log
+        data:
+          name: "Heating Watchdog – Hlavice"
+          message: "Všechny hlavice opět healthy (stabilní 5 min)."
+          entity_id: sensor.heating_valves_unhealthy_count

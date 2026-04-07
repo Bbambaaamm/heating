@@ -30,22 +30,11 @@ template:
         unique_id: heating_core_entities_available
         device_class: connectivity
         state: >-
-          {% set required = [
-            'climate.sklep_michal',
-            'climate.prizemi_michal',
-            'climate.prizemi_chodba_zachod',
-            'climate.1p_jidelna',
-            'climate.1p_kuchyn',
-            'climate.1p_koupelna',
-            'climate.1p_chodba',
-            'climate.2p_mama',
-            'switch.kotel_rele_spinac'
-          ] %}
-          {{ required
-             | map('states')
-             | select('in', ['unknown', 'unavailable', ''])
-             | list
-             | count == 0 }}
+          {{ is_state('binary_sensor.heating_valves_all_healthy', 'on')
+             and states('switch.kotel_rele_spinac') not in ['unknown', 'unavailable', ''] }}
+        attributes:
+          valves_unhealthy_count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
+          valves_unhealthy_entities: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
 
       - name: "heating_core_automations_healthy"
         unique_id: heating_core_automations_healthy
@@ -211,12 +200,12 @@ automation:
       - action: logbook.log
         data:
           name: "Topení Fail-safe"
-          message: "Klíčová entita nedostupná >5 min. Režim Eco + kotel vypnut (fail-safe)."
+          message: "Klíčové entity/hlavice unhealthy >5 min. Režim Eco + kotel vypnut (fail-safe)."
           entity_id: switch.kotel_rele_spinac
       - action: persistent_notification.create
         data:
           title: "Topení fail-safe"
-          message: "⚠️ Některá klíčová entita je nedostupná >5 min. Kotel byl preventivně vypnut."
+          message: "⚠️ Klíčové entity nebo hlavice jsou unhealthy >5 min. Kotel byl preventivně vypnut."
 
   - id: heating_watchdog_core_automations
     alias: "Heating Watchdog – zdraví klíčových automací"
