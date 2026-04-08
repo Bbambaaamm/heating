@@ -132,12 +132,16 @@ template:
               {% set label = p[0] %}
               {% set alive = p[1] %}
               {% if is_state(alive, 'off') %}
+                {% set climate = alive | replace('binary_sensor.heating_valve_', 'climate.') | replace('_alive', '') %}
                 {% set out.items = out.items + [
                   {
                     'zone': label,
                     'alive_entity': alive,
                     'alive_state': states(alive),
-                    'last_changed': states[alive].last_changed|string
+                    'last_changed': states[alive].last_changed|string,
+                    'climate_entity': climate,
+                    'climate_state': states(climate),
+                    'climate_last_updated': states[climate].last_updated|string if states[climate] is defined else 'n/a'
                   }
                 ] %}
               {% endif %}
@@ -170,6 +174,7 @@ automation:
           title: "Heating Watchdog – hlavice unhealthy"
           message: >-
             ⚠️ Detekováno {{ count }} problematických hlavic.
+            Kritérium: climate entita je unknown/unavailable nebo bez update > 90 min.
             Detail: {{ items }}
       - choose:
           - conditions:
