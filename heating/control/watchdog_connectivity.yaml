@@ -11,7 +11,7 @@
 # - alive timeout: 90 minut (hlavice musí aspoň jednou aktualizovat entitu)
 # - warning: problém trvá >= 10 minut
 # - periodic repeat: každých 10 minut při trvání problému
-# - escalation: >= 2 unhealthy hlavice po dobu 30 minut => fail-safe (Eco + kotel off)
+# - escalation: >= 2 unhealthy hlavice po dobu 30 minut => pouze diagnostická eskalace (bez zásahu do režimu)
 
 template:
   - binary_sensor:
@@ -133,16 +133,24 @@ template:
               {% set alive = p[1] %}
               {% set climate = p[2] %}
               {% if is_state(alive, 'off') %}
-                {% set e = states[climate] if climate in states else none %}
+                {% set e = states.get(climate) %}
                 {% set lu = e.last_updated if e is not none else none %}
                 {% set age_min = ((as_timestamp(now()) - as_timestamp(lu)) / 60) | int(0) if lu is not none else -1 %}
                 {% set out.items = out.items + [
                   dict(
                     zone=label,
+                    alive_entity=alive,
+                    alive_state=states(alive),
                     climate=climate,
                     state=states(climate),
                     last_updated=(lu|string if lu is not none else 'n/a'),
-                    age_min=age_min
+                    age_min=age_min,
+                    timeout_min=90,
+                    reason=(
+                      'entita je unknown/unavailable/empty'
+                      if states(climate) in ['unknown', 'unavailable', '']
+                      else 'poslední update je starší než 90 min'
+                    )
                   )
                 ] %}
               {% endif %}
@@ -169,13 +177,30 @@ automation:
       - variables:
           count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
+          detail_text: >-
+            {% set ns = namespace(lines=[]) %}
+            {% for i in items %}
+              {% set ns.lines = ns.lines + [
+                '- ' ~ (i.zone | default('n/a')) ~
+                ' | climate=' ~ (i.climate | default('n/a')) ~
+                ' | state=' ~ (i.state | default('n/a')) ~
+                ' | alive=' ~ (i.alive_state | default('n/a')) ~
+                ' | last_updated=' ~ (i.last_updated | default('n/a')) ~
+                ' | age_min=' ~ (i.age_min | string) ~
+                ' | limit_min=' ~ (i.timeout_min | string) ~
+                ' | reason=' ~ (i.reason | default('n/a'))
+              ] %}
+            {% endfor %}
+            {{ ns.lines | join('\n') if ns.lines | count > 0 else '- bez detailu' }}
       - service: persistent_notification.create
         data:
           notification_id: heating_watchdog_connectivity_unhealthy
           title: "Heating Watchdog – hlavice unhealthy"
           message: >-
             ⚠️ Detekováno {{ count }} problematických hlavic.
-            Detail: {{ items }}
+            Proč je hlásím: climate je unknown/unavailable/empty nebo poslední update > 90 min.
+            Detail:
+            {{ detail_text }}
       - choose:
           - conditions:
               - condition: template
@@ -184,7 +209,8 @@ automation:
               - service: notify.mobile_app_sm_s938b
                 data:
                   message: >-
-                    ⚠️ Heating watchdog: {{ count }} hlavice jsou unhealthy déle než 10 min.
+                    ⚠️ Heating watchdog: {{ count }} hlavice unhealthy > 10 min.
+                    {{ detail_text }}
       - service: logbook.log
         data:
           name: "Heating Watchdog – Hlavice"
@@ -205,29 +231,36 @@ automation:
         entity_id: input_boolean.topny_system_enable
         state: "on"
     actions:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.topny_rezim
-        data:
-          option: "Eco"
-      - service: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.boost_now
-      - service: switch.turn_off
-        target:
-          entity_id: switch.kotel_rele_spinac
+      - variables:
+          items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
+          detail_text: >-
+            {% set ns = namespace(lines=[]) %}
+            {% for i in items %}
+              {% set ns.lines = ns.lines + [
+                '- ' ~ (i.zone | default('n/a')) ~
+                ' | climate=' ~ (i.climate | default('n/a')) ~
+                ' | state=' ~ (i.state | default('n/a')) ~
+                ' | alive=' ~ (i.alive_state | default('n/a')) ~
+                ' | last_updated=' ~ (i.last_updated | default('n/a')) ~
+                ' | age_min=' ~ (i.age_min | string) ~
+                ' | limit_min=' ~ (i.timeout_min | string) ~
+                ' | reason=' ~ (i.reason | default('n/a'))
+              ] %}
+            {% endfor %}
+            {{ ns.lines | join('\n') if ns.lines | count > 0 else '- bez detailu' }}
       - service: persistent_notification.create
         data:
           notification_id: heating_watchdog_connectivity_escalation
-          title: "Heating Fail-safe – více hlavic unhealthy"
+          title: "Heating Watchdog – eskalace výpadku hlavic"
           message: >-
-            🚨 Eskalace watchdogu: {{ states('sensor.heating_valves_unhealthy_count') }} hlavice unhealthy >= 30 min.
-            Reakce: režim Eco + vypnutí Boost + vypnutí kotle.
+            🚨 Eskalace watchdogu: {{ states('sensor.heating_valves_unhealthy_count') }} hlavice unhealthy >= 30 min (bez zásahu do režimu/kotle).
+            Detail:
+            {{ detail_text }}
       - service: logbook.log
         data:
-          name: "Heating Fail-safe"
-          message: "Eskalace watchdogu hlavic: Eco + kotel OFF (>=2 unhealthy po 30 min)."
-          entity_id: switch.kotel_rele_spinac
+          name: "Heating Watchdog – Hlavice eskalace"
+          message: ">=2 unhealthy hlavice po 30 min. Pouze diagnostika, bez přepnutí režimu."
+          entity_id: sensor.heating_valves_unhealthy_count
 
   - alias: "Heating Watchdog – clear notifikace hlavic"
     id: heating_watchdog_connectivity_clear
