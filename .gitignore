@@ -19,3 +19,8 @@
 !blueprints/automation/
 !blueprints/automation/heating/
 !blueprints/automation/heating/**
+
+# === ANALYSIS SNAPSHOT ===
+!analysis/
+analysis/*
+!analysis/entities_snapshot.json
