@@ -4,6 +4,10 @@
 # Povol .gitignore
 !.gitignore
 
+# Povol VS Code workspace settings (YAML custom tags)
+!.vscode/
+!.vscode/settings.json
+
 # Povol root YAML soubory
 !configuration.yaml
 !automations.yaml
