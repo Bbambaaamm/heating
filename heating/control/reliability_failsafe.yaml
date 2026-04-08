@@ -186,26 +186,22 @@ automation:
         to: "off"
         for: "00:05:00"
     actions:
-      - action: input_select.select_option
-        target:
-          entity_id: input_select.topny_rezim
-        data:
-          option: "Eco"
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.boost_now
-      - action: switch.turn_off
-        target:
-          entity_id: switch.kotel_rele_spinac
+      - variables:
+          count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
+          items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
       - action: logbook.log
         data:
           name: "Topení Fail-safe"
-          message: "Klíčové entity/hlavice unhealthy >5 min. Režim Eco + kotel vypnut (fail-safe)."
-          entity_id: switch.kotel_rele_spinac
+          message: "Klíčové entity/hlavice unhealthy >5 min (bez zásahu do režimu). count={{ count }}, detail={{ items }}"
+          entity_id: sensor.heating_valves_unhealthy_count
       - action: persistent_notification.create
         data:
           title: "Topení fail-safe"
-          message: "⚠️ Klíčové entity nebo hlavice jsou unhealthy >5 min. Kotel byl preventivně vypnut."
+          message: >-
+            ⚠️ Klíčové entity nebo hlavice jsou unhealthy >5 min.
+            Žádný zásah do režimu/kotle (pouze diagnostika).
+            Unhealthy count: {{ count }}.
+            Detail: {{ items }}
 
   - id: heating_watchdog_core_automations
     alias: "Heating Watchdog – zdraví klíčových automací"
