@@ -121,11 +121,38 @@ automation:
           entity_id: input_select.topny_rezim
         data:
           option: "Eco"
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_dispatch_inputs_unavailable
+          title: "Heating fail-safe"
+          message: "⚠️ Dispatch vstupy nedostupné > 2 min. Systém přepnut do Eco."
       - action: logbook.log
         data:
           name: "Heating fail-safe"
           message: "Dispatch vstupy nedostupné > 2 min. Přepínám na Eco."
           entity_id: input_select.topny_rezim
+
+  - id: heating_dispatch_inputs_recovered
+    alias: "Heating – dispatch vstupy obnoveny"
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.heating_dispatch_inputs_available
+        to: "on"
+        for: "00:02:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        state: "on"
+    action:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: heating_dispatch_inputs_unavailable
+      - action: logbook.log
+        data:
+          name: "Heating fail-safe"
+          message: "Dispatch vstupy jsou opět dostupné (stabilní 2 min)."
+          entity_id: binary_sensor.heating_dispatch_inputs_available
 
   - id: heating_dispatch_mode_schedule_override
     alias: "Heating – central dispatch (mode/schedule/override)"
@@ -212,6 +239,16 @@ automation:
 
     action:
       - delay: "00:00:02"
+      - variables:
+          trigger_entity: "{{ trigger.entity_id if trigger is defined and trigger.entity_id is defined else 'n/a' }}"
+          trigger_id: "{{ trigger.id if trigger is defined and trigger.id is defined else 'n/a' }}"
+      - action: logbook.log
+        data:
+          name: "Heating dispatch"
+          message: >-
+            Triggered (id={{ trigger_id }}, entity={{ trigger_entity }}),
+            intent={{ intent }}, dispatch={{ states('input_boolean.heating_central_dispatch_enable') }}.
+          entity_id: input_select.topny_rezim
       - choose:
           - conditions:
               - condition: template

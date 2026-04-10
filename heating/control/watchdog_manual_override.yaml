@@ -8,6 +8,56 @@
 # =====================================================================
 
 automation:
+  - id: heating_watchdog_manual_override_12h_warning
+    alias: "Heating Watchdog – manuální override > 12h (varování)"
+    description: >
+      Každou hodinu zkontroluje všechny *_manual_override helpery. Pokud je override
+      zapnutý déle než 12 hodin (a zatím méně než 24 hodin), odešle preventivní varování.
+    mode: single
+
+    trigger:
+      - trigger: time_pattern
+        minutes: "0"
+
+    action:
+      - repeat:
+          for_each:
+            - input_boolean.sklep_michal_manual_override
+            - input_boolean.prizemi_michal_manual_override
+            - input_boolean.prizemi_chodba_zachod_manual_override
+            - input_boolean.1p_jidelna_manual_override
+            - input_boolean.1p_kuchyn_manual_override
+            - input_boolean.1p_koupelna_manual_override
+            - input_boolean.1p_chodba_manual_override
+            - input_boolean.2p_mama_manual_override
+          sequence:
+            - variables:
+                age_h: >-
+                  {{ ((as_timestamp(now()) - as_timestamp(states[repeat.item].last_changed)) / 3600) | round(1) }}
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: >
+                        {{ is_state(repeat.item, 'on')
+                           and (now() - states[repeat.item].last_changed) > timedelta(hours=12)
+                           and (now() - states[repeat.item].last_changed) < timedelta(hours=24) }}
+                  sequence:
+                    - action: persistent_notification.create
+                      data:
+                        notification_id: "heating_watchdog_manual_override_warn_{{ repeat.item | replace('.', '_') }}"
+                        title: "Heating Watchdog – manuální override"
+                        message: >-
+                          ⚠️ Zóna {{ state_attr(repeat.item, 'friendly_name') or repeat.item }}
+                          je v manuálním override přibližně {{ age_h }} h.
+                          Po 24 h bude override automaticky vypnut.
+                    - action: logbook.log
+                      data:
+                        name: "Heating Watchdog"
+                        message: >-
+                          Preventivní varování: {{ state_attr(repeat.item, 'friendly_name') or repeat.item }}
+                          je v manuálu cca {{ age_h }} h.
+                        entity_id: "{{ repeat.item }}"
+
   - id: heating_watchdog_manual_override
     alias: "Heating Watchdog – manuální override > 24h"
     description: >
