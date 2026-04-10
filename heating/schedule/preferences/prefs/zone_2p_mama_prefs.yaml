@@ -1,14 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/schedule/preferences/prefs/zone_2p_mama_prefs.yaml
-# Modul    : Schedule Preferences – 2. patro (Máma)
-# Účel     : Perzistentní úložiště poslední KOMFORTNÍ teploty zóny
+# Soubor   : heating/schedule/preferences/prefs/zone_2p_mama_prefs.yaml
+# Modul    : Topení – preference zón
+# Účel     : Výchozí preference topení pro konkrétní zóny
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# =====================================================================
-# 📌 Poznámky:
-# - ukládá **pouze komfortní teploty** (ECO nikdy)
-# - používá se v chytrém scheduleru (smart_* automations)
-# - hodnota se přepisuje jen při skutečné změně setpointu
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_number:

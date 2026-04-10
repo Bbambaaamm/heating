@@ -1,29 +1,12 @@
 # =====================================================================
-# Soubor   : config/heating/ui/controls/mode_controls.yaml
-# Modul    : UI – Režimy systému + Boost
-# Účel     : Ovládací prvky pro uživatelské přepínání režimů topení
+# Soubor   : heating/ui/controls/mode_controls.yaml
+# Modul    : Topení – UI ovládání
+# Účel     : Napojení UI prvků na logiku režimu a časovačů
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# =====================================================================
-# 📌 Obsah:
-#   input_select.topny_rezim
-#   input_boolean.boost_now
-#   input_number.boost_minutes
-#   input_datetime.boost_until
-#   input_boolean.topny_system_enable
-#   input_boolean.kotel_ignore_open_windows
-#   input_number.eco_temp_default
-#
-# 📝 Poznámky:
-# - Režimy Auto / Eco / Boost / Off ovlivňují prahy v policy_effective.yaml
-# - Boost se aktivuje input_boolean.boost_now → autom. nastaví boost_until
-# - input_boolean.topny_system_enable slouží jako „master power“
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
-
-# =====================================================================
-# 🔽 Výběr globálního režimu topení
-# =====================================================================
 input_select:
   topny_rezim:
     name: "Topení – režim"

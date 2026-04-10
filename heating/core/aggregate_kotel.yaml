@@ -1,6 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/core/aggregate_kotel.yaml
-# Modul    : Kotel – agregace poptávky zón
+# Soubor   : heating/core/aggregate_kotel.yaml
+# Modul    : Topení – jádro zón
+# Účel     : Definice entit, šablon a skupin pro jednotlivé topné zóny
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 template:
@@ -92,4 +96,3 @@ template:
           aktivni_zony: "{{ states('sensor.kotel_aktivni_zony_pocet') }}"
           prumerna_poptavka: "{{ states('sensor.kotel_poptavka_prumer') }}"
           boost_active: "{{ states('binary_sensor.kotel_boost_active') }}"
-

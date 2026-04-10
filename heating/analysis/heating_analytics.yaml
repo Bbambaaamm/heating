@@ -1,24 +1,12 @@
 # =====================================================================
-# Soubor   : config/heating/analysis/heating_analytics.yaml
-# Modul    : Topení – analytika kotle (cyklování, doba hoření, efektivita)
-# Účel     : Analýza efektivity vytápění pro dashboard/Grafanu (starty, hoření, cykly)
+# Soubor   : heating/analysis/heating_analytics.yaml
+# Modul    : Topení – analytika
+# Účel     : Senzory a metriky pro vyhodnocení provozu topení
 # Autor    : Michal
-# Poslední úprava : 2026-02-01
-# Poznámka : YAML syntaxe podle HA 2024.10 (template / history_stats)
-# =====================================================================
-# 📌 Obsah:
-#   - History Stats: starty za 1h / 24h, doba hoření za 24h
-#   - Template: průměrná délka cyklu, skóre efektivity, duty cycle (%)
-#
-# 📝 Poznámky:
-# - Zdrojový signál hoření: binary_sensor.boiler_burngas (stav "on" = hoří)
-# - Všechny template senzory vrací vždy číslo a mají ochranu proti neplatným stavům
-# - Atributy jsou připravené pro analýzu v Grafaně (period/source/calc/thresholds)
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
-# ---------------------------------------------------------------------
-# 1) Základní metriky z historie (history_stats)
-# ---------------------------------------------------------------------
 sensor:
   # Starty – posledních 24h
   - platform: history_stats

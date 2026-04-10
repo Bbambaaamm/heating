@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/schedule/automation/startup/manual_override_startup_reconcile.yaml
-# Modul    : Startup reconcile manuálních override
-# Účel     : Po restartu HA odstranit neplatné "Časovač" override bez běžícího timeru
+# Soubor   : heating/schedule/automation/startup/manual_override_startup_reconcile.yaml
+# Modul    : Topení – synchronizace rozvrhů
+# Účel     : Startovní a synchronizační automatizace plánování topení
 # Autor    : Michal
-# Poslední úprava : 2026-04-06
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -17,11 +17,11 @@ automation:
     mode: single
     initial_state: true
 
-    triggers:
+    trigger:
       - trigger: homeassistant
         event: start
 
-    actions:
+    action:
       - delay: "00:00:15"
 
       - variables:

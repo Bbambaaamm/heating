@@ -1,14 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/helpers/manual_override_helpers.yaml
-# Modul    : Manual Override Helpers – per zóna
-# Účel     : Pomocné entity pro manuální override topení (časově / do další změny rozvrhu)
+# Soubor   : heating/schedule/preferences/helpers/manual_override_helpers.yaml
+# Modul    : Topení – helpery rozvrhů
+# Účel     : Helper entity pro preference a stav plánování zón
 # Autor    : Michal
-# Poslední úprava : 2026-01-31
-# =====================================================================
-# 📌 Poznámky:
-# - input_boolean.*_manual_override = manuální override aktivní pro zónu
-# - timer.*_manual_override = časové trvání override (active = override běží)
-# - input_select.*_manual_override_type = typ ukončení: Časovač / Do další změny rozvrhu
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_boolean:

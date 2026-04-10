@@ -1,20 +1,12 @@
 # =====================================================================
-# Soubor   : config/heating/schedule/preferences/helpers/schedule_helpers_prizemi_chodba_zachod.yaml
-# Modul    : Schedule Helpers – Přízemí (Chodba záchod)
-# Účel     : Pomocné entity pro nastavení rozvrhu v UI
+# Soubor   : heating/schedule/preferences/helpers/schedule_helpers_prizemi_chodba_zachod.yaml
+# Modul    : Topení – helpery rozvrhů
+# Účel     : Helper entity pro preference a stav plánování zón
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# =====================================================================
-# 📌 Poznámky:
-# - input_boolean.schedule_enable_* aktivuje/deaktivuje rozvrh zóny
-# - input_datetime.*_start/_end určují komfortní okna
-# - tyto entity pouze drží hodnoty – logiku rozvrhu řeší smart_* automatizace v /automation/smart/
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
-
-# ---------------------------------------------------------------------
-# 🔘 ENABLE – aktivace rozvrhu zóny
-# ---------------------------------------------------------------------
 input_boolean:
   schedule_enable_prizemi_chodba_zachod:
     name: "Rozvrh – Přízemí Chodba záchod zapnuto"

@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/schedule/automation/startup/heating_ui_sync_selection.yaml
-# Modul    : heating_ui_sync_selection
-# Účel     : Synchronizace UI výběru podle manuálního override
+# Soubor   : heating/schedule/automation/startup/heating_ui_sync_selection.yaml
+# Modul    : Topení – synchronizace rozvrhů
+# Účel     : Startovní a synchronizační automatizace plánování topení
 # Autor    : Michal
-# Poslední úprava : 2026-02-1
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:

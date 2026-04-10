@@ -1,7 +1,10 @@
 # =====================================================================
-# Soubor : config/heating/ui/vrata/vrata_ui_template.yaml
-# Modul  : Vrata – UI (Template Cover) – mapování stavů senzoru
-# Účel   : opening=ZAVŘENO, closing=OTEVŘENO + fix pozice
+# Soubor   : heating/vrata/vrata_ui_template.yaml
+# Modul    : Vrata – UI šablony
+# Účel     : Template entity pro ovládání a diagnostiku vrat
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 template:

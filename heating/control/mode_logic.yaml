@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/control/mode_logic.yaml
-# Modul    : Topení – čistá logika režimů
-# Účel     : Reakce na změnu režimu (Off/Auto/Eco/Boost) + logování
+# Soubor   : heating/control/mode_logic.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -28,18 +28,18 @@ automation:
       na triggery bez skutečné změny stavu.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id: input_select.topny_rezim
 
-    conditions:
+    condition:
       - condition: template
         value_template: >
           {{ trigger.from_state is not none
              and trigger.to_state is not none
              and trigger.from_state.state != trigger.to_state.state }}
 
-    actions:
+    action:
       - choose:
           # -----------------------------------------------------------
           # Režim Off → vypnout kotel + zalogovat

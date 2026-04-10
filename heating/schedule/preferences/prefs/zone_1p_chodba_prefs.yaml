@@ -1,14 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/schedule/preferences/prefs/zone_1p_chodba_prefs.yaml
-# Modul    : Schedule Preferences – 1. patro (Chodba)
-# Účel     : Perzistentní úložiště poslední KOMFORTNÍ teploty zóny
+# Soubor   : heating/schedule/preferences/prefs/zone_1p_chodba_prefs.yaml
+# Modul    : Topení – preference zón
+# Účel     : Výchozí preference topení pro konkrétní zóny
 # Autor    : Michal
-# Poslední úprava : 2025-11-24
-# =====================================================================
-# 📌 Poznámky:
-# - ukládá *pouze* komfortní teploty (ECO se neukládají)
-# - používá se v chytrém scheduleru (smart_* automations)
-# - hodnota se mění jen při reálné změně setpointu
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_number:

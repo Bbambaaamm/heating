@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/control/reliability_failsafe.yaml
-# Modul    : Topení – reliability fail-safe + watchdog
-# Účel     : Reakce na výpadek helperů, restart během Boostu, health-check automací
-# Autor    : Codex návrh
-# Poslední úprava : 2026-04-06
+# Soubor   : heating/control/reliability_failsafe.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 template:
@@ -75,12 +75,12 @@ automation:
   - id: heating_failsafe_helpers_unavailable
     alias: "Topení Fail-safe – helpery nedostupné => Eco"
     mode: single
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.heating_helpers_all_available
         to: "off"
         for: "00:02:00"
-    actions:
+    action:
       - action: input_select.select_option
         target:
           entity_id: input_select.topny_rezim
@@ -107,10 +107,10 @@ automation:
   - id: heating_startup_reconcile_boost
     alias: "Topení – po startu srovnat Boost"
     mode: single
-    triggers:
+    trigger:
       - trigger: homeassistant
         event: start
-    actions:
+    action:
       - delay: "00:00:20"
       - variables:
           boost_until_ts: "{{ as_timestamp(states('input_datetime.boost_until'), default=0) }}"
@@ -178,12 +178,12 @@ automation:
   - id: heating_failsafe_entities_unavailable
     alias: "Topení Fail-safe – klíčové entity nedostupné"
     mode: single
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.heating_core_entities_available
         to: "off"
         for: "00:05:00"
-    actions:
+    action:
       - variables:
           count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
@@ -204,7 +204,7 @@ automation:
   - id: heating_watchdog_core_automations
     alias: "Heating Watchdog – zdraví klíčových automací"
     mode: single
-    triggers:
+    trigger:
       - trigger: time_pattern
         id: periodic_check
         minutes: "/15"
@@ -213,7 +213,7 @@ automation:
         entity_id: binary_sensor.heating_core_automations_healthy
         to: "off"
         for: "00:05:00"
-    actions:
+    action:
       - choose:
           - conditions:
               - condition: state
@@ -245,10 +245,10 @@ automation:
   - id: heating_watchdog_periodic_reconcile
     alias: "Heating Watchdog – periodická reconciliace režimu"
     mode: single
-    triggers:
+    trigger:
       - trigger: time_pattern
         minutes: "/30"
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
@@ -257,7 +257,7 @@ automation:
       - condition: state
         entity_id: binary_sensor.kotel_boost_active
         state: "off"
-    actions:
+    action:
       - choose:
           - conditions:
               - condition: state

@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/core/zone_prizemi_chodba_zachod.yaml
-# Modul    : Zóna – Přízemí Chodba záchod
-# Účel     : Logika zóny (poptávka, okno, aktivita topení)
+# Soubor   : heating/core/zone_prizemi_chodba_zachod.yaml
+# Modul    : Topení – jádro zón
+# Účel     : Definice entit, šablon a skupin pro jednotlivé topné zóny
 # Autor    : Michal
-# Poslední úprava : 2025-11-24
-# Poznámka : Výstupy: demand %, okno otevřené, zóna aktivní
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 template:
