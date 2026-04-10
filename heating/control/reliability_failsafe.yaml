@@ -129,12 +129,10 @@ automation:
                         entity_id: input_boolean.heating_central_dispatch_enable
                         state: "on"
                     sequence:
-                      - action: event.fire
-                        data:
-                          event_type: heating_reconcile_requested
-                          event_data:
-                            source: heating_startup_reconcile_boost
-                            reason: startup_boost_still_active
+                      - event: heating_reconcile_requested
+                        event_data:
+                          source: heating_startup_reconcile_boost
+                          reason: startup_boost_still_active
                   - conditions:
                       - condition: state
                         entity_id: input_boolean.heating_central_dispatch_enable
@@ -266,12 +264,10 @@ automation:
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "on"
             sequence:
-              - action: event.fire
-                data:
-                  event_type: heating_reconcile_requested
-                  event_data:
-                    source: heating_watchdog_periodic_reconcile
-                    reason: periodic_safety_reconcile
+              - event: heating_reconcile_requested
+                event_data:
+                  source: heating_watchdog_periodic_reconcile
+                  reason: periodic_safety_reconcile
           - conditions:
               - condition: state
                 entity_id: input_boolean.heating_central_dispatch_enable

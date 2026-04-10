@@ -270,12 +270,10 @@ automation:
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "on"
             sequence:
-              - action: event.fire
-                data:
-                  event_type: heating_reconcile_requested
-                  event_data:
-                    source: heating_boost_reapply_schedule_off
-                    reason: boost_finished
+              - event: heating_reconcile_requested
+                event_data:
+                  source: heating_boost_reapply_schedule_off
+                  reason: boost_finished
           - conditions:
               - condition: state
                 entity_id: input_boolean.heating_central_dispatch_enable
