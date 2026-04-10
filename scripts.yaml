@@ -1,0 +1,8 @@
+# =====================================================================
+# Soubor   : scripts.yaml
+# Modul    : Skripty
+# Účel     : Globální skripty Home Assistant
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================

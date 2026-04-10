@@ -1,9 +1,12 @@
 # =====================================================================
-# Soubor   : config/heating/core/groups.yaml
-# Účel     : definice skupin
+# Soubor   : heating/core/groups.yaml
+# Modul    : Topení – jádro zón
+# Účel     : Definice entit, šablon a skupin pro jednotlivé topné zóny
 # Autor    : Michal
-# Poslední úprava : 21-01-2026
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
+
 group:
   topne_zony:
     name: Topné zóny (Climate)

@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/schedule/automation/startup/startup_schedule_sync.yaml
-# Modul    : Startup Schedule Sync
-# Účel     : Po startu Home Assistanta přepočítá rozvrhy všech zón
+# Soubor   : heating/schedule/automation/startup/startup_schedule_sync.yaml
+# Modul    : Topení – synchronizace rozvrhů
+# Účel     : Startovní a synchronizační automatizace plánování topení
 # Autor    : Michal
-# Poslední úprava : 2025-11-20
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -17,13 +17,13 @@ automation:
     mode: restart
     initial_state: true
 
-    triggers:
+    trigger:
       - trigger: homeassistant
         event: start
 
-    conditions: []
+    condition: []
 
-    actions:
+    action:
       # Malé zpoždění, aby se po startu načetly všechny helpery/automations
       - delay: "00:00:10"
 

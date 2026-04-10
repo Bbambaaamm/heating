@@ -1,8 +1,10 @@
 # =====================================================================
-# Central dispatch (produkční varianta)
-# - Jedno rozhodovací místo pro mode/schedule/override
-# - Jedno aktuační místo pro clamp + set_temperature
-# - Feature flag pro bezpečný cutover bez mazání staré logiky
+# Soubor   : heating/control/refactor_mode_schedule_override.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_boolean:
@@ -104,16 +106,16 @@ automation:
   - id: heating_failsafe_dispatch_inputs_unavailable
     alias: "Heating – fail-safe při výpadku dispatch vstupů"
     mode: single
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.heating_dispatch_inputs_available
         to: "off"
         for: "00:02:00"
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.heating_central_dispatch_enable
         state: "on"
-    actions:
+    action:
       - action: input_select.select_option
         target:
           entity_id: input_select.topny_rezim
@@ -128,7 +130,7 @@ automation:
   - id: heating_dispatch_mode_schedule_override
     alias: "Heating – central dispatch (mode/schedule/override)"
     mode: restart
-    triggers:
+    trigger:
       - trigger: homeassistant
         event: start
       - trigger: event
@@ -181,7 +183,7 @@ automation:
           - timer.1p_chodba_manual_override
           - timer.2p_mama_manual_override
 
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.heating_central_dispatch_enable
         state: "on"
@@ -208,7 +210,7 @@ automation:
           dict(climate='climate.2p_mama', schedule='input_boolean.2p_mama_schedule_active', last='input_number.2p_mama_last_comfort', manual='input_boolean.2p_mama_manual_override', manual_type='input_select.2p_mama_manual_override_type', timer='timer.2p_mama_manual_override')
         ] }}
 
-    actions:
+    action:
       - delay: "00:00:02"
       - choose:
           - conditions:

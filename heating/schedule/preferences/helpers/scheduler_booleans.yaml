@@ -1,8 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/helpers/scheduler_booleans.yaml
-# Účel     : Proxy booleany pro Scheduler (ON = komfortní čas)
+# Soubor   : heating/schedule/preferences/helpers/scheduler_booleans.yaml
+# Modul    : Topení – helpery rozvrhů
+# Účel     : Helper entity pro preference a stav plánování zón
 # Autor    : Michal
-# Poslední úprava : 21-01-2026
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_boolean:

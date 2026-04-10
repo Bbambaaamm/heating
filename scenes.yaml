@@ -1,0 +1,8 @@
+# =====================================================================
+# Soubor   : scenes.yaml
+# Modul    : Scény
+# Účel     : Globální scény Home Assistant
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================

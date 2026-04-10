@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/control/watchdog_connectivity.yaml
-# Modul    : Heating – Watchdog Connectivity (hlavice)
-# Účel     : Jednotná diagnostika živosti hlavic + notifikace + eskalace
-# Autor    : Michal + Codex refactor
-# Poslední úprava : 2026-04-07
+# Soubor   : heating/control/watchdog_connectivity.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 # Parametry watchdogu:
@@ -198,7 +198,7 @@ automation:
   - alias: "Heating Watchdog – Hlavice unhealthy notifikace"
     id: heating_watchdog_connectivity
     mode: single
-    triggers:
+    trigger:
       - trigger: state
         id: sustained_problem
         entity_id: binary_sensor.heating_valves_all_healthy
@@ -207,10 +207,10 @@ automation:
       - trigger: time_pattern
         id: periodic_repeat
         minutes: "/10"
-    conditions:
+    condition:
       - condition: template
         value_template: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) > 0 }}"
-    actions:
+    action:
       - variables:
           count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
@@ -241,16 +241,16 @@ automation:
   - alias: "Heating Watchdog – eskalace výpadku hlavic"
     id: heating_watchdog_connectivity_escalation
     mode: single
-    triggers:
+    trigger:
       - trigger: numeric_state
         entity_id: sensor.heating_valves_unhealthy_count
         above: 1
         for: "00:30:00"
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
-    actions:
+    action:
       - variables:
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
       - service: persistent_notification.create
@@ -269,12 +269,12 @@ automation:
   - alias: "Heating Watchdog – clear notifikace hlavic"
     id: heating_watchdog_connectivity_clear
     mode: single
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.heating_valves_all_healthy
         to: "on"
         for: "00:05:00"
-    actions:
+    action:
       - service: persistent_notification.dismiss
         data:
           notification_id: heating_watchdog_connectivity_unhealthy

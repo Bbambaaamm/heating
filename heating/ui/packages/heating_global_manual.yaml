@@ -1,10 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/ui/packages/heating_global_manual.yaml
-# Modul    : Centrální ovládání topení – globální manuál
-# Účel     : Aplikace globálního manuálního režimu na vybrané zóny
+# Soubor   : heating/ui/packages/heating_global_manual.yaml
+# Modul    : Topení – UI balíček
+# Účel     : Balíček pro globální ruční ovládání z UI
 # Autor    : Michal
-# Poslední úprava : 2026-02-01
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 script:

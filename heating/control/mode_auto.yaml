@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/control/mode_auto.yaml
-# Modul    : Topení – logika režimu AUTO (Boost reset, aplikace rozvrhů)
-# Účel     : Při aktivaci režimu Auto zrušit Boost a obnovit rozvrhy
+# Soubor   : heating/control/mode_auto.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -27,14 +27,14 @@ automation:
       a znovu aplikuje rozvrhy všech topných zón.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id: input_select.topny_rezim
         to: "Auto"
       - trigger: homeassistant
         event: start
 
-    conditions:
+    condition:
       - condition: state
         entity_id: input_select.topny_rezim
         state: "Auto"
@@ -42,7 +42,7 @@ automation:
         entity_id: input_boolean.topny_system_enable
         state: "on"
 
-    actions:
+    action:
       - variables:
           boost_was_active: "{{ is_state('binary_sensor.kotel_boost_active', 'on') }}"
       # ---------------------------------------------------------------

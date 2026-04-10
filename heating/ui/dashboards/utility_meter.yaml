@@ -1,4 +1,11 @@
-#/config/heating/ui/dashboards/utility_meter.yaml
+# =====================================================================
+# Soubor   : heating/ui/dashboards/utility_meter.yaml
+# Modul    : Topení – dashboard šablony
+# Účel     : Template entity a utility metry pro dashboard
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================
 
 utility_meter:
   heating_gas_daily:

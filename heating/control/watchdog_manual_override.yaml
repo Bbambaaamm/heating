@@ -1,9 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/control/watchdog_manual_override.yaml
-# Modul    : Topení – Watchdog manuálních override
-# Účel     : Zabrání zaseknutí topení v manuálním režimu (např. chyba Scheduleru)
-# Spouštění: Denně 03:00
-# Akce     : Pokud je *_manual_override = ON a last_changed > 24h, vypne + zapíše do Logbooku
+# Soubor   : heating/control/watchdog_manual_override.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -14,11 +15,11 @@ automation:
       automaticky jej vypne a zapíše varování do logbooku.
     mode: single
 
-    triggers:
+    trigger:
       - trigger: time
         at: "03:00:00"
 
-    actions:
+    action:
       - repeat:
           for_each:
             - input_boolean.sklep_michal_manual_override

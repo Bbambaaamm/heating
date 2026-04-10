@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/policy/policy_effective.yaml
-# Modul    : Effective prahy – odvozené podle režimu (Auto/Eco/Boost/Off)
-# Účel     : Výpočet účinných prahů a zpoždění pro řízení kotle
+# Soubor   : heating/policy/policy_effective.yaml
+# Modul    : Topení – politika
+# Účel     : Konfigurace a výpočet efektivní topné politiky
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : Používá režim, Boost a vstupní policy hodnoty z UI
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 template:

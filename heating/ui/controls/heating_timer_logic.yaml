@@ -1,11 +1,10 @@
-# YAML 2024.10
 # =====================================================================
-# Soubor   : config/heating/control/heating_timer_logic.yaml
-# Modul    : Heating – Timer Logic (Auto vypnutí manuálu po doběhu timeru)
-# Účel     : Když doběhne timer zóny (active -> idle), automaticky vypne příslušný
-#            input_boolean.*_manual_override a zapíše událost do logbooku.
+# Soubor   : heating/ui/controls/heating_timer_logic.yaml
+# Modul    : Topení – UI ovládání
+# Účel     : Napojení UI prvků na logiku režimu a časovačů
 # Autor    : Michal
-# Poslední úprava : 2026-02-01
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:

@@ -1,3 +1,12 @@
+# =====================================================================
+# Soubor   : blueprints/automation/heating/smart_zone_schedule.yaml
+# Modul    : Blueprint – topení
+# Účel     : Znovupoužitelná automatizační šablona pro topné scénáře
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================
+
 blueprint:
   name: "Heating – Smart zone schedule (with comfort capture)"
   description: >

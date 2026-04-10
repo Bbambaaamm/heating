@@ -1,15 +1,12 @@
 # =====================================================================
-# Soubor   : config/heating/control/mode_boost.yaml
-# Modul    : Topení – logika režimu BOOST
-# Účel     : Výpočet stavu Boost, nastavení komfortu a návrat k rozvrhům
+# Soubor   : heating/control/mode_boost.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
-# =====================================================================
-# TEMPLATE – BOOST STAV
-# =====================================================================
 template:
   - binary_sensor:
       # -----------------------------------------------------------------
@@ -60,7 +57,7 @@ automation:
       a nastaví čas ukončení do input_datetime.boost_until.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id: input_select.topny_rezim
         to: "Boost"
@@ -68,9 +65,9 @@ automation:
         entity_id: input_boolean.boost_now
         to: "on"
 
-    conditions: []
+    condition: []
 
-    actions:
+    action:
       - variables:
           minutes_raw: "{{ states('input_number.boost_minutes') | int(60) }}"
           minutes: >-
@@ -100,12 +97,12 @@ automation:
       podle posledního komfortu a zadaného offsetu.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.kotel_boost_active
         to: "on"
 
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
@@ -131,7 +128,7 @@ automation:
           dict(name='2. patro – Máma',  climate='climate.2p_mama', last='input_number.2p_mama_last_comfort', manual='input_boolean.2p_mama_manual_override', timer='timer.2p_mama_manual_override', manual_type='input_select.2p_mama_manual_override_type')
         ] }}
 
-    actions:
+    action:
       - repeat:
           for_each: "{{ zones }}"
           sequence:
@@ -208,17 +205,17 @@ automation:
       a tlačítko Boost je stále zapnuté, automaticky ho vypne.
     mode: queued
 
-    triggers:
+    trigger:
       - trigger: time_pattern
         minutes: "/1"
 
-    conditions:
+    condition:
       - condition: template
         value_template: >-
           {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
           {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}
 
-    actions:
+    action:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now
@@ -252,18 +249,18 @@ automation:
       ve všech zónách, aby se obnovilo plánované řízení teploty.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id: binary_sensor.kotel_boost_active
         to: "off"
         for: "00:00:02"
 
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
 
-    actions:
+    action:
       - choose:
           - conditions:
               - condition: state

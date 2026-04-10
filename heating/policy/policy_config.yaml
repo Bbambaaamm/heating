@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/policy/policy_config.yaml
-# Modul    : Konfigurace prahů a zpoždění kotle (policy)
-# Účel     : Definice všech helperů ovlivňujících chování kotle
+# Soubor   : heating/policy/policy_config.yaml
+# Modul    : Topení – politika
+# Účel     : Konfigurace a výpočet efektivní topné politiky
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : Hodnoty jsou editovatelné v UI a používají se v engine/policy
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 input_number:

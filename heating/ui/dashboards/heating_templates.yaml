@@ -1,20 +1,11 @@
 # =====================================================================
-# Soubor   : config/heating/ui/dashboards/heating_templates.yaml
-# Modul    : UI – Dashboard senzory (aktuální teploty zón)
-# Účel     : Poskytnout UI-friendly senzory pro vizualizaci na dashboardu
+# Soubor   : heating/ui/dashboards/heating_templates.yaml
+# Modul    : Topení – dashboard šablony
+# Účel     : Template entity a utility metry pro dashboard
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
-# 📌 Obsah:
-#   - Senzory s aktuální teplotou ve všech zónách
-#   - Všechny hodnoty bezpečně ošetřené (float/attr fallback)
-#
-# 📝 Poznámky:
-# - climate.* → current_temperature používáme tam, kde je dostupný
-# - U zóny 1P Jídelna je použit Zigbee externí senzor (tz3000…)
-# - Všechny výstupy mají jednotku °C
-# =====================================================================
-
 
 template:
   - sensor:

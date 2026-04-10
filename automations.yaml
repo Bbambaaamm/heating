@@ -1,3 +1,16 @@
+# =====================================================================
+# Soubor   : automations.yaml
+# Modul    : Obecné automatizace
+# Účel     : Sdílené automatizace mimo topné balíčky
+# Autor    : Michal
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Instanční automace blueprintu smart_zone_schedule
+# Poznámka: Každá položka váže konkrétní zónu na helpery rozvrhu a override.
+# ---------------------------------------------------------------------
 - id: '1763973069444'
   alias: Rozvrh Přízemí - Michal (BP)
   description: ''
@@ -126,6 +139,10 @@
       manual_override_boolean: input_boolean.prizemi_chodba_zachod_manual_override
       manual_override_timer: timer.prizemi_chodba_zachod_manual_override
       manual_override_type: input_select.prizemi_chodba_zachod_manual_override_type
+# ---------------------------------------------------------------------
+# Instanční automace blueprintu danfoss_external_sensor
+# Poznámka: Zajišťuje přepis externí teploty do Danfoss hlavic.
+# ---------------------------------------------------------------------
 - id: '1764976713111'
   alias: Externí sensor - 1.P - Jídelna
   description: ''
@@ -149,7 +166,11 @@
 - id: '1771525903912'
   alias: 'Přítomnost Mámy '
   description: ''
-  triggers:
+  # -------------------------------------------------------------------
+  # Logika spuštění automace
+  # - reaguje na vstup sledovaného zařízení do zóny Home
+  # -------------------------------------------------------------------
+  trigger:
   - device_id: 7f7e7655eb51a2b8bcf3e7353a846706
     domain: device_tracker
     entity_id: cbc610fbc9f2421851d9a6726d9a192f
@@ -158,8 +179,12 @@
       secondary: true
     trigger: device
     zone: zone.home
-  conditions: []
-  actions:
+  condition: []
+  # -------------------------------------------------------------------
+  # Finální akce
+  # - odeslání notifikace při příjezdu
+  # -------------------------------------------------------------------
+  action:
   - action: notify.notify
     metadata: {}
     data:

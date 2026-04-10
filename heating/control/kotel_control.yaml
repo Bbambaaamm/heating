@@ -1,10 +1,10 @@
 # =====================================================================
-# Soubor   : config/heating/control/kotel_control.yaml
-# Modul    : Topení – řízení kotle
-# Účel     : Zapínání a vypínání kotle podle politiky a poptávky zón
+# Soubor   : heating/control/kotel_control.yaml
+# Modul    : Topení – řízení
+# Účel     : Řídicí automatizace topného systému (režimy, watchdog, fail-safe, kotel)
 # Autor    : Michal
-# Poslední úprava : 2025-11-19
-# Poznámka : YAML syntaxe podle HA 2024.10 (triggers / conditions / actions)
+# Poslední úprava : 2026-04-10
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
 automation:
@@ -24,7 +24,7 @@ automation:
       a jsou splněné prahové podmínky (aktivní zóny / poptávka).
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id:
           - binary_sensor.kotel_threshold_all_ok        # prahové podmínky OK
@@ -37,7 +37,7 @@ automation:
           - sensor.kotel_poptavka_prumer               # průměrná poptávka
           - sensor.kotel_poptavka_max                  # maximální poptávka
 
-    conditions:
+    condition:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
@@ -48,7 +48,7 @@ automation:
         entity_id: binary_sensor.kotel_threshold_all_ok
         state: "on"
 
-    actions:
+    action:
       - delay:
           seconds: "{{ states('sensor.kotel_effective_on_delay_sec') | int(0) }}"
       - condition: state
@@ -76,7 +76,7 @@ automation:
       režimem Off nebo nejsou splněné prahové podmínky.
     mode: restart
 
-    triggers:
+    trigger:
       - trigger: state
         entity_id:
           - binary_sensor.kotel_threshold_all_ok        # prahové podmínky OK
@@ -89,9 +89,9 @@ automation:
           - sensor.kotel_poptavka_prumer               # průměrná poptávka
           - sensor.kotel_poptavka_max                  # maximální poptávka
 
-    conditions: []
+    condition: []
 
-    actions:
+    action:
       - choose:
           # ⛔ Master OFF
           - conditions:
