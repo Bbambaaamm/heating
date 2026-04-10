@@ -133,6 +133,33 @@ template:
               {% set alive = p[1] %}
               {% if is_state(alive, 'off') %}
                 {% set climate = alive | replace('binary_sensor.heating_valve_', 'climate.') | replace('_alive', '') %}
+                {% set zone_id = climate | replace('climate.', '') %}
+                {% set climate_state = states(climate) %}
+                {% set climate_obj = states[climate] if states[climate] is defined else none %}
+                {% set climate_last_updated = climate_obj.last_updated if climate_obj is not none else none %}
+                {% set age_seconds = (as_timestamp(now()) - as_timestamp(climate_last_updated, default=0)) if climate_last_updated is not none else none %}
+                {% set age_minutes = ((age_seconds / 60) | round(1)) if age_seconds is not none else none %}
+                {% set lqi_entity = 'sensor.' ~ zone_id ~ '_lqi_6' %}
+                {% set battery_entity = 'sensor.' ~ zone_id ~ '_baterie' %}
+                {% set ts_entity = 'sensor.' ~ zone_id ~ '_casove_razitko' %}
+                {% set software_error_entity = 'sensor.' ~ zone_id ~ '_chyba_softwaru' %}
+                {% set window_entity = 'sensor.' ~ zone_id ~ '_detekovano_otevrene_okno' %}
+                {% set required_heat_entity = 'binary_sensor.' ~ zone_id ~ '_potrebne_teplo' %}
+                {% set lqi = states(lqi_entity) %}
+                {% set battery = states(battery_entity) %}
+                {% set software_error = states(software_error_entity) %}
+                {% set battery_value = battery | float(default=-1) %}
+                {% set lqi_value = lqi | float(default=-1) %}
+                {% set reason = 'stale_update_over_90m' %}
+                {% if climate_state in ['unknown', 'unavailable', ''] %}
+                  {% set reason = 'state_' ~ climate_state %}
+                {% elif software_error not in ['unknown', 'unavailable', '', 'none', '0'] %}
+                  {% set reason = 'software_error_' ~ software_error %}
+                {% elif battery_value >= 0 and battery_value <= 15 %}
+                  {% set reason = 'low_battery' %}
+                {% elif lqi_value >= 0 and lqi_value <= 30 %}
+                  {% set reason = 'low_linkquality' %}
+                {% endif %}
                 {% set out.items = out.items + [
                   {
                     'zone': label,
@@ -140,8 +167,27 @@ template:
                     'alive_state': states(alive),
                     'last_changed': states[alive].last_changed|string,
                     'climate_entity': climate,
-                    'climate_state': states(climate),
-                    'climate_last_updated': states[climate].last_updated|string if states[climate] is defined else 'n/a'
+                    'climate_state': climate_state,
+                    'climate_hvac_action': state_attr(climate, 'hvac_action'),
+                    'climate_current_temperature': state_attr(climate, 'current_temperature'),
+                    'climate_temperature': state_attr(climate, 'temperature'),
+                    'climate_battery': state_attr(climate, 'battery'),
+                    'battery_entity': battery_entity,
+                    'battery_state': battery,
+                    'lqi_entity': lqi_entity,
+                    'lqi_state': lqi,
+                    'timestamp_entity': ts_entity,
+                    'timestamp_state': states(ts_entity),
+                    'software_error_entity': software_error_entity,
+                    'software_error_state': software_error,
+                    'window_entity': window_entity,
+                    'window_state': states(window_entity),
+                    'required_heat_entity': required_heat_entity,
+                    'required_heat_state': states(required_heat_entity),
+                    'climate_last_updated': climate_last_updated|string if climate_last_updated is not none else 'n/a',
+                    'climate_age_minutes': age_minutes,
+                    'timeout_minutes': 90,
+                    'reason': reason
                   }
                 ] %}
               {% endif %}
@@ -175,7 +221,7 @@ automation:
           message: >-
             ⚠️ Detekováno {{ count }} problematických hlavic.
             Kritérium: climate entita je unknown/unavailable nebo bez update > 90 min.
-            Detail: {{ items }}
+            Detail (včetně důvodu): {{ items }}
       - choose:
           - conditions:
               - condition: template
