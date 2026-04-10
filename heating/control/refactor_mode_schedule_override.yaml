@@ -116,21 +116,38 @@ automation:
         entity_id: input_boolean.heating_central_dispatch_enable
         state: "on"
     action:
-      - action: input_select.select_option
-        target:
-          entity_id: input_select.topny_rezim
-        data:
-          option: "Eco"
+      - variables:
+          required_entities:
+            - input_select.topny_rezim
+            - input_boolean.topny_system_enable
+            - input_number.eco_temp_default
+            - input_number.boost_comfort_offset_c
+            - binary_sensor.kotel_boost_active
+          unavailable_entities: >-
+            {% set ns = namespace(items=[]) %}
+            {% for e in required_entities %}
+              {% if states(e) in ['unknown', 'unavailable', ''] %}
+                {% set ns.items = ns.items + [e ~ '=' ~ states(e)] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.items }}
+          current_mode: "{{ states('input_select.topny_rezim') }}"
       - action: persistent_notification.create
         data:
           notification_id: heating_dispatch_inputs_unavailable
           title: "Heating fail-safe"
-          message: "⚠️ Dispatch vstupy nedostupné > 2 min. Systém přepnut do Eco."
+          message: >-
+            ⚠️ Dispatch vstupy nedostupné > 2 min.
+            Žádný zásah do režimu (pouze upozornění + diagnostika).
+            Aktuální režim: {{ current_mode }}.
+            Nedostupné vstupy: {{ unavailable_entities }}.
       - action: logbook.log
         data:
           name: "Heating fail-safe"
-          message: "Dispatch vstupy nedostupné > 2 min. Přepínám na Eco."
-          entity_id: input_select.topny_rezim
+          message: >-
+            Dispatch vstupy nedostupné > 2 min. Bez přepnutí režimu (pouze diagnostika).
+            mode={{ current_mode }}, unavailable={{ unavailable_entities }}
+          entity_id: binary_sensor.heating_dispatch_inputs_available
 
   - id: heating_dispatch_inputs_recovered
     alias: "Heating – dispatch vstupy obnoveny"
