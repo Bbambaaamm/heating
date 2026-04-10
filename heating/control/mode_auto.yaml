@@ -90,12 +90,10 @@ automation:
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "on"
             sequence:
-              - action: event.fire
-                data:
-                  event_type: heating_reconcile_requested
-                  event_data:
-                    source: heating_auto_apply_on
-                    reason: mode_auto_no_boost
+              - event: heating_reconcile_requested
+                event_data:
+                  source: heating_auto_apply_on
+                  reason: mode_auto_no_boost
           - conditions:
               - condition: template
                 value_template: "{{ not boost_was_active }}"

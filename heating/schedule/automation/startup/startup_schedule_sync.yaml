@@ -33,12 +33,10 @@ automation:
                 entity_id: input_boolean.heating_central_dispatch_enable
                 state: "on"
             sequence:
-              - action: event.fire
-                data:
-                  event_type: heating_reconcile_requested
-                  event_data:
-                    source: heating_startup_schedule_sync
-                    reason: startup
+              - event: heating_reconcile_requested
+                event_data:
+                  source: heating_startup_schedule_sync
+                  reason: startup
           - conditions:
               - condition: state
                 entity_id: input_boolean.heating_central_dispatch_enable
