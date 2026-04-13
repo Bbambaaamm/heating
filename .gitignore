@@ -28,3 +28,7 @@
 !analysis/
 analysis/*
 !analysis/entities_snapshot.json
+
+# === shell script pro export entit ===
+!scripts/
+!scripts/export_entities_to_git.sh

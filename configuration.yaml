@@ -31,3 +31,7 @@ device_tracker: []
 # 🌡️ Integrace topení – načte všechny konfigurační soubory ze složky "heating"
 homeassistant:
   packages: !include_dir_named heating
+
+# 🐚 Shell příkazy dostupné z automací
+shell_command:
+  export_entities_snapshot: /config/scripts/export_entities_to_git.sh
