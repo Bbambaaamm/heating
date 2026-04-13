@@ -153,7 +153,7 @@ template:
                 {% set reason = 'stale_update_over_90m' %}
                 {% if climate_state in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'state_' ~ climate_state %}
-                {% elif software_error not in ['unknown', 'unavailable', '', 'none', '0'] %}
+                {% elif software_error not in ['unknown', 'unavailable', '', 'none', 'nothing', '0'] %}
                   {% set reason = 'software_error_' ~ software_error %}
                 {% elif battery_value >= 0 and battery_value <= 15 %}
                   {% set reason = 'low_battery' %}
