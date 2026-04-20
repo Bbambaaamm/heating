@@ -1,12 +1,11 @@
 #!/bin/sh
 set -eu
 
-REPO_DIR="/config"
 REGISTRY_FILE="/config/.storage/core.entity_registry"
 OUT_DIR="/config/analysis"
 OUT_FILE="$OUT_DIR/entities_snapshot.json"
 TMP_FILE="$OUT_DIR/entities_snapshot.tmp.json"
-LOCK_DIR="/tmp/export_entities_to_git.lock"
+LOCK_DIR="/tmp/export_entities_snapshot.lock"
 
 # zabrání paralelnímu běhu (např. při startu + časovém triggeru)
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -53,21 +52,10 @@ result.sort(key=lambda x: (x.get('entity_id') or ''))
 out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
 PY
 
-cd "$REPO_DIR"
-
-# pokud se nic nezměnilo, skonči bez commitu
+# pokud se nic nezměnilo, skonči bez přepsání cílového souboru
 if [ -f "$OUT_FILE" ] && cmp -s "$TMP_FILE" "$OUT_FILE"; then
   rm -f "$TMP_FILE"
   exit 0
 fi
 
 mv "$TMP_FILE" "$OUT_FILE"
-
-git add analysis/entities_snapshot.json
-
-if git diff --cached --quiet; then
-  exit 0
-fi
-
-git commit -m "Auto-update entities snapshot"
-git push
