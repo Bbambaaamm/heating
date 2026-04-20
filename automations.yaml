@@ -192,10 +192,10 @@
   mode: single
 
 - id: '1776000000001'
-  alias: Export entit do Git snapshotu
+  alias: Export entit do snapshotu
   description: >-
     Pravidelně ukládá snapshot entit do /config/analysis/entities_snapshot.json
-    a při změně vytvoří commit + push.
+    bez Git operací (commit/push běží mimo HA runtime).
   trigger:
   - platform: homeassistant
     event: start
