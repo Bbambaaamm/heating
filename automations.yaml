@@ -203,6 +203,6 @@
     minutes: "/30"
   condition: []
   action:
-  - action: shell_command.export_entities_snapshot
+  - service: shell_command.export_entities_snapshot
     data: {}
   mode: single
