@@ -8,7 +8,7 @@
 # =====================================================================
 
 # Parametry watchdogu:
-# - alive timeout: 90 minut (hlavice musí aspoň jednou aktualizovat entitu)
+# - alive timeout: 180 minut (hlavice musí aspoň jednou aktualizovat entitu)
 # - warning: problém trvá >= 10 minut
 # - periodic repeat: každých 10 minut při trvání problému
 # - escalation: >= 2 unhealthy hlavice po dobu 30 minut => pouze diagnostická eskalace (bez zásahu do režimu)
@@ -22,7 +22,7 @@ template:
           {% set e = states['climate.sklep_michal'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.sklep_michal') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_prizemi_michal_alive"
         unique_id: heating_valve_prizemi_michal_alive
@@ -31,7 +31,7 @@ template:
           {% set e = states['climate.prizemi_michal'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.prizemi_michal') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_prizemi_chodba_zachod_alive"
         unique_id: heating_valve_prizemi_chodba_zachod_alive
@@ -40,7 +40,7 @@ template:
           {% set e = states['climate.prizemi_chodba_zachod'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.prizemi_chodba_zachod') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_1p_jidelna_alive"
         unique_id: heating_valve_1p_jidelna_alive
@@ -49,7 +49,7 @@ template:
           {% set e = states['climate.1p_jidelna'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.1p_jidelna') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_1p_kuchyn_alive"
         unique_id: heating_valve_1p_kuchyn_alive
@@ -58,7 +58,7 @@ template:
           {% set e = states['climate.1p_kuchyn'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.1p_kuchyn') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_1p_koupelna_alive"
         unique_id: heating_valve_1p_koupelna_alive
@@ -67,7 +67,7 @@ template:
           {% set e = states['climate.1p_koupelna'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.1p_koupelna') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_1p_chodba_alive"
         unique_id: heating_valve_1p_chodba_alive
@@ -76,7 +76,7 @@ template:
           {% set e = states['climate.1p_chodba'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.1p_chodba') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valve_2p_mama_alive"
         unique_id: heating_valve_2p_mama_alive
@@ -85,7 +85,7 @@ template:
           {% set e = states['climate.2p_mama'] %}
           {% set ts = as_timestamp(e.last_updated) if e is not none else 0 %}
           {{ states('climate.2p_mama') not in ['unknown', 'unavailable', '']
-             and (as_timestamp(now()) - ts) <= 5400 }}
+             and (as_timestamp(now()) - ts) <= 10800 }}
 
       - name: "heating_valves_all_healthy"
         unique_id: heating_valves_all_healthy
@@ -147,12 +147,17 @@ template:
                 {% set required_heat_entity = 'binary_sensor.' ~ zone_id ~ '_potrebne_teplo' %}
                 {% set lqi = states(lqi_entity) %}
                 {% set battery = states(battery_entity) %}
+                {% set ts_state = states(ts_entity) %}
                 {% set software_error = states(software_error_entity) %}
                 {% set battery_value = battery | float(default=-1) %}
                 {% set lqi_value = lqi | float(default=-1) %}
-                {% set reason = 'stale_update_over_90m' %}
+                {% set reason = 'stale_update_over_180m' %}
                 {% if climate_state in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'state_' ~ climate_state %}
+                {% elif ts_state in ['unknown', 'unavailable', ''] %}
+                  {% set reason = 'missing_timestamp' %}
+                {% elif lqi in ['unknown', 'unavailable', ''] %}
+                  {% set reason = 'missing_lqi' %}
                 {% elif software_error not in ['unknown', 'unavailable', '', 'none', 'nothing', '0'] %}
                   {% set reason = 'software_error_' ~ software_error %}
                 {% elif battery_value >= 0 and battery_value <= 15 %}
@@ -177,7 +182,7 @@ template:
                     'lqi_entity': lqi_entity,
                     'lqi_state': lqi,
                     'timestamp_entity': ts_entity,
-                    'timestamp_state': states(ts_entity),
+                    'timestamp_state': ts_state,
                     'software_error_entity': software_error_entity,
                     'software_error_state': software_error,
                     'window_entity': window_entity,
@@ -186,7 +191,7 @@ template:
                     'required_heat_state': states(required_heat_entity),
                     'climate_last_updated': climate_last_updated|string if climate_last_updated is not none else 'n/a',
                     'climate_age_minutes': age_minutes,
-                    'timeout_minutes': 90,
+                    'timeout_minutes': 180,
                     'reason': reason
                   }
                 ] %}
@@ -220,7 +225,7 @@ automation:
           title: "Heating Watchdog – hlavice unhealthy"
           message: >-
             ⚠️ Detekováno {{ count }} problematických hlavic.
-            Kritérium: climate entita je unknown/unavailable nebo bez update > 90 min.
+            Kritérium: climate entita je unknown/unavailable nebo bez update > 180 min.
             Detail (včetně důvodu): {{ items }}
       - choose:
           - conditions:
