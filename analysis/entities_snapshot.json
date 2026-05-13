@@ -65,6 +65,19 @@
     "unique_id": "heating_boost_apply_comfort_on"
   },
   {
+    "entity_id": "automation.export_entit_do_git_snapshotu",
+    "platform": "automation",
+    "device_id": null,
+    "config_entry_id": null,
+    "original_name": "Export entit do snapshotu",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "1776000000001"
+  },
+  {
     "entity_id": "automation.externi_sensor_1_p_jidelna",
     "platform": "automation",
     "device_id": null,
@@ -102,6 +115,19 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "heating_dispatch_mode_schedule_override"
+  },
+  {
+    "entity_id": "automation.heating_dispatch_vstupy_obnoveny",
+    "platform": "automation",
+    "device_id": null,
+    "config_entry_id": null,
+    "original_name": "Heating – dispatch vstupy obnoveny",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "heating_dispatch_inputs_recovered"
   },
   {
     "entity_id": "automation.heating_fail_safe_pri_vypadku_dispatch_vstupu",
@@ -167,6 +193,19 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "heating_watchdog_connectivity_escalation"
+  },
+  {
+    "entity_id": "automation.heating_watchdog_manualni_override_12h_varovani",
+    "platform": "automation",
+    "device_id": null,
+    "config_entry_id": null,
+    "original_name": "Heating Watchdog – manuální override > 12h (varování)",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "heating_watchdog_manual_override_12h_warning"
   },
   {
     "entity_id": "automation.heating_watchdog_manualni_override_24h",
@@ -2938,6 +2977,19 @@
     "unique_id": "BleBox-gateBox-520291b86235-position"
   },
   {
+    "entity_id": "device_tracker.battery_monitor_d2d6",
+    "platform": "ibeacon",
+    "device_id": "d1403cab516e3b5ba5cc7bd7901d4957",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "655f83ca-ae16-a10a-702e-31f30d58dd82_63044_16785_7C:01:0A:6C:D2:D6"
+  },
+  {
     "entity_id": "device_tracker.care_44c5",
     "platform": "ibeacon",
     "device_id": "25f8faf2ab4c612c8950abb53132992b",
@@ -2962,6 +3014,19 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "8063ae90-d8b7-11e6-9598-0800200c9a66_30076_22794_B4:B8:59:0A:75:7C"
+  },
+  {
+    "entity_id": "device_tracker.cfmoto_906ble_998c",
+    "platform": "ibeacon",
+    "device_id": "664b021dbaa86762dcb185c01d4b85b2",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:23:99:8C"
   },
   {
     "entity_id": "device_tracker.cfmoto_906ble_c8d6",
@@ -2990,6 +3055,19 @@
     "unique_id": "8063ae90-d8b7-11e6-9598-0800200c9a66_33353_22831_B4:B8:59:2F:82:49"
   },
   {
+    "entity_id": "device_tracker.fsc_bt901_le_6a73",
+    "platform": "ibeacon",
+    "device_id": "d9156ceaf62eb4d22da01ba43fd188dc",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6A:73"
+  },
+  {
     "entity_id": "device_tracker.fsc_bt901_le_6ba9",
     "platform": "ibeacon",
     "device_id": "70330c2868aca92d1677f9fef888269e",
@@ -3003,6 +3081,19 @@
     "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6B:A9"
   },
   {
+    "entity_id": "device_tracker.fsc_bt901_le_6f14",
+    "platform": "ibeacon",
+    "device_id": "8cd1d554d888e22ad4cfaeda073c52d1",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6F:14"
+  },
+  {
     "entity_id": "device_tracker.fsc_bt901_le_82f4",
     "platform": "ibeacon",
     "device_id": "7cd3d0f57cd938bac349c64a43ce6f14",
@@ -3014,6 +3105,19 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:21:82:F4"
+  },
+  {
+    "entity_id": "device_tracker.fsc_bt901_le_b4df",
+    "platform": "ibeacon",
+    "device_id": "fdaca54c67f689a9d356b43205094a05",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:B4:DF"
   },
   {
     "entity_id": "device_tracker.fsc_bt901_le_f07b",
@@ -3042,6 +3146,19 @@
     "unique_id": "2f14e34f05e8315a"
   },
   {
+    "entity_id": "device_tracker.n_g_8e9e",
+    "platform": "ibeacon",
+    "device_id": "5360ead04e631ec6d25b3cbd14ac6fe4",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_14405_14661_00:E9:3A:1C:8E:9E"
+  },
+  {
     "entity_id": "device_tracker.n_g_a174",
     "platform": "ibeacon",
     "device_id": "4a6ab49591fd6ffbbc1586ba03af754b",
@@ -3068,6 +3185,19 @@
     "unique_id": "45534142-5f44-495f-4942-414e43414542_16964_12594_90:E8:68:44:BD:12"
   },
   {
+    "entity_id": "device_tracker.n_g_d444",
+    "platform": "ibeacon",
+    "device_id": "dfda4eb6060a23d32fc67be78cb6c6ec",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_17460_13364_90:E8:68:44:D4:44"
+  },
+  {
     "entity_id": "device_tracker.n_g_e9ae",
     "platform": "ibeacon",
     "device_id": "958b96db207bd4bbc4bd23593310120e",
@@ -3079,6 +3209,19 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "45534142-5f44-495f-4942-414e43414542_17721_16709_90:E8:68:44:E9:AE"
+  },
+  {
+    "entity_id": "device_tracker.s871_4b34",
+    "platform": "ibeacon",
+    "device_id": "4210bfeebfa31fab7b08ba78e242fd1c",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "34165a1d-e72b-4f16-8503-e2db25d98fa7_100_1_C8:42:82:6B:4B:34"
   },
   {
     "entity_id": "device_tracker.sm_s938b",
@@ -5265,6 +5408,19 @@
     "unique_id": "2p_mama_last_comfort"
   },
   {
+    "entity_id": "input_number.boost_comfort_offset_c",
+    "platform": "input_number",
+    "device_id": null,
+    "config_entry_id": null,
+    "original_name": "Boost – comfort offset (°C)",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "boost_comfort_offset_c"
+  },
+  {
     "entity_id": "input_number.boost_minutes",
     "platform": "input_number",
     "device_id": null,
@@ -7154,7 +7310,7 @@
     "platform": "zha",
     "device_id": "71d4a8b4574036964d459e0937ab1664",
     "config_entry_id": "01K77DS24VMPRKQ5KJY81J9BY1",
-    "original_name": "Chování při spuštění",
+    "original_name": "Chování při zapnutí",
     "disabled_by": null,
     "hidden_by": null,
     "entity_category": "config",
@@ -8281,6 +8437,58 @@
     "unique_id": "backup_manager_state"
   },
   {
+    "entity_id": "sensor.battery_monitor_d2d6_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "d1403cab516e3b5ba5cc7bd7901d4957",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "655f83ca-ae16-a10a-702e-31f30d58dd82_63044_16785_7C:01:0A:6C:D2:D6_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.battery_monitor_d2d6_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "d1403cab516e3b5ba5cc7bd7901d4957",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "655f83ca-ae16-a10a-702e-31f30d58dd82_63044_16785_7C:01:0A:6C:D2:D6_rssi"
+  },
+  {
+    "entity_id": "sensor.battery_monitor_d2d6_vykon",
+    "platform": "ibeacon",
+    "device_id": "d1403cab516e3b5ba5cc7bd7901d4957",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "655f83ca-ae16-a10a-702e-31f30d58dd82_63044_16785_7C:01:0A:6C:D2:D6_power"
+  },
+  {
+    "entity_id": "sensor.battery_monitor_d2d6_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "d1403cab516e3b5ba5cc7bd7901d4957",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "655f83ca-ae16-a10a-702e-31f30d58dd82_63044_16785_7C:01:0A:6C:D2:D6_vendor"
+  },
+  {
     "entity_id": "sensor.boiler_absburnpow",
     "platform": "mqtt",
     "device_id": "265d7d614ee394ee028ab6bc1d2c9591",
@@ -8786,6 +8994,58 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "8063ae90-d8b7-11e6-9598-0800200c9a66_30076_22794_B4:B8:59:0A:75:7C_vendor"
+  },
+  {
+    "entity_id": "sensor.cfmoto_906ble_998c_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "664b021dbaa86762dcb185c01d4b85b2",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:23:99:8C_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.cfmoto_906ble_998c_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "664b021dbaa86762dcb185c01d4b85b2",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:23:99:8C_rssi"
+  },
+  {
+    "entity_id": "sensor.cfmoto_906ble_998c_vykon",
+    "platform": "ibeacon",
+    "device_id": "664b021dbaa86762dcb185c01d4b85b2",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:23:99:8C_power"
+  },
+  {
+    "entity_id": "sensor.cfmoto_906ble_998c_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "664b021dbaa86762dcb185c01d4b85b2",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:23:99:8C_vendor"
   },
   {
     "entity_id": "sensor.cfmoto_906ble_c8d6_odhadovana_vzdalenost",
@@ -9334,6 +9594,58 @@
     "unique_id": "core_configurator_version"
   },
   {
+    "entity_id": "sensor.fsc_bt901_le_6a73_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "d9156ceaf62eb4d22da01ba43fd188dc",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6A:73_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6a73_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "d9156ceaf62eb4d22da01ba43fd188dc",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6A:73_rssi"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6a73_vykon",
+    "platform": "ibeacon",
+    "device_id": "d9156ceaf62eb4d22da01ba43fd188dc",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6A:73_power"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6a73_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "d9156ceaf62eb4d22da01ba43fd188dc",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6A:73_vendor"
+  },
+  {
     "entity_id": "sensor.fsc_bt901_le_6ba9_odhadovana_vzdalenost",
     "platform": "ibeacon",
     "device_id": "70330c2868aca92d1677f9fef888269e",
@@ -9386,6 +9698,58 @@
     "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6B:A9_vendor"
   },
   {
+    "entity_id": "sensor.fsc_bt901_le_6f14_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "8cd1d554d888e22ad4cfaeda073c52d1",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6F:14_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6f14_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "8cd1d554d888e22ad4cfaeda073c52d1",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6F:14_rssi"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6f14_vykon",
+    "platform": "ibeacon",
+    "device_id": "8cd1d554d888e22ad4cfaeda073c52d1",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6F:14_power"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_6f14_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "8cd1d554d888e22ad4cfaeda073c52d1",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:6F:14_vendor"
+  },
+  {
     "entity_id": "sensor.fsc_bt901_le_82f4_odhadovana_vzdalenost",
     "platform": "ibeacon",
     "device_id": "7cd3d0f57cd938bac349c64a43ce6f14",
@@ -9436,6 +9800,58 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:21:82:F4_vendor"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_b4df_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "fdaca54c67f689a9d356b43205094a05",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:B4:DF_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_b4df_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "fdaca54c67f689a9d356b43205094a05",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:B4:DF_rssi"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_b4df_vykon",
+    "platform": "ibeacon",
+    "device_id": "fdaca54c67f689a9d356b43205094a05",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:B4:DF_power"
+  },
+  {
+    "entity_id": "sensor.fsc_bt901_le_b4df_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "fdaca54c67f689a9d356b43205094a05",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "fda50693-a4e2-4fb1-afcf-c6eb07647825_10065_26049_DD:0D:30:22:B4:DF_vendor"
   },
   {
     "entity_id": "sensor.fsc_bt901_le_f07b_odhadovana_vzdalenost",
@@ -10088,6 +10504,32 @@
     "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_audio_mode"
   },
   {
+    "entity_id": "sensor.mama_basal_body_temperature",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Basal body temperature",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "temperature",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_basal_body_temperature"
+  },
+  {
+    "entity_id": "sensor.mama_basal_metabolic_rate",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Basal metabolic rate",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_basal_metabolic_rate"
+  },
+  {
     "entity_id": "sensor.mama_battery_health",
     "platform": "mobile_app",
     "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
@@ -10216,6 +10658,45 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_body_fat"
+  },
+  {
+    "entity_id": "sensor.mama_body_temperature",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Body temperature",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "temperature",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_body_temperature"
+  },
+  {
+    "entity_id": "sensor.mama_body_water_mass",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Body water mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_body_water_mass"
+  },
+  {
+    "entity_id": "sensor.mama_bone_mass",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Bone mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_bone_mass"
   },
   {
     "entity_id": "sensor.mama_car_battery",
@@ -10413,6 +10894,19 @@
     "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_floors_climbed"
   },
   {
+    "entity_id": "sensor.mama_daily_hydration",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Daily hydration",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "volume",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_hydration"
+  },
+  {
     "entity_id": "sensor.mama_daily_steps",
     "platform": "mobile_app",
     "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
@@ -10517,6 +11011,19 @@
     "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_heart_rate_variability"
   },
   {
+    "entity_id": "sensor.mama_height",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Height",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "distance",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_height"
+  },
+  {
     "entity_id": "sensor.mama_high_accuracy_update_interval",
     "platform": "mobile_app",
     "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
@@ -10619,6 +11126,19 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_last_used_app"
+  },
+  {
+    "entity_id": "sensor.mama_lean_body_mass",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": "Mama Lean body mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "6e64579975013f1b3d70a608e0faa9d5544f7bc24fc9ab651bcbd30a2c920922_health_connect_lean_body_mass"
   },
   {
     "entity_id": "sensor.mama_light_sensor",
@@ -11310,6 +11830,110 @@
     "unique_id": "filter_life_remaining_5c:e5:0c:b3:88:ec"
   },
   {
+    "entity_id": "sensor.michal_sm_s938b_basal_body_temperature",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Basal body temperature",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "temperature",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_basal_body_temperature"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_basal_metabolic_rate",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Basal metabolic rate",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_basal_metabolic_rate"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_body_temperature",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Body temperature",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "temperature",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_body_temperature"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_body_water_mass",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Body water mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_body_water_mass"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_bone_mass",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Bone mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_bone_mass"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_daily_hydration",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Daily hydration",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "volume",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_hydration"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_height",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Height",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "distance",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_height"
+  },
+  {
+    "entity_id": "sensor.michal_sm_s938b_lean_body_mass",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": "SM-S938B Lean body mass",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": "diagnostic",
+    "has_entity_name": false,
+    "original_device_class": "weight",
+    "unique_id": "b25552eb3a578ffd001078800aee4eb4278f34e93f3d329594d7d2e1b3dc36cf_health_connect_lean_body_mass"
+  },
+  {
     "entity_id": "sensor.mosquitto_broker_nejnovejsi_verze",
     "platform": "hassio",
     "device_id": "7ff0aae8e52fa3f86c54941232a93228",
@@ -11360,6 +11984,58 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "core_mosquitto_version"
+  },
+  {
+    "entity_id": "sensor.n_g_8e9e_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "5360ead04e631ec6d25b3cbd14ac6fe4",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_14405_14661_00:E9:3A:1C:8E:9E_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.n_g_8e9e_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "5360ead04e631ec6d25b3cbd14ac6fe4",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_14405_14661_00:E9:3A:1C:8E:9E_rssi"
+  },
+  {
+    "entity_id": "sensor.n_g_8e9e_vykon",
+    "platform": "ibeacon",
+    "device_id": "5360ead04e631ec6d25b3cbd14ac6fe4",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_14405_14661_00:E9:3A:1C:8E:9E_power"
+  },
+  {
+    "entity_id": "sensor.n_g_8e9e_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "5360ead04e631ec6d25b3cbd14ac6fe4",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_14405_14661_00:E9:3A:1C:8E:9E_vendor"
   },
   {
     "entity_id": "sensor.n_g_a174_odhadovana_vzdalenost",
@@ -11464,6 +12140,58 @@
     "has_entity_name": true,
     "original_device_class": null,
     "unique_id": "45534142-5f44-495f-4942-414e43414542_16964_12594_90:E8:68:44:BD:12_vendor"
+  },
+  {
+    "entity_id": "sensor.n_g_d444_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "dfda4eb6060a23d32fc67be78cb6c6ec",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_17460_13364_90:E8:68:44:D4:44_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.n_g_d444_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "dfda4eb6060a23d32fc67be78cb6c6ec",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_17460_13364_90:E8:68:44:D4:44_rssi"
+  },
+  {
+    "entity_id": "sensor.n_g_d444_vykon",
+    "platform": "ibeacon",
+    "device_id": "dfda4eb6060a23d32fc67be78cb6c6ec",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_17460_13364_90:E8:68:44:D4:44_power"
+  },
+  {
+    "entity_id": "sensor.n_g_d444_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "dfda4eb6060a23d32fc67be78cb6c6ec",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "45534142-5f44-495f-4942-414e43414542_17460_13364_90:E8:68:44:D4:44_vendor"
   },
   {
     "entity_id": "sensor.n_g_e9ae_odhadovana_vzdalenost",
@@ -13518,6 +14246,58 @@
     "has_entity_name": true,
     "original_device_class": "enum",
     "unique_id": "84:27:12:ff:fe:87:b5:3d-1-513-setpoint_change_source"
+  },
+  {
+    "entity_id": "sensor.s871_4b34_odhadovana_vzdalenost",
+    "platform": "ibeacon",
+    "device_id": "4210bfeebfa31fab7b08ba78e242fd1c",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Odhadovaná vzdálenost",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "distance",
+    "unique_id": "34165a1d-e72b-4f16-8503-e2db25d98fa7_100_1_C8:42:82:6B:4B:34_estimated_distance"
+  },
+  {
+    "entity_id": "sensor.s871_4b34_sila_signalu",
+    "platform": "ibeacon",
+    "device_id": "4210bfeebfa31fab7b08ba78e242fd1c",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Síla signálu",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "34165a1d-e72b-4f16-8503-e2db25d98fa7_100_1_C8:42:82:6B:4B:34_rssi"
+  },
+  {
+    "entity_id": "sensor.s871_4b34_vykon",
+    "platform": "ibeacon",
+    "device_id": "4210bfeebfa31fab7b08ba78e242fd1c",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výkon",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": "signal_strength",
+    "unique_id": "34165a1d-e72b-4f16-8503-e2db25d98fa7_100_1_C8:42:82:6B:4B:34_power"
+  },
+  {
+    "entity_id": "sensor.s871_4b34_vyrobce",
+    "platform": "ibeacon",
+    "device_id": "4210bfeebfa31fab7b08ba78e242fd1c",
+    "config_entry_id": "01KHVK94T9VX1F7T4GKQAXFJNY",
+    "original_name": "Výrobce",
+    "disabled_by": "integration",
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "34165a1d-e72b-4f16-8503-e2db25d98fa7_100_1_C8:42:82:6B:4B:34_vendor"
   },
   {
     "entity_id": "sensor.samsung_s25_ultra_accent_color",
@@ -19409,6 +20189,32 @@
     "unique_id": "84:27:12:ff:fe:87:b5:3d-1-513-radiator_covered"
   },
   {
+    "entity_id": "switch.schedule_199c4a",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #199c4a",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "199c4a"
+  },
+  {
+    "entity_id": "switch.schedule_1ec2f9",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #1ec2f9",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "1ec2f9"
+  },
+  {
     "entity_id": "switch.schedule_2681e1",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19461,6 +20267,19 @@
     "unique_id": "35fee8"
   },
   {
+    "entity_id": "switch.schedule_38c24f",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #38c24f",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "38c24f"
+  },
+  {
     "entity_id": "switch.schedule_406e43",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19474,6 +20293,19 @@
     "unique_id": "406e43"
   },
   {
+    "entity_id": "switch.schedule_4148b7",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #4148b7",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "4148b7"
+  },
+  {
     "entity_id": "switch.schedule_4657c4",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19485,6 +20317,45 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "4657c4"
+  },
+  {
+    "entity_id": "switch.schedule_47949f",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #47949f",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "47949f"
+  },
+  {
+    "entity_id": "switch.schedule_49aa67",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #49aa67",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "49aa67"
+  },
+  {
+    "entity_id": "switch.schedule_4ce94e",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #4ce94e",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "4ce94e"
   },
   {
     "entity_id": "switch.schedule_510079",
@@ -19513,6 +20384,19 @@
     "unique_id": "5888c7"
   },
   {
+    "entity_id": "switch.schedule_5d30c0",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #5d30c0",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "5d30c0"
+  },
+  {
     "entity_id": "switch.schedule_5e77c3",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19524,6 +20408,19 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "5e77c3"
+  },
+  {
+    "entity_id": "switch.schedule_636121",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #636121",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "636121"
   },
   {
     "entity_id": "switch.schedule_63bf8c",
@@ -19565,6 +20462,19 @@
     "unique_id": "6b6233"
   },
   {
+    "entity_id": "switch.schedule_6d5043",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #6d5043",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "6d5043"
+  },
+  {
     "entity_id": "switch.schedule_79d6f9",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19602,6 +20512,19 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "82b463"
+  },
+  {
+    "entity_id": "switch.schedule_8fbe23",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #8fbe23",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "8fbe23"
   },
   {
     "entity_id": "switch.schedule_ad2a6a",
@@ -19643,6 +20566,58 @@
     "unique_id": "ae6a78"
   },
   {
+    "entity_id": "switch.schedule_b2e00d",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #b2e00d",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "b2e00d"
+  },
+  {
+    "entity_id": "switch.schedule_b871da",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #b871da",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "b871da"
+  },
+  {
+    "entity_id": "switch.schedule_bac918",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #bac918",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "bac918"
+  },
+  {
+    "entity_id": "switch.schedule_bb3260",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #bb3260",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "bb3260"
+  },
+  {
     "entity_id": "switch.schedule_bed932",
     "platform": "scheduler",
     "device_id": "2fa04b0615153a53f9649411c18fcf99",
@@ -19654,6 +20629,32 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "bed932"
+  },
+  {
+    "entity_id": "switch.schedule_c46720",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #c46720",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "c46720"
+  },
+  {
+    "entity_id": "switch.schedule_cbf260",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #cbf260",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "cbf260"
   },
   {
     "entity_id": "switch.schedule_cc2e74",
@@ -19719,6 +20720,32 @@
     "has_entity_name": false,
     "original_device_class": null,
     "unique_id": "d7741c"
+  },
+  {
+    "entity_id": "switch.schedule_dea610",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #dea610",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "dea610"
+  },
+  {
+    "entity_id": "switch.schedule_e225f1",
+    "platform": "scheduler",
+    "device_id": "2fa04b0615153a53f9649411c18fcf99",
+    "config_entry_id": "01K7MGQGVZ8PECMQ2BZRPNQZRZ",
+    "original_name": "Schedule #e225f1",
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": "config",
+    "has_entity_name": false,
+    "original_device_class": null,
+    "unique_id": "e225f1"
   },
   {
     "entity_id": "switch.schedule_e3652a",
@@ -20310,7 +21337,7 @@
     "platform": "hacs",
     "device_id": "ce0c89b2ea2b324f05a9e70613605d2c",
     "config_entry_id": "01K77R1JAQJPPYTYDPZSS7H30A",
-    "original_name": "Flexible Horseshoe Card for Lovelace update",
+    "original_name": "Flexible Horseshoe Card update",
     "disabled_by": null,
     "hidden_by": null,
     "entity_category": "config",
