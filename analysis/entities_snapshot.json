@@ -5707,6 +5707,32 @@
     "unique_id": "uuid:62e1cb41-15ef-4099-bf8f-64f9190fb7b4"
   },
   {
+    "entity_id": "notify.mama",
+    "platform": "mobile_app",
+    "device_id": "7f7e7655eb51a2b8bcf3e7353a846706",
+    "config_entry_id": "01K8BG7PH5QHHG2AGPYYFYY02Y",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "2f14e34f05e8315a"
+  },
+  {
+    "entity_id": "notify.michal",
+    "platform": "mobile_app",
+    "device_id": "3765c1e3a6bcddc600ff6bdddd403548",
+    "config_entry_id": "01K77ECDJ13YM1W5A7HCZ2WAF5",
+    "original_name": null,
+    "disabled_by": null,
+    "hidden_by": null,
+    "entity_category": null,
+    "has_entity_name": true,
+    "original_device_class": null,
+    "unique_id": "f795d6e03fde7970"
+  },
+  {
     "entity_id": "number.1p_chodba_cas_zahajeni_cviceni",
     "platform": "zha",
     "device_id": "de599b1462481afa1b0bf246b9ff7e7b",
