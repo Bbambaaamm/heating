@@ -152,18 +152,25 @@ template:
                 {% set battery_value = battery | float(default=-1) %}
                 {% set lqi_value = lqi | float(default=-1) %}
                 {% set reason = 'stale_update_over_180m' %}
+                {% set reason_detail = 'climate entity nebyla aktualizována déle než 180 min' %}
                 {% if climate_state in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'state_' ~ climate_state %}
+                  {% set reason_detail = 'climate state=' ~ climate_state ~ ' (entity není spolehlivě dostupná)' %}
                 {% elif ts_state in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'missing_timestamp' %}
+                  {% set reason_detail = 'timestamp sensor je ' ~ ts_state ~ ', climate_age=' ~ (age_minutes|string if age_minutes is not none else 'n/a') ~ ' min' %}
                 {% elif lqi in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'missing_lqi' %}
+                  {% set reason_detail = 'LQI sensor je ' ~ lqi ~ ' (nelze určit kvalitu spojení)' %}
                 {% elif software_error not in ['unknown', 'unavailable', '', 'none', 'nothing', '0'] %}
                   {% set reason = 'software_error_' ~ software_error %}
+                  {% set reason_detail = 'zařízení hlásí software_error=' ~ software_error %}
                 {% elif battery_value >= 0 and battery_value <= 15 %}
                   {% set reason = 'low_battery' %}
+                  {% set reason_detail = 'baterie je nízká: ' ~ battery_value ~ '%' %}
                 {% elif lqi_value >= 0 and lqi_value <= 30 %}
                   {% set reason = 'low_linkquality' %}
+                  {% set reason_detail = 'LQI je nízké: ' ~ lqi_value %}
                 {% endif %}
                 {% set out.items = out.items + [
                   {
@@ -192,7 +199,8 @@ template:
                     'climate_last_updated': climate_last_updated|string if climate_last_updated is not none else 'n/a',
                     'climate_age_minutes': age_minutes,
                     'timeout_minutes': 180,
-                    'reason': reason
+                    'reason': reason,
+                    'reason_detail': reason_detail
                   }
                 ] %}
               {% endif %}
