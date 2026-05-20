@@ -156,9 +156,6 @@ template:
                 {% if climate_state in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'state_' ~ climate_state %}
                   {% set reason_detail = 'climate state=' ~ climate_state ~ ' (entity není spolehlivě dostupná)' %}
-                {% elif ts_state in ['unknown', 'unavailable', ''] %}
-                  {% set reason = 'missing_timestamp' %}
-                  {% set reason_detail = 'timestamp sensor je ' ~ ts_state ~ ', climate_age=' ~ (age_minutes|string if age_minutes is not none else 'n/a') ~ ' min' %}
                 {% elif lqi in ['unknown', 'unavailable', ''] %}
                   {% set reason = 'missing_lqi' %}
                   {% set reason_detail = 'LQI sensor je ' ~ lqi ~ ' (nelze určit kvalitu spojení)' %}
