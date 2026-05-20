@@ -59,16 +59,16 @@ template:
           {{ state_attr('climate.1p_kuchyn', 'current_temperature') | float(0) }}
 
       # -----------------------------------------------------------------
-      # 🥘 1. patro – Jídelna: aktuální teplota z externího Zigbee senzoru
+      # 🥘 1. patro – Jídelna: aktuální teplota z hlavice
       # -----------------------------------------------------------------
       - name: "1. patro Jídelna – aktuální teplota"
         unit_of_measurement: "°C"
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('sensor.tz3000_jidelna_teplota', 'unavailable') }}
+          {{ not is_state('climate.1p_jidelna', 'unavailable') }}
         state: >
-          {{ states('sensor.tz3000_jidelna_teplota') | float(0) | round(1) }}
+          {{ state_attr('climate.1p_jidelna', 'current_temperature') | float(0) }}
 
       # -----------------------------------------------------------------
       # 🥘 1. patro – Chodba: aktuální teplota z hlavice
