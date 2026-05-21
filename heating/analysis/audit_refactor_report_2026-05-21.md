@@ -139,3 +139,11 @@
 2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly, že `heating/core/zone_<zona>.yaml` používá správnou `climate` entitu.
 3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tiché chyby při onboardingu, kdy soubor zóny existuje, ale omylem odkazuje na jinou `climate` entitu.
+
+
+## Další krok provedený v této iteraci (2026-05-21, doplnění kontroly scheduler helperů)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu `heating/schedule/preferences/helpers/scheduler_booleans.yaml`:
+   - ověřuje se, že každá baseline zóna má i `input_boolean.<zona>_schedule_active` v centrálním seznamu scheduler helperů.
+2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly tohoto helperu.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tiché nekonzistence mezi orchestrace seznamy a UI/helper vrstvou plánování.

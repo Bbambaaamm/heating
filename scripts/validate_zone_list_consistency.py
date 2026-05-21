@@ -19,6 +19,7 @@ FILES = {
     "startup_reconcile": ROOT / "heating/schedule/automation/startup/manual_override_startup_reconcile.yaml",
     "automations": ROOT / "automations.yaml",
     "core_groups": ROOT / "heating/core/groups.yaml",
+    "scheduler_booleans": ROOT / "heating/schedule/preferences/helpers/scheduler_booleans.yaml",
 }
 
 
@@ -39,6 +40,7 @@ def main() -> int:
     startup_reconcile = read_text(FILES["startup_reconcile"])
     automations = read_text(FILES["automations"])
     core_groups = read_text(FILES["core_groups"])
+    scheduler_booleans = read_text(FILES["scheduler_booleans"])
 
     dispatch_last = extract_set(r"input_number\.([a-z0-9_]+)_last_comfort", dispatch)
     dispatch_schedule = extract_set(r"input_boolean\.([a-z0-9_]+)_schedule_active", dispatch)
@@ -61,6 +63,7 @@ def main() -> int:
     automation_timer = extract_set(r"timer\.([a-z0-9_]+)_manual_override", automations)
     core_group_climate = extract_set(r"climate\.([a-z0-9_]+)", core_groups)
     automation_climate = extract_set(r"climate\.([a-z0-9_]+)", automations)
+    scheduler_booleans_schedule_active = extract_set(r"([a-z0-9_]+)_schedule_active", scheduler_booleans)
 
     groups = {
         "dispatch_last": dispatch_last,
@@ -82,6 +85,7 @@ def main() -> int:
         "automation_timer": automation_timer,
         "automation_climate": automation_climate,
         "core_group_climate": core_group_climate,
+        "scheduler_booleans_schedule_active": scheduler_booleans_schedule_active,
     }
 
     baseline = dispatch_last
