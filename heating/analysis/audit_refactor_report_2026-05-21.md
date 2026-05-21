@@ -165,3 +165,11 @@
 2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených helper definic.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tichého rozpojení mezi orchestrace seznamy a skutečně definovanými helper entitami v package vrstvě.
+
+## Další krok provedený v této iteraci (2026-05-21, kontrola obsahu schedule helper souborů)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu obsahu `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`:
+   - ověřuje se přítomnost `schedule_enable_<zona>`,
+   - ověřuje se přítomnost minimálních hranic týdenního rozvrhu (`<zona>_monday_start`, `<zona>_sunday_end`).
+2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně vyžadoval výše uvedené kontroly pro každý zónový helper soubor.
+3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tiché chyby, kdy soubor helperů existuje, ale neobsahuje klíčové entity, na které spoléhá blueprint plánování.
