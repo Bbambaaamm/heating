@@ -309,23 +309,36 @@ automation:
       - variables:
           trigger_entity: "{{ trigger.entity_id if trigger is defined and trigger.entity_id is defined else 'n/a' }}"
           trigger_id: "{{ trigger.id if trigger is defined and trigger.id is defined else 'n/a' }}"
-      - action: logbook.log
-        data:
-          name: "Heating dispatch"
-          message: >-
-            Triggered (id={{ trigger_id }}, entity={{ trigger_entity }}),
-            intent={{ intent }}, dispatch={{ states('input_boolean.heating_central_dispatch_enable') }}.
-          entity_id: input_select.topny_rezim
+          debug_guard: "{{ is_state('input_boolean.heating_debug_guard', 'on') }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ debug_guard }}"
+            sequence:
+              - action: logbook.log
+                data:
+                  name: "Heating dispatch"
+                  message: >-
+                    Triggered (id={{ trigger_id }}, entity={{ trigger_entity }}),
+                    intent={{ intent }}, dispatch={{ states('input_boolean.heating_central_dispatch_enable') }}.
+                  entity_id: input_select.topny_rezim
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ intent == 'off' }}"
             sequence:
-              - action: logbook.log
-                data:
-                  name: "Heating dispatch"
-                  message: "Intent OFF: dispatch neaplikuje setpointy."
-                  entity_id: input_select.topny_rezim
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ debug_guard
+                             or trigger_entity in ['input_select.topny_rezim', 'binary_sensor.kotel_boost_active'] }}
+                    sequence:
+                      - action: logbook.log
+                        data:
+                          name: "Heating dispatch"
+                          message: "Intent OFF: dispatch neaplikuje setpointy."
+                          entity_id: input_select.topny_rezim
               - stop: "Režim Off"
 
       - repeat:
