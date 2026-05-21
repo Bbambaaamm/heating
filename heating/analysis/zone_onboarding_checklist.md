@@ -27,6 +27,11 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] `climate.<zona>` je v `group.heating_zones` (pro centrální přehled a navazující automace).
 - [ ] `heating/schedule/preferences/helpers/scheduler_booleans.yaml`
   - [ ] existuje `input_boolean.<zona>_schedule_active` pro zónu (konzistence helperů plánování).
+- [ ] `heating/schedule/preferences/helpers/manual_override_helpers.yaml`
+  - [ ] existuje `input_boolean.<zona>_manual_override`.
+  - [ ] existuje `input_boolean.ui_select_<zona>`.
+  - [ ] existuje `timer.<zona>_manual_override`.
+  - [ ] existuje `input_select.<zona>_manual_override_type`.
 - [ ] `heating/schedule/automation/startup/heating_ui_sync_selection.yaml`
   - [ ] zóna je v seznamu `input_boolean.<zona>_manual_override`.
   - [ ] existuje navázaný UI helper `input_boolean.ui_select_<zona>`.
@@ -46,7 +51,7 @@ Spusť:
 python3 scripts/validate_zone_list_consistency.py
 ```
 
-Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler_booleans schedule helpery + UI startup sync + UI global manual map), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>`. Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity.
+Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler helpery + UI startup sync + UI global manual map + `manual_override_helpers`), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>`. Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity.
 
 ## 4) Minimální smoke test po změně
 - [ ] Auto → Boost → Auto a ověřit návrat setpointů.

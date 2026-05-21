@@ -155,3 +155,13 @@
 2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených UI seznamů.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tiché divergence mezi backend override helpery a UI výběrem/masovým manuálním ovládáním zón.
+
+## Další krok provedený v této iteraci (2026-05-21, kontrola helper definic manual override)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o konzervativní kontrolu `heating/schedule/preferences/helpers/manual_override_helpers.yaml`:
+   - `input_boolean.<zona>_manual_override`,
+   - `input_boolean.ui_select_<zona>`,
+   - `timer.<zona>_manual_override`,
+   - `input_select.<zona>_manual_override_type` (s výjimkou globálního `ui_global_manual_type`).
+2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených helper definic.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tichého rozpojení mezi orchestrace seznamy a skutečně definovanými helper entitami v package vrstvě.

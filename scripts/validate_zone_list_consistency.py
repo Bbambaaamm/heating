@@ -22,6 +22,7 @@ FILES = {
     "scheduler_booleans": ROOT / "heating/schedule/preferences/helpers/scheduler_booleans.yaml",
     "ui_sync_selection": ROOT / "heating/schedule/automation/startup/heating_ui_sync_selection.yaml",
     "ui_global_manual": ROOT / "heating/ui/packages/heating_global_manual.yaml",
+    "manual_override_helpers": ROOT / "heating/schedule/preferences/helpers/manual_override_helpers.yaml",
 }
 
 
@@ -32,7 +33,7 @@ def read_text(path: Path) -> str:
 
 
 def extract_set(pattern: str, text: str) -> set[str]:
-    return set(re.findall(pattern, text))
+    return set(re.findall(pattern, text, flags=re.MULTILINE))
 
 
 def main() -> int:
@@ -45,6 +46,7 @@ def main() -> int:
     scheduler_booleans = read_text(FILES["scheduler_booleans"])
     ui_sync_selection = read_text(FILES["ui_sync_selection"])
     ui_global_manual = read_text(FILES["ui_global_manual"])
+    manual_override_helpers = read_text(FILES["manual_override_helpers"])
 
     dispatch_last = extract_set(r"input_number\.([a-z0-9_]+)_last_comfort", dispatch)
     dispatch_schedule = extract_set(r"input_boolean\.([a-z0-9_]+)_schedule_active", dispatch)
@@ -73,6 +75,10 @@ def main() -> int:
     ui_global_manual_boolean = extract_set(r"manual:\s*input_boolean\.([a-z0-9_]+)_manual_override", ui_global_manual)
     ui_global_manual_timer = extract_set(r"timer:\s*timer\.([a-z0-9_]+)_manual_override", ui_global_manual)
     ui_global_manual_type = extract_set(r"type_select:\s*input_select\.([a-z0-9_]+)_manual_override_type", ui_global_manual)
+    helper_manual_boolean = extract_set(r"^\s{2}([a-z0-9_]+)_manual_override:\s*$", manual_override_helpers)
+    helper_ui_select_boolean = extract_set(r"^\s{2}ui_select_([a-z0-9_]+):\s*$", manual_override_helpers)
+    helper_timer = extract_set(r"^\s{2}([a-z0-9_]+)_manual_override:\s*$", manual_override_helpers)
+    helper_manual_type = extract_set(r"^\s{2}([a-z0-9_]+)_manual_override_type:\s*$", manual_override_helpers) - {"ui_global_manual"}
 
     groups = {
         "dispatch_last": dispatch_last,
@@ -100,6 +106,10 @@ def main() -> int:
         "ui_global_manual_boolean": ui_global_manual_boolean,
         "ui_global_manual_timer": ui_global_manual_timer,
         "ui_global_manual_type": ui_global_manual_type,
+        "helper_manual_boolean": helper_manual_boolean,
+        "helper_ui_select_boolean": helper_ui_select_boolean,
+        "helper_timer": helper_timer,
+        "helper_manual_type": helper_manual_type,
     }
 
     baseline = dispatch_last
