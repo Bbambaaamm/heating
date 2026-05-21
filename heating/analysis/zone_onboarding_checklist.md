@@ -18,6 +18,8 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] zóna je ve `variables.zones` mapě pro Boost ON.
 - [ ] `heating/control/watchdog_manual_override.yaml`
   - [ ] zóna je v obou seznamech `repeat.for_each` (12h i 24h watchdog).
+- [ ] `heating/core/groups.yaml`
+  - [ ] `climate.<zona>` je v `group.heating_zones` (pro centrální přehled a navazující automace).
 
 ## 3) Rychlá validace konzistence
 Spusť:
