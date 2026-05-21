@@ -100,6 +100,28 @@ def main() -> int:
             print(f"- zone_{zone}.yaml")
         return 1
 
+    missing_schedule_helper_files = sorted(
+        zone
+        for zone in baseline
+        if not (ROOT / "heating/schedule/preferences/helpers" / f"schedule_helpers_{zone}.yaml").exists()
+    )
+    if missing_schedule_helper_files:
+        print("❌ Chybí schedule helper definice zón (heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml):")
+        for zone in missing_schedule_helper_files:
+            print(f"- schedule_helpers_{zone}.yaml")
+        return 1
+
+    missing_zone_pref_files = sorted(
+        zone
+        for zone in baseline
+        if not (ROOT / "heating/schedule/preferences/prefs" / f"zone_{zone}_prefs.yaml").exists()
+    )
+    if missing_zone_pref_files:
+        print("❌ Chybí preference zón (heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml):")
+        for zone in missing_zone_pref_files:
+            print(f"- zone_{zone}_prefs.yaml")
+        return 1
+
     print("✅ Seznamy zón jsou konzistentní.")
     print(f"Zóny ({len(baseline)}): {', '.join(sorted(baseline))}")
     return 0
