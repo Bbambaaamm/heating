@@ -292,3 +292,79 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 1. ✅ Doplněna explicitní poznámka do `automations.yaml`, že soubor slouží jen pro instanční blueprint automace a doménová runtime logika topení je udržovaná v `heating/*` packages.
 2. ✅ Úprava je čistě dokumentační (bez změny entit, ID i runtime chování automací).
 3. ✅ Přínos: nižší riziko mylného ukládání nové runtime logiky do root `automations.yaml` mimo hlavní package architekturu.
+
+## Operational usage of protective and debug elements
+
+### 1) Debug runbook: kdy přesně zapnout debug
+**Zapnout debug pouze když platí alespoň jedna podmínka:**
+1. Incident P1/P2: teploty zón se mění neočekávaně nebo dochází ke konfliktu zápisů.
+2. Reprodukovatelná závada po změně orchestrace (`heating/control/*`, `automations.yaml`).
+3. Opakované watchdog/fail-safe notifikace bez jasné příčiny.
+
+**Postup zapnutí (řízeně):**
+1. Zapni `input_boolean.heating_debug_guard`.
+2. Nastav `input_datetime.heating_debug_until` maximálně na +120 minut.
+3. Proveď cílený replay smoke scénářů (matice níže).
+4. Po vypršení času debug automaticky vypni (`heating_debug_until` musí být v minulosti).
+
+**PASS/FAIL pravidla:**
+- PASS: `[DEBUG]` logika je vždy podmíněná guard booleanem **i** časovým omezením.
+- FAIL: `[DEBUG]` logika bez guardu nebo bez expiry času.
+
+### 2) Stability metrics + prahy / SLO
+Metriky jsou navrženy konzervativně, bez zásahu do runtime logiky:
+1. **SLO-A (korektnost orchestrace):** 0 konfliktů zápisu teploty stejné `climate.<zona>` v jednom smoke scénáři.
+2. **SLO-B (override lifecycle):** 100 % případů `manual_override` se po expiraci timeru vypne do 60 s.
+3. **SLO-C (drift guardrail):** 100 % PASS ve `validate_zone_list_consistency.py`.
+4. **SLO-D (fail-safe šum):** < 3 falešně pozitivní fail-safe/watchdog notifikace za 7 dní.
+
+**Prahy:**
+- Green: splněna všechna SLO.
+- Yellow: porušeno 1 SLO jednorázově.
+- Red: porušeno ≥2 SLO nebo opakované porušení stejného SLO 2× za 7 dní.
+
+### 3) Incident template / RCA mini-formát
+Použij při každém incidentu topení:
+1. **Incident ID + datum/čas (UTC)**
+2. **Symptom** (co bylo vidět v UI/chování)
+3. **Dotčené zóny**
+4. **Zdroj automace** (automation alias/id + soubor)
+5. **Časová osa** (trigger → akce → výsledek)
+6. **Root cause hypotéza**
+7. **Důkaz** (logbook/trace/snapshot)
+8. **Fix** (minimální změna)
+9. **Preventivní guardrail** (jaká kontrola se přidá/rozšíří)
+10. **Replay smoke scénáře + výsledek PASS/FAIL**
+
+### 4) Definition of Done podle typu změny
+
+#### A. Změna zóny (onboarding/rename)
+- PASS `python3 scripts/validate_zone_list_consistency.py`
+- PASS `python3 scripts/validate_smoke_coverage.py`
+- Checklist `zone_onboarding_checklist.md` vyplněn bez výjimek
+- Nová zóna propsána do všech povinných míst (helpery, prefs, groups, automations, UI mapy)
+
+#### B. Změna orchestrace / dispatch logiky
+- PASS všechny ochranné kontroly (`python3 scripts/run_protective_checks.py`)
+- Proveden replay minimálně: Off→Auto→Eco→Boost→Auto + Dispatch fallback ON/OFF
+- Incident/RCA záznam pokud došlo k regressi během testu
+
+#### C. Změna debug/logging vrstvy
+- Každý nový `[DEBUG]` blok má guard boolean + `heating_debug_until`
+- Debug není trvale aktivní mimo incidentní okno
+- Kontrola `python3 scripts/validate_debug_guards.py` PASS
+
+#### D. Dokumentační/audit změna
+- Odkazy na skripty a cesty musí existovat
+- PASS `python3 scripts/validate_smoke_coverage.py`
+
+## Automatizace guardrailů (implementováno)
+1. `scripts/run_protective_checks.py` – jednotný vstupní bod pro všechny ochranné kontroly.
+2. `.pre-commit-config.yaml` – automatické spuštění kontrol před commitem.
+3. `.github/workflows/heating-audit-validation.yml` – CI kontrola při změnách relevantních souborů.
+4. `scripts/validate_yaml_and_ha_style.py` – fail-fast YAML syntax + styl (trigger/condition/action).
+5. `scripts/validate_debug_guards.py` – guard kontrola pro `[DEBUG]` bloky.
+6. `scripts/validate_smoke_coverage.py` – fail-fast kontrola přítomnosti smoke/checklist guardrailů.
+
+7. Primární ochrana je CI v GitHub Actions; lokální pre-commit je pouze volitelná vývojářská pomůcka (nikoliv hlavní kontrolní mechanismus).
+8. Runtime ochrana po nasazení/restartu je řešena HA automací `heating_runtime_debug_audit`, která kontroluje guard stav a automaticky vypíná expirovaný debug.
