@@ -54,6 +54,11 @@ def main() -> int:
     watchdog_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", watchdog)
     startup_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", startup_reconcile)
     automation_schedule = extract_set(r"input_boolean\.schedule_enable_([a-z0-9_]+)", automations)
+    automation_last_comfort = extract_set(r"input_number\.([a-z0-9_]+)_last_comfort", automations)
+    automation_schedule_active = extract_set(r"input_boolean\.([a-z0-9_]+)_schedule_active", automations)
+    automation_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", automations)
+    automation_manual_type = extract_set(r"input_select\.([a-z0-9_]+)_manual_override_type", automations)
+    automation_timer = extract_set(r"timer\.([a-z0-9_]+)_manual_override", automations)
     core_group_climate = extract_set(r"climate\.([a-z0-9_]+)", core_groups)
     automation_climate = extract_set(r"climate\.([a-z0-9_]+)", automations)
 
@@ -70,6 +75,11 @@ def main() -> int:
         "watchdog_manual": watchdog_manual,
         "startup_manual": startup_manual,
         "automation_schedule": automation_schedule,
+        "automation_last_comfort": automation_last_comfort,
+        "automation_schedule_active": automation_schedule_active,
+        "automation_manual": automation_manual,
+        "automation_manual_type": automation_manual_type,
+        "automation_timer": automation_timer,
         "automation_climate": automation_climate,
         "core_group_climate": core_group_climate,
     }
