@@ -1,0 +1,70 @@
+# =====================================================================
+# Soubor   : heating/control/runtime_debug_audit.yaml
+# Modul    : Topení – runtime audit debug guardů
+# Účel     : Po startu a periodicky hlídá debug guard, expiraci a auto-vypnutí
+# Autor    : Michal
+# Poslední úprava : 2026-05-21
+# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# =====================================================================
+
+automation:
+  - id: heating_runtime_debug_audit
+    alias: "Topení – runtime audit debug guard"
+    description: >
+      Po startu HA a periodicky kontroluje, zda není debug guard zapnutý po expiraci
+      input_datetime.heating_debug_until. V případě nesouladu debug automaticky vypne,
+      zapíše varování do logbooku a vytvoří persistent notifikaci.
+    mode: single
+    initial_state: true
+
+    trigger:
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        minutes: "/5"
+      - trigger: state
+        entity_id: input_boolean.heating_debug_guard
+        to: "on"
+
+    condition: []
+
+    action:
+      - variables:
+          debug_guard_on: "{{ is_state('input_boolean.heating_debug_guard', 'on') }}"
+          debug_until_raw: "{{ states('input_datetime.heating_debug_until') }}"
+          debug_until_ts: "{{ as_timestamp(states('input_datetime.heating_debug_until'), default=0) }}"
+          now_ts: "{{ now().timestamp() }}"
+          debug_expired: "{{ debug_until_ts > 0 and now_ts >= debug_until_ts }}"
+          debug_until_missing: "{{ debug_until_raw in ['unknown', 'unavailable', ''] }}"
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ debug_guard_on and (debug_until_missing or debug_expired) }}"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.heating_debug_guard
+
+              - action: persistent_notification.create
+                data:
+                  notification_id: heating_runtime_debug_guard
+                  title: "Topení – debug guard automaticky vypnut"
+                  message: >-
+                    Debug guard byl zapnutý mimo platné časové okno.
+                    Guard byl preventivně vypnut. Zkontroluj input_datetime.heating_debug_until
+                    a případně nastav nové časově omezené debug okno.
+
+              - action: logbook.log
+                data:
+                  name: "Topení – runtime audit"
+                  message: "Debug guard byl automaticky vypnut (expirace nebo neplatný heating_debug_until)."
+                  entity_id: input_boolean.heating_debug_guard
+
+          - conditions:
+              - condition: template
+                value_template: "{{ debug_guard_on and not debug_until_missing and not debug_expired }}"
+            sequence:
+              - action: persistent_notification.dismiss
+                data:
+                  notification_id: heating_runtime_debug_guard

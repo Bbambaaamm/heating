@@ -41,6 +41,12 @@ input_boolean:
     icon: mdi:window-open-variant
     initial: on
 
+  # ▶️ Guard pro řízené debug okno topení
+  heating_debug_guard:
+    name: "Topení – debug guard"
+    icon: mdi:bug
+    initial: off
+
 
 # =====================================================================
 # 🔢 Číselné hodnoty (minuty Boostu, ECO teplota…)
@@ -84,5 +90,10 @@ input_number:
 input_datetime:
   boost_until:
     name: "Boost – platí do"
+    has_date: true
+    has_time: true
+
+  heating_debug_until:
+    name: "Topení – debug do"
     has_date: true
     has_time: true
