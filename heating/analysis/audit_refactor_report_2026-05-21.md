@@ -1,0 +1,85 @@
+# Audit a konzervativní refactoring review (2026-05-21)
+
+## Rozsah a metoda
+- Prošel jsem celý repozitář se zaměřením na architekturu balíčků Home Assistant, orchestrace režimů, startup sync, watchdog, fail-safe a vazby mezi helpery/zónami.
+- Cíl byl **nezměnit funkční chování**, pouze potvrdit rizika, duplicity a místa vhodná pro malé bezpečné kroky.
+- V tomto kroku jsem neprováděl zásahy do runtime logiky.
+
+## Přehled hlavních částí projektu
+1. **Root konfigurace HA**
+   - `configuration.yaml` načítá `automations.yaml`, `scripts.yaml`, `scenes.yaml` a celé `heating/*` jako package strom.
+2. **Zone scheduling + preference helpery**
+   - `heating/schedule/preferences/*` drží helpery a per-zóna preference.
+   - `automations.yaml` instancuje blueprints pro rozvrhy zón a externí čidla.
+3. **Centrální řízení topení**
+   - `heating/control/*` řeší režimy (`Auto/Eco/Boost/Off`), fail-safe, watchdog, řízení kotle a central dispatch.
+4. **UI a dashboard část**
+   - `heating/ui/*` drží package helpery, dashboard šablony a UI controls.
+5. **Analytika / audit artefakty**
+   - `heating/analysis/*` obsahuje historický audit a snapshoty entit.
+
+## Datový tok (zjednodušeně)
+- Uživatel / automatika změní `input_select.topny_rezim` nebo override helpery.
+- Boost stav je odvozen z `input_boolean.boost_now` + `input_datetime.boost_until` v `binary_sensor.kotel_boost_active`.
+- Při zapnutém central dispatch (`input_boolean.heating_central_dispatch_enable`) se má uplatnit centrální orchestrace v `refactor_mode_schedule_override.yaml`.
+- Při vypnutém central dispatch se vrací orchestrace do blueprint automací (fallback větev v `mode_auto.yaml` a `mode_boost.yaml`).
+
+## Nálezy podle rizika
+
+### A) Bezpečné opravit hned (nízké riziko)
+1. **Nekonzistentní pojmenování/diakritika v názvech zón (textové labely)**
+   - Např. `Chodba zachod` vs `Chodba záchod` (jen text, ne entity).
+   - Dopad: diagnostika/logbook je méně konzistentní.
+   - Riziko změny: nízké (UI/log text), ale i tak ověřit dashboard filtry.
+
+2. **Prázdné „globální“ soubory `scripts.yaml` a minimální `scenes.yaml`/`automations.yaml` sekce mimo balíčky**
+   - Nejde o chybu, ale je vhodné explicitně označit v komentáři, že jsou záměrně prázdné a vše je v packages.
+   - Riziko: nízké.
+
+### B) Opravit opatrně po ověření (střední riziko)
+1. **Duplicitní orchestrace zón mezi central dispatch a staršími větvemi**
+   - V `mode_auto.yaml` i `mode_boost.yaml` jsou fallback větve pro stav `heating_central_dispatch_enable = off`, zatímco `refactor_mode_schedule_override.yaml` drží central orchestraci.
+   - Riziko: drift logiky (jedna větev bude opravena, druhá ne), race conditions při přechodech režimů.
+   - Doporučení: sjednotit postupně do jedné „source of truth“, ale po etapách a s replay test scénáři.
+
+2. **Dlouhé statické seznamy zón/helperů ve více souborech**
+   - Opakují se v `mode_boost.yaml`, startup reconcile a watchdog souborech.
+   - Riziko: při přidání nové zóny je vysoká šance na vynechání v některé části.
+   - Doporučení: opatrně centralizovat seznamy přes script/templating helper nebo generátor, ale jen pokud je ověřená kompatibilita.
+
+3. **Vysoká četnost logbook zápisů**
+   - Velké množství `logbook.log` akcí v kontrolních tocích může zvyšovat šum a ztěžovat diagnostiku incidentů.
+   - Riziko: provozní (noise), nikoliv funkční.
+   - Doporučení: zavést úrovně „audit vs debug“ (např. guard boolean) až po potvrzení požadavků na observabilitu.
+
+### C) Zatím pouze označit, neměnit (vyšší riziko / nejasná kauzalita)
+1. **Časová logika override watchdogu založená na `last_changed`**
+   - Potenciálně citlivé na restart nebo obnovu stavu entity.
+   - Bez incidentních dat nelze potvrdit, že to v produkci selhává.
+   - Změna by mohla měnit chování expirace override.
+
+2. **Fail-safe notifikační strategie místo tvrdého zásahu**
+   - Aktuální návrh v části fail-safe je konzervativní (notifikace + log), což může být záměr kvůli bezpečnosti provozu.
+   - Bez provozního rozhodnutí není bezpečné přejít na agresivnější automatické zásahy.
+
+## Co bylo v tomto kroku bezpečně opraveno
+- V tomto kroku **nebyla provedena žádná změna runtime logiky** (záměrně).
+- Přidán pouze tento auditní report jako podklad pro řízené malé kroky v dalších iteracích.
+
+## Návrh minimální bezpečné testovací sady (pokud dnes není automatizovaná)
+1. **Smoke scénář režimů**: Off → Auto → Eco → Boost → Auto, kontrola že nevznikají konfliktní zásahy do stejných climate entit.
+2. **Boost lifecycle**: start Boost, kontrola `boost_until`, automatické ukončení, návrat rozvrhů.
+3. **Manual override lifecycle**: ruční override + časovač, restart HA, kontrola startup reconcile.
+4. **Dispatch fallback**: stejný scénář 1x s central dispatch ON a 1x OFF; porovnat cílové setpointy.
+5. **Fail-safe simulace**: dočasně označit vstup jako unavailable a ověřit notifikaci + recovery.
+
+## Doporučený další krok (konzervativní)
+1. V první malé změně sjednotit pouze textové nekonzistence (názvy v logbooku), bez zásahu do entit/ID.
+2. Ve druhé malé změně doplnit interní „checklist přidání nové zóny“ a validaci, že je zóna ve všech seznamových sekcích.
+3. Teprve následně řešit centralizaci seznamů zón (nejrizikovější část), ideálně po přidání smoke testů.
+
+## Jak ověřit, že systém funguje správně po budoucích změnách
+- Validace konfigurace Home Assistant (`check_config`) v cílovém runtime prostředí.
+- Ruční replay výše uvedených 5 scénářů.
+- Kontrola: nevznikají duplicitní konfliktní akce na `climate.set_temperature` ve stejném časovém okně.
+- Kontrola, že notifikační kanály watchdog/fail-safe neprodukují falešně pozitivní alarmy.
