@@ -173,3 +173,9 @@
 2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně vyžadoval výše uvedené kontroly pro každý zónový helper soubor.
 3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tiché chyby, kdy soubor helperů existuje, ale neobsahuje klíčové entity, na které spoléhá blueprint plánování.
+
+## Další krok provedený v této iteraci (2026-05-21, obnova validačního skriptu dle checklistu)
+1. ✅ Doplněn chybějící skript `scripts/validate_zone_list_consistency.py`, na který odkazuje onboarding checklist, aby šlo checklist skutečně spustit jako statickou kontrolu.
+2. ✅ Skript konzervativně validuje baseline zóny napříč klíčovými seznamy (dispatch, boost, watchdog, startup reconcile, blueprint inputy, skupiny, UI mapy) a současně kontroluje existenci/obsah navázaných zónových souborů.
+3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu.
+4. ✅ Přínos: odstranění tiché procesní mezery (checklist odkazoval na neexistující skript) a možnost opakovatelně ověřit konzistenci zón jedním příkazem před nasazením.
