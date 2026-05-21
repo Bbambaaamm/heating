@@ -267,3 +267,11 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: založena tabulka „symptom → zdroj automace → zóna → čas“ jako šablona v `heating/analysis/symptom_source_zone_time_template_2026-05-21.md`.
 2. ✅ Runtime logika topení zůstala beze změny; úprava je čistě procesní/auditní.
 3. ✅ Přínos: jednotný formát sběru incidentních dat pro korelaci při replay smoke scénářů a následném root-cause debuggu.
+
+## Další krok provedený v této iteraci (2026-05-21, baseline export automací a helper entit)
+1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: uložen baseline export seznamu automací a helper entit do `heating/analysis/baseline_automation_helper_entities_2026-05-21.txt` (statický výpis ze všech YAML v repozitáři).
+2. ✅ Runtime logika topení zůstala beze změny; úprava je čistě auditně-procesní.
+3. ✅ Přínos: existuje dohledatelný baseline seznam entit pro porovnání při dalších iteracích debug/refactoru.
+4. ℹ️ Po tomto kroku zbývají v rámci „Krok 0 — Freeze a baseline“ ještě 2 neuzavřené úlohy:
+   - zmražení baseline branch (procesní krok mimo obsah repozitáře),
+   - uložení snapshotu posledních 24 h logbook/trace pro topení (vyžaduje runtime data Home Assistant).
