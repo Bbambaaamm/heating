@@ -195,3 +195,9 @@
 2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně vyžadoval kontrolu těchto položek v prefs souborech.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tichého onboardingu zóny s nekompletní nebo nebezpečně nastavenou výchozí komfortní preferencí.
+
+## Aktuální stav k 2026-05-21 (ověřeno nad celým repozitářem)
+1. ✅ Auditní report je konzistentní s aktuální strukturou projektu: pokrývá root konfiguraci, orchestrace režimů, startup sync, watchdog, fail-safe, UI i onboarding guardraily.
+2. ✅ Ověřeno spuštěním `python3 scripts/validate_zone_list_consistency.py` nad aktuálním stromem repozitáře; kontrola prošla bez nesouladů.
+3. ✅ V rámci tohoto ověření nebyla měněna runtime logika topení; stav systému je „stabilní s guardraily“, otevřené zůstávají pouze dříve popsané středněrizikové body (duplicitní orchestrace a centralizace seznamů).
+4. ✅ Doporučení pro další iteraci zůstává beze změny: nejprve držet konzervativní validace + smoke test matici, teprve potom řízeně sjednocovat source-of-truth pro zónové seznamy.
