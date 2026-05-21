@@ -27,9 +27,13 @@ template:
 
         # ON když: režim Boost, tlačítko ON, nebo boost_until v budoucnu
         state: >-
-          {% set btn  = is_state('input_boolean.boost_now','on') %}
-          {% set uts  = as_timestamp(states('input_datetime.boost_until'), default=0) %}
-          {{ btn or (now().timestamp() < uts) }}
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set mode_boost = (mode == 'Boost') %}
+          {% set btn = is_state('input_boolean.boost_now','on') %}
+          {% set until_raw = states('input_datetime.boost_until') %}
+          {% set until_ok = until_raw not in ['unknown', 'unavailable', ''] %}
+          {% set uts = as_timestamp(until_raw, default=0) %}
+          {{ mode_boost or btn or (until_ok and now().timestamp() < uts) }}
 
         attributes:
           until: "{{ states('input_datetime.boost_until') }}"
@@ -170,7 +174,10 @@ automation:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: "{{ climate_ready and (not effective_manual) }}"
+                      value_template: >-
+                        {{ climate_ready
+                           and (not effective_manual)
+                           and is_state('input_boolean.heating_central_dispatch_enable', 'off') }}
                   sequence:
                     - action: climate.set_hvac_mode
                       target:

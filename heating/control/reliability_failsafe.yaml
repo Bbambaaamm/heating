@@ -72,6 +72,31 @@ template:
             {{ required_ids | reject('in', healthy_ids) | list }}
 
 automation:
+  - id: heating_failsafe_helpers_unavailable_warning
+    alias: "Topení Fail-safe – helpery nedostupné (warning fáze)"
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.heating_helpers_all_available
+        to: "off"
+        for: "00:00:45"
+    action:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_helpers_unavailable_warning
+          title: "Topení fail-safe (warning)"
+          message: >-
+            ⚠️ Klíčové helpery jsou krátkodobě nedostupné.
+            Zatím bez zásahu do režimu; čeká se na stabilizaci.
+      - action: logbook.log
+        data:
+          name: "Topení Fail-safe"
+          message: "Helpery krátkodobě nedostupné. Warning fáze bez zásahu do režimu."
+          entity_id: binary_sensor.heating_helpers_all_available
+
   - id: heating_failsafe_helpers_unavailable
     alias: "Topení Fail-safe – helpery nedostupné => Eco"
     mode: single
@@ -81,6 +106,9 @@ automation:
         to: "off"
         for: "00:02:00"
     action:
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
       - action: input_select.select_option
         target:
           entity_id: input_select.topny_rezim
@@ -101,8 +129,12 @@ automation:
           entity_id: input_select.topny_rezim
       - action: persistent_notification.create
         data:
+          notification_id: heating_helpers_unavailable_eco
           title: "Topení fail-safe"
           message: "⚠️ Klíčové helpery byly nedostupné >2 min. Systém byl přepnut do Eco."
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: heating_helpers_unavailable_warning
 
   - id: heating_startup_reconcile_boost
     alias: "Topení – po startu srovnat Boost"
@@ -115,6 +147,25 @@ automation:
       - wait_template: "{{ is_state('input_boolean.heating_startup_reconcile_guard', 'off') }}"
         timeout: "00:01:00"
         continue_on_timeout: true
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ wait.completed | default(false) }}"
+            sequence: []
+        default:
+          - action: logbook.log
+            data:
+              name: "Topení – startup reconcile"
+              message: "Timeout guardu startup reconcile. Větev bezpečně ukončena bez zásahu."
+              entity_id: input_boolean.heating_startup_reconcile_guard
+          - action: persistent_notification.create
+            data:
+              notification_id: heating_startup_reconcile_guard_timeout
+              title: "Topení – startup reconcile timeout"
+              message: >-
+                ⚠️ Startup reconcile guard se neuvolnil do 60 s.
+                Reconcile větev byla bezpečně ukončena bez změn topení.
+          - stop: "Startup guard timeout – bez aktivních zásahů."
       - variables:
           boost_until_ts: "{{ as_timestamp(states('input_datetime.boost_until'), default=0) }}"
           boost_should_be_active: "{{ now().timestamp() < boost_until_ts }}"
@@ -244,6 +295,22 @@ automation:
           - action: persistent_notification.dismiss
             data:
               notification_id: heating_watchdog_core_automations_unhealthy
+
+  - id: heating_failsafe_helpers_recovered
+    alias: "Topení Fail-safe – helpery obnoveny"
+    mode: single
+    trigger:
+      - trigger: state
+        entity_id: binary_sensor.heating_helpers_all_available
+        to: "on"
+        for: "00:01:00"
+    action:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: heating_helpers_unavailable_warning
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: heating_helpers_unavailable_eco
 
   - id: heating_watchdog_periodic_reconcile
     alias: "Heating Watchdog – periodická reconciliace režimu"
