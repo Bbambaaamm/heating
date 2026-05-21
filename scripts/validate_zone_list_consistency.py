@@ -161,6 +161,27 @@ def main() -> int:
             print(f"- schedule_helpers_{zone}.yaml")
         return 1
 
+    invalid_schedule_helper_content: list[str] = []
+    for zone in sorted(baseline):
+        helper_file = ROOT / "heating/schedule/preferences/helpers" / f"schedule_helpers_{zone}.yaml"
+        helper_text = read_text(helper_file)
+        missing_parts: list[str] = []
+        if f"schedule_enable_{zone}" not in helper_text:
+            missing_parts.append(f"schedule_enable_{zone}")
+        if f"{zone}_monday_start" not in helper_text:
+            missing_parts.append(f"{zone}_monday_start")
+        if f"{zone}_sunday_end" not in helper_text:
+            missing_parts.append(f"{zone}_sunday_end")
+        if missing_parts:
+            invalid_schedule_helper_content.append(
+                f"schedule_helpers_{zone}.yaml neobsahuje: {', '.join(missing_parts)}"
+            )
+    if invalid_schedule_helper_content:
+        print("❌ Nekonzistentní obsah schedule helper souborů:")
+        for item in invalid_schedule_helper_content:
+            print(f"- {item}")
+        return 1
+
     missing_zone_pref_files = sorted(
         zone
         for zone in baseline
