@@ -99,3 +99,10 @@
 2. ✅ Aktualizován onboarding checklist `heating/analysis/zone_onboarding_checklist.md` o povinnou kontrolu zápisu zóny do `heating/core/groups.yaml`.
 3. ✅ Zachována runtime logika bez změny; úpravy jsou pouze v auditním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko, že nově přidaná zóna bude v orchestrace seznamech, ale nebude zahrnutá v centrální skupině zón.
+
+## Další krok provedený v této iteraci (2026-05-21, dokumentační sjednocení)
+1. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby odpovídal aktuálním kontrolám ve validačním skriptu:
+   - doplněna povinná kontrola `heating/schedule/automation/startup/manual_override_startup_reconcile.yaml`,
+   - doplněna povinná kontrola `automations.yaml` pro `schedule_enable_<zona>` u blueprint instancí.
+2. ✅ Upřesněn popis validačního kroku v checklistu, že zahrnuje i startup reconcile, blueprint schedule helpery a `group.heating_zones`.
+3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze procesní/dokumentační pro snížení rizika tichého vynechání zóny při onboardingu.
