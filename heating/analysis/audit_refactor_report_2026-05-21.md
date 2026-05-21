@@ -132,3 +132,10 @@
 2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně požadoval kontrolu výše uvedených blueprint input helperů pro stejný slug zóny.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko „polovičního“ onboardingu zóny, kdy existuje `schedule_enable_<zona>`, ale chybí některý navázaný override/schedule helper.
+
+## Další krok provedený v této iteraci (2026-05-21, kontrola konzistence core entity)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu obsahu `heating/core/zone_<zona>.yaml`:
+   - pro každou baseline zónu se nyní ověřuje, že soubor obsahuje odpovídající entitu `climate.<zona>` (nejen existence souboru).
+2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly, že `heating/core/zone_<zona>.yaml` používá správnou `climate` entitu.
+3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tiché chyby při onboardingu, kdy soubor zóny existuje, ale omylem odkazuje na jinou `climate` entitu.

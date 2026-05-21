@@ -25,6 +25,8 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] v blueprint inputech jsou konzistentně i helpery `last_comfort`, `scheduler_entity`, `manual_override_boolean`, `manual_override_type`, `manual_override_timer` pro stejný slug zóny.
 - [ ] `heating/core/groups.yaml`
   - [ ] `climate.<zona>` je v `group.heating_zones` (pro centrální přehled a navazující automace).
+- [ ] `heating/core/zone_<zona>.yaml`
+  - [ ] soubor obsahuje správnou entitu `climate.<zona>` (nejen že existuje).
 - [ ] `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`
   - [ ] existuje helper soubor pro zónu se schedule preferencemi.
 - [ ] `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml`
@@ -37,7 +39,7 @@ Spusť:
 python3 scripts/validate_zone_list_consistency.py
 ```
 
-Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones) a současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml` a `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml`. Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory.
+Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>`. Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity.
 
 ## 4) Minimální smoke test po změně
 - [ ] Auto → Boost → Auto a ověřit návrat setpointů.
