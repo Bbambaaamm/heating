@@ -74,7 +74,7 @@
 5. **Fail-safe simulace**: dočasně označit vstup jako unavailable a ověřit notifikaci + recovery.
 
 ## Doporučený další krok (konzervativní)
-1. V první malé změně sjednotit pouze textové nekonzistence (názvy v logbooku), bez zásahu do entit/ID.
+1. ✅ Provedeno: sjednocena textová nekonzistence `Chodba zachod` -> `Chodba záchod` v `heating/control/mode_boost.yaml` (pouze display text, bez změny entit/ID).
 2. Ve druhé malé změně doplnit interní „checklist přidání nové zóny“ a validaci, že je zóna ve všech seznamových sekcích.
 3. Teprve následně řešit centralizaci seznamů zón (nejrizikovější část), ideálně po přidání smoke testů.
 
