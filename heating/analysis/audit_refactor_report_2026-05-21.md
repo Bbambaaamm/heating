@@ -121,3 +121,14 @@
 2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených souborů pro každou novou zónu.
 3. ✅ Upřesněn popis validačního kroku v checklistu, že skript nekontroluje jen seznamy helperů, ale i přítomnost klíčových zónových souborů.
 4. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
+
+## Další krok provedený v této iteraci (2026-05-21, zpřesnění blueprint guardrailů)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu konzistence zón i pro další blueprint helpery v `automations.yaml`:
+   - `input_number.<zona>_last_comfort`,
+   - `input_boolean.<zona>_schedule_active`,
+   - `input_boolean.<zona>_manual_override`,
+   - `input_select.<zona>_manual_override_type`,
+   - `timer.<zona>_manual_override`.
+2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně požadoval kontrolu výše uvedených blueprint input helperů pro stejný slug zóny.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko „polovičního“ onboardingu zóny, kdy existuje `schedule_enable_<zona>`, ale chybí některý navázaný override/schedule helper.
