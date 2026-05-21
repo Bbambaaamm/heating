@@ -275,3 +275,11 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 4. ℹ️ Po tomto kroku zbývají v rámci „Krok 0 — Freeze a baseline“ ještě 2 neuzavřené úlohy:
    - zmražení baseline branch (procesní krok mimo obsah repozitáře),
    - uložení snapshotu posledních 24 h logbook/trace pro topení (vyžaduje runtime data Home Assistant).
+
+
+## Stav uzavření úkolů z tohoto reportu (2026-05-21, bezpečné provedení)
+1. ✅ Všechny úkoly, které je možné bezpečně provést pouze změnou repozitáře (statické validace, checklisty, baseline artefakty), jsou v tomto reportu uzavřené.
+2. ⛔ Zbývající 2 body z „Krok 0 — Freeze a baseline“ nejsou bezpečně/technicky proveditelné čistě v tomto repozitáři, proto zůstávají vědomě neuzavřené:
+   - zmražení baseline branch (procesní krok mimo obsah repozitáře),
+   - snapshot posledních 24 h logbook/trace z běžícího Home Assistant runtime.
+3. ✅ Tím je splněn požadavek „splnit všechny bezpečné úkoly bez přidávání dalších“.
