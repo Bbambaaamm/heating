@@ -147,3 +147,11 @@
 2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly tohoto helperu.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tiché nekonzistence mezi orchestrace seznamy a UI/helper vrstvou plánování.
+
+## Další krok provedený v této iteraci (2026-05-21, UI konzistence zónových map)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o konzervativní kontroly UI vrstvy:
+   - `heating/schedule/automation/startup/heating_ui_sync_selection.yaml` (`input_boolean.<zona>_manual_override` + `input_boolean.ui_select_<zona>`),
+   - `heating/ui/packages/heating_global_manual.yaml` (`manual`, `timer`, `type_select` v `zone_map`).
+2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených UI seznamů.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tiché divergence mezi backend override helpery a UI výběrem/masovým manuálním ovládáním zón.
