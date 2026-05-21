@@ -6,3 +6,6 @@
 # Poslední úprava : 2026-04-10
 # Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
+
+# Tento soubor je záměrně prázdný.
+# Veškerá runtime logika je spravována v package struktuře `heating/*` načítané z `configuration.yaml`.
