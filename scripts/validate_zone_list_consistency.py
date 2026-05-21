@@ -110,6 +110,18 @@ def main() -> int:
             print(f"- zone_{zone}.yaml")
         return 1
 
+    invalid_zone_file_entity: list[str] = []
+    for zone in sorted(baseline):
+        zone_file = ROOT / "heating/core" / f"zone_{zone}.yaml"
+        zone_text = read_text(zone_file)
+        if f"climate.{zone}" not in zone_text:
+            invalid_zone_file_entity.append(zone)
+    if invalid_zone_file_entity:
+        print("❌ Nekonzistentní climate entity v core definici zóny:")
+        for zone in invalid_zone_file_entity:
+            print(f"- zone_{zone}.yaml neobsahuje climate.{zone}")
+        return 1
+
     missing_schedule_helper_files = sorted(
         zone
         for zone in baseline
