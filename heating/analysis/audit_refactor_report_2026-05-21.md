@@ -201,3 +201,58 @@
 2. ✅ Ověřeno spuštěním `python3 scripts/validate_zone_list_consistency.py` nad aktuálním stromem repozitáře; kontrola prošla bez nesouladů.
 3. ✅ V rámci tohoto ověření nebyla měněna runtime logika topení; stav systému je „stabilní s guardraily“, otevřené zůstávají pouze dříve popsané středněrizikové body (duplicitní orchestrace a centralizace seznamů).
 4. ✅ Doporučení pro další iteraci zůstává beze změny: nejprve držet konzervativní validace + smoke test matici, teprve potom řízeně sjednocovat source-of-truth pro zónové seznamy.
+
+## Návrh dalšího postupu: systematický debug celého vrstvení (2026-05-21)
+
+Cíl: ověřit celý stack proti tichým chybám (drift seznamů, cyklení automací, kolize helperů, závody triggerů) bez okamžitého zásahu do runtime logiky.
+
+### Krok 0 — Freeze a baseline (1 den)
+1. Zmrazit baseline branch a nepouštět funkční refactory souběžně s debuggingem.
+2. Uložit baseline artefakty:
+   - výstup `python3 scripts/validate_zone_list_consistency.py`,
+   - export seznamu automací a helper entit,
+   - snapshot posledních 24 h logbook/trace pro topení.
+3. Založit jednoduchou tabulku „symptom → zdroj automace → zóna → čas“ pro korelaci incidentů.
+
+### Krok 1 — Statická kontrola kolizí a driftu (nízké riziko)
+1. Rozšířit statickou validaci o anti-kolizní pravidla:
+   - stejná entita nesmí být ve stejném workflow řízena dvěma různými větvemi bez guard podmínky,
+   - každý `manual_override` helper musí mít přesně jednu startup reconcile cestu,
+   - každá zóna musí mít konzistentní timer/helper pair bez duplicit.
+2. Výsledek ukládat jako report (PASS/FAIL + konkrétní řádky).
+3. Tento krok je čistě validační; runtime logika zůstává beze změny.
+
+### Krok 2 — Detekce cyklení a závodů triggerů (střední riziko, ale jen observabilita)
+1. Do klíčových automací přidat dočasné debug značky (trace tag / logbook prefix) pro měření:
+   - počet spuštění za 5 min,
+   - průměrná doba průchodu,
+   - počet restartů běhu u `mode: restart`.
+2. Spustit replay smoke matice ve variantách dispatch ON/OFF.
+3. Identifikovat vzory:
+   - opakované trigger stormy,
+   - konfliktní zápisy do stejné `climate.<zona>` v krátkém intervalu,
+   - neukončené override lifecycle (timer doběhne, override zůstane ON).
+
+### Krok 3 — Controlled fixes po malých krocích
+1. Priorita P1: odstranit prokázané kolize zápisů teplot (jedna source-of-truth větev na zónu v daném režimu).
+2. Priorita P2: omezit burst triggerů (debounce / oddělení kritických triggerů).
+3. Priorita P3: sjednotit seznamy zón do centrální mapy až po průchodu smoke matice.
+4. Každý fix:
+   - max 1 logická změna v PR,
+   - povinný replay scénářů 1–5,
+   - rollback plán (co vrátit při regresi).
+
+### Krok 4 — Stabilizační brána před dalším vrstvením
+1. Definovat „Definition of Done“ pro změnu v topení:
+   - PASS statická validace,
+   - PASS smoke matice,
+   - bez nového cyklení v trace,
+   - bez nárůstu false-positive fail-safe notifikací.
+2. Teprve po 2–3 stabilních iteracích pokračovat v architekturní centralizaci.
+
+### Doporučené pořadí realizace (konzervativní)
+1. Nejprve observabilita a důkazy (Kroky 0–2).
+2. Poté malé opravy potvrzených problémů (Krok 3).
+3. Nakonec strukturální změny (centralizace seznamů / refaktor větví).
+
+Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresní chyby, a zároveň dává měřitelný důkaz, že systém po každém kroku běží predikovatelně.
