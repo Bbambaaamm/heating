@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: heating-protective-checks
+        name: Heating protective and debug checks
+        entry: python3 scripts/run_protective_checks.py
+        language: system
+        pass_filenames: false
+        files: '^(heating/|automations\.yaml|configuration\.yaml|scripts/|\.github/workflows/)'

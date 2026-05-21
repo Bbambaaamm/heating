@@ -32,3 +32,16 @@ analysis/*
 # === shell script pro export entit ===
 !scripts/
 !scripts/export_entities_to_git.sh
+
+
+# === ochranné validace a CI ===
+!.pre-commit-config.yaml
+!.github/
+!.github/workflows/
+!.github/workflows/**
+!README.md
+!scripts/run_protective_checks.py
+!scripts/validate_yaml_and_ha_style.py
+!scripts/validate_debug_guards.py
+!scripts/validate_smoke_coverage.py
+!scripts/validate_zone_list_consistency.py
