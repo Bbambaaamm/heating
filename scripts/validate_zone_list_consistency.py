@@ -110,6 +110,12 @@ def main() -> int:
                 if needle not in s:
                     errors.append(f"schedule helper {sched_file.relative_to(ROOT)} neobsahuje {needle}")
 
+        if pref_file.exists():
+            p = pref_file.read_text(encoding="utf-8")
+            for needle in (f"{zone}_last_comfort", "min: 10", "max: 30"):
+                if needle not in p:
+                    errors.append(f"prefs soubor {pref_file.relative_to(ROOT)} neobsahuje {needle}")
+
     if errors:
         print("❌ Konzistence zón: NÁLEZ PROBLÉMŮ")
         print("\n".join(errors))
