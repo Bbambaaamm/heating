@@ -273,13 +273,17 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 2. ✅ Runtime logika topení zůstala beze změny; úprava je čistě auditně-procesní.
 3. ✅ Přínos: existuje dohledatelný baseline seznam entit pro porovnání při dalších iteracích debug/refactoru.
 4. ℹ️ Po tomto kroku zbývají v rámci „Krok 0 — Freeze a baseline“ ještě 2 neuzavřené úlohy:
-   - zmražení baseline branch (procesní krok mimo obsah repozitáře),
+   - zmražení baseline branch,
    - uložení snapshotu posledních 24 h logbook/trace pro topení (vyžaduje runtime data Home Assistant).
+
+## Další krok provedený v této iteraci (2026-05-21, freeze baseline branch)
+1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: vytvořena baseline větev `baseline-freeze-2026-05-21` na aktuálním stavu repozitáře pro stabilní referenční bod.
+2. ✅ Runtime logika topení zůstala beze změny; jde o procesní krok v git historii bez zásahu do YAML konfigurací.
+3. ✅ Přínos: další iterace debug/refactoru lze porovnávat proti explicitně zmraženému baseline stavu.
 
 
 ## Stav uzavření úkolů z tohoto reportu (2026-05-21, bezpečné provedení)
 1. ✅ Všechny úkoly, které je možné bezpečně provést pouze změnou repozitáře (statické validace, checklisty, baseline artefakty), jsou v tomto reportu uzavřené.
-2. ⛔ Zbývající 2 body z „Krok 0 — Freeze a baseline“ nejsou bezpečně/technicky proveditelné čistě v tomto repozitáři, proto zůstávají vědomě neuzavřené:
-   - zmražení baseline branch (procesní krok mimo obsah repozitáře),
+2. ⛔ Zbývá 1 bod z „Krok 0 — Freeze a baseline“, který není bezpečně/technicky proveditelný čistě v tomto repozitáři, proto zůstává vědomě neuzavřený:
    - snapshot posledních 24 h logbook/trace z běžícího Home Assistant runtime.
 3. ✅ Tím je splněn požadavek „splnit všechny bezpečné úkoly bez přidávání dalších“.
