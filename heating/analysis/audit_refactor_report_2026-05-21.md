@@ -75,7 +75,7 @@
 
 ## Doporučený další krok (konzervativní)
 1. ✅ Provedeno: sjednocena textová nekonzistence `Chodba zachod` -> `Chodba záchod` v `heating/control/mode_boost.yaml` (pouze display text, bez změny entit/ID).
-2. Ve druhé malé změně doplnit interní „checklist přidání nové zóny“ a validaci, že je zóna ve všech seznamových sekcích.
+2. ✅ Provedeno: doplněn interní checklist `heating/analysis/zone_onboarding_checklist.md` + validační skript `scripts/validate_zone_list_consistency.py` pro kontrolu konzistence zón napříč seznamy.
 3. Teprve následně řešit centralizaci seznamů zón (nejrizikovější část), ideálně po přidání smoke testů.
 
 ## Jak ověřit, že systém funguje správně po budoucích změnách
