@@ -84,3 +84,10 @@
 - Ruční replay výše uvedených 5 scénářů.
 - Kontrola: nevznikají duplicitní konfliktní akce na `climate.set_temperature` ve stejném časovém okně.
 - Kontrola, že notifikační kanály watchdog/fail-safe neprodukují falešně pozitivní alarmy.
+
+## Další krok provedený v této iteraci (2026-05-21)
+1. ✅ Rozšířena statická validace konzistence zón ve skriptu `scripts/validate_zone_list_consistency.py` o další kontrolní zdroje:
+   - `heating/schedule/automation/startup/manual_override_startup_reconcile.yaml` (konzistence `manual_override` seznamu),
+   - `automations.yaml` (konzistence `schedule_enable_<zona>` u blueprint instancí).
+2. ✅ Zachována beze změny runtime logika topení (změna je pouze v auditním/validačním tooling).
+3. ✅ Přínos: menší riziko tiché divergence seznamů při přidání nové zóny, dřívější zachycení chyby před nasazením.
