@@ -20,6 +20,8 @@ FILES = {
     "automations": ROOT / "automations.yaml",
     "core_groups": ROOT / "heating/core/groups.yaml",
     "scheduler_booleans": ROOT / "heating/schedule/preferences/helpers/scheduler_booleans.yaml",
+    "ui_sync_selection": ROOT / "heating/schedule/automation/startup/heating_ui_sync_selection.yaml",
+    "ui_global_manual": ROOT / "heating/ui/packages/heating_global_manual.yaml",
 }
 
 
@@ -41,6 +43,8 @@ def main() -> int:
     automations = read_text(FILES["automations"])
     core_groups = read_text(FILES["core_groups"])
     scheduler_booleans = read_text(FILES["scheduler_booleans"])
+    ui_sync_selection = read_text(FILES["ui_sync_selection"])
+    ui_global_manual = read_text(FILES["ui_global_manual"])
 
     dispatch_last = extract_set(r"input_number\.([a-z0-9_]+)_last_comfort", dispatch)
     dispatch_schedule = extract_set(r"input_boolean\.([a-z0-9_]+)_schedule_active", dispatch)
@@ -64,6 +68,11 @@ def main() -> int:
     core_group_climate = extract_set(r"climate\.([a-z0-9_]+)", core_groups)
     automation_climate = extract_set(r"climate\.([a-z0-9_]+)", automations)
     scheduler_booleans_schedule_active = extract_set(r"([a-z0-9_]+)_schedule_active", scheduler_booleans)
+    ui_sync_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", ui_sync_selection)
+    ui_sync_select = extract_set(r"input_boolean\.ui_select_([a-z0-9_]+)", ui_sync_selection)
+    ui_global_manual_boolean = extract_set(r"manual:\s*input_boolean\.([a-z0-9_]+)_manual_override", ui_global_manual)
+    ui_global_manual_timer = extract_set(r"timer:\s*timer\.([a-z0-9_]+)_manual_override", ui_global_manual)
+    ui_global_manual_type = extract_set(r"type_select:\s*input_select\.([a-z0-9_]+)_manual_override_type", ui_global_manual)
 
     groups = {
         "dispatch_last": dispatch_last,
@@ -86,6 +95,11 @@ def main() -> int:
         "automation_climate": automation_climate,
         "core_group_climate": core_group_climate,
         "scheduler_booleans_schedule_active": scheduler_booleans_schedule_active,
+        "ui_sync_manual": ui_sync_manual,
+        "ui_sync_select": ui_sync_select,
+        "ui_global_manual_boolean": ui_global_manual_boolean,
+        "ui_global_manual_timer": ui_global_manual_timer,
+        "ui_global_manual_type": ui_global_manual_type,
     }
 
     baseline = dispatch_last
