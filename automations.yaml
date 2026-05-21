@@ -5,6 +5,7 @@
 # Autor    : Michal
 # Poslední úprava : 2026-04-10
 # Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
+# Poznámka : Tento soubor drží pouze instanční blueprint automace; doménová runtime logika topení je v `heating/*` packages.
 # =====================================================================
 
 # ---------------------------------------------------------------------

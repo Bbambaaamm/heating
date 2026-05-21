@@ -287,3 +287,8 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 2. ⛔ Zbývá 1 bod z „Krok 0 — Freeze a baseline“, který není bezpečně/technicky proveditelný čistě v tomto repozitáři, proto zůstává vědomě neuzavřený:
    - snapshot posledních 24 h logbook/trace z běžícího Home Assistant runtime.
 3. ✅ Tím je splněn požadavek „splnit všechny bezpečné úkoly bez přidávání dalších“.
+
+## Další krok provedený v této iteraci (2026-05-21, explicitní vymezení root automations)
+1. ✅ Doplněna explicitní poznámka do `automations.yaml`, že soubor slouží jen pro instanční blueprint automace a doménová runtime logika topení je udržovaná v `heating/*` packages.
+2. ✅ Úprava je čistě dokumentační (bez změny entit, ID i runtime chování automací).
+3. ✅ Přínos: nižší riziko mylného ukládání nové runtime logiky do root `automations.yaml` mimo hlavní package architekturu.
