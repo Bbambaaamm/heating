@@ -28,6 +28,13 @@ def extract(pattern: str, text: str) -> set[str]:
     return set(re.findall(pattern, text, flags=re.MULTILINE))
 
 
+def extract_counts(pattern: str, text: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for match in re.findall(pattern, text, flags=re.MULTILINE):
+        counts[match] = counts.get(match, 0) + 1
+    return counts
+
+
 def validate_set(name: str, actual: set[str], expected: set[str], errors: list[str]) -> None:
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
@@ -65,6 +72,13 @@ def main() -> int:
     validate_set("boost zones (climate)", extract(r"climate\.([\w]+)'", boost), baseline, errors)
     validate_set("watchdog manual_override", extract(r"input_boolean\.([\w]+)_manual_override", watchdog), baseline, errors)
     validate_set("startup reconcile manual_override", extract(r"input_boolean\.([\w]+)_manual_override", startup), baseline, errors)
+    startup_counts = extract_counts(r"input_boolean\.([\w]+)_manual_override", startup)
+    for zone in sorted(baseline):
+        if startup_counts.get(zone, 0) != 1:
+            errors.append(
+                "startup reconcile manual_override: "
+                f"zóna {zone} má {startup_counts.get(zone, 0)} výskytů (očekáváno přesně 1)"
+            )
 
     validate_set("automations blueprint climate_entity", extract(r"climate_entity:\s*climate\.([\w]+)", automations), baseline, errors)
     validate_set("automations blueprint schedule_enable", extract(r"schedule_enable:\s*input_boolean\.schedule_enable_([\w]+)", automations), baseline, errors)
