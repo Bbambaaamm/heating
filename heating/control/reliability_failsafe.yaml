@@ -112,6 +112,9 @@ automation:
         event: start
     action:
       - delay: "00:00:20"
+      - wait_template: "{{ is_state('input_boolean.heating_startup_reconcile_guard', 'off') }}"
+        timeout: "00:01:00"
+        continue_on_timeout: true
       - variables:
           boost_until_ts: "{{ as_timestamp(states('input_datetime.boost_until'), default=0) }}"
           boost_should_be_active: "{{ now().timestamp() < boost_until_ts }}"

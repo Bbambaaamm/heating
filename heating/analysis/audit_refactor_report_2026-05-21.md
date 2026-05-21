@@ -368,3 +368,12 @@ Použij při každém incidentu topení:
 
 7. Primární ochrana je CI v GitHub Actions; lokální pre-commit je pouze volitelná vývojářská pomůcka (nikoliv hlavní kontrolní mechanismus).
 8. Runtime ochrana po nasazení/restartu je řešena HA automací `heating_runtime_debug_audit`, která kontroluje guard stav a automaticky vypíná expirovaný debug.
+
+## Navazující mitigation krok (2026-05-21, konzervativní runtime hardening)
+1. ✅ Dispatch restart storm: v `heating/control/refactor_mode_schedule_override.yaml` doplněn klidový interval `for: 00:00:08` na stavové triggery central dispatch a guard `input_boolean.heating_startup_reconcile_guard == off`, aby burst změn po startu/helper recover nespouštěl opakované restart cykly.
+2. ✅ Startup race: zaveden jednoduchý startup barrier přes `input_boolean.heating_startup_reconcile_guard`.
+   - guard se zapíná v `heating/schedule/automation/startup/startup_schedule_sync.yaml` před startup reconcile a vypíná po dokončení,
+   - `manual_override_startup_reconcile.yaml` a `reliability_failsafe.yaml` (startup boost reconcile) čekají na uvolnění guardu.
+3. ✅ Watchdog notification spam: v `heating/control/watchdog_connectivity.yaml` doplněn rate limit notifikací a logbooku
+   - upozornění se odešle při změně podpisu problému (`input_text.heating_watchdog_connectivity_last_signature`) nebo nejdříve po 60 minutách od posledního upozornění (`input_datetime.heating_watchdog_connectivity_last_notify`).
+4. ✅ Změny jsou konzervativní (bez redesignu orchestrace) a zachovávají protective checks.

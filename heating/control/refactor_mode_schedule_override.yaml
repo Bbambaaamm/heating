@@ -12,6 +12,10 @@ input_boolean:
     name: "Heating – central dispatch enable"
     icon: mdi:source-branch-check
     initial: on
+  heating_startup_reconcile_guard:
+    name: "Heating – startup reconcile guard"
+    icon: mdi:shield-sync
+    initial: off
 
 template:
   - sensor:
@@ -268,6 +272,7 @@ automation:
           - timer.1p_koupelna_manual_override
           - timer.1p_chodba_manual_override
           - timer.2p_mama_manual_override
+        for: "00:00:08"
 
     condition:
       - condition: state
@@ -279,6 +284,9 @@ automation:
       - condition: state
         entity_id: binary_sensor.heating_dispatch_inputs_available
         state: "on"
+      - condition: state
+        entity_id: input_boolean.heating_startup_reconcile_guard
+        state: "off"
 
     variables:
       eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
