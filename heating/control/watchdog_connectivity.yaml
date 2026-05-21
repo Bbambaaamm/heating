@@ -13,6 +13,17 @@
 # - periodic repeat: každých 10 minut při trvání problému
 # - escalation: >= 2 unhealthy hlavice po dobu 30 minut => pouze diagnostická eskalace (bez zásahu do režimu)
 
+input_datetime:
+  heating_watchdog_connectivity_last_notify:
+    name: "Heating watchdog connectivity last notify"
+    has_date: true
+    has_time: true
+
+input_text:
+  heating_watchdog_connectivity_last_signature:
+    name: "Heating watchdog connectivity last signature"
+    max: 255
+
 template:
   - binary_sensor:
       - name: "heating_valve_sklep_michal_alive"
@@ -224,29 +235,51 @@ automation:
       - variables:
           count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
-      - service: persistent_notification.create
-        data:
-          notification_id: heating_watchdog_connectivity_unhealthy
-          title: "Heating Watchdog – hlavice unhealthy"
-          message: >-
-            ⚠️ Detekováno {{ count }} problematických hlavic.
-            Kritérium: climate entita je unknown/unavailable nebo bez update > 180 min.
-            Detail (včetně důvodu): {{ items }}
+          signature: "{{ (items | tojson)[:250] }}"
+          prev_signature: "{{ states('input_text.heating_watchdog_connectivity_last_signature') }}"
+          last_notify_ts: "{{ as_timestamp(states('input_datetime.heating_watchdog_connectivity_last_notify'), default=0) }}"
+          should_notify: >-
+            {% set changed = signature != prev_signature %}
+            {% set cooldown_elapsed = (as_timestamp(now()) - last_notify_ts) >= 3600 %}
+            {{ changed or cooldown_elapsed }}
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ trigger.id == 'sustained_problem' }}"
+                value_template: "{{ should_notify }}"
             sequence:
-              - service: notify.mobile_app_sm_s938b
+              - service: persistent_notification.create
                 data:
+                  notification_id: heating_watchdog_connectivity_unhealthy
+                  title: "Heating Watchdog – hlavice unhealthy"
                   message: >-
-                    ⚠️ Heating watchdog: {{ count }} hlavice jsou unhealthy déle než 10 min.
-      - service: logbook.log
-        data:
-          name: "Heating Watchdog – Hlavice"
-          message: >-
-            unhealthy_count={{ count }}, detail={{ items }}
-          entity_id: sensor.heating_valves_unhealthy_count
+                    ⚠️ Detekováno {{ count }} problematických hlavic.
+                    Kritérium: climate entita je unknown/unavailable nebo bez update > 180 min.
+                    Detail (včetně důvodu): {{ items }}
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ trigger.id == 'sustained_problem' }}"
+                    sequence:
+                      - service: notify.mobile_app_sm_s938b
+                        data:
+                          message: >-
+                            ⚠️ Heating watchdog: {{ count }} hlavice jsou unhealthy déle než 10 min.
+              - service: input_datetime.set_datetime
+                target:
+                  entity_id: input_datetime.heating_watchdog_connectivity_last_notify
+                data:
+                  datetime: "{{ now().isoformat() }}"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.heating_watchdog_connectivity_last_signature
+                data:
+                  value: "{{ signature }}"
+              - service: logbook.log
+                data:
+                  name: "Heating Watchdog – Hlavice"
+                  message: >-
+                    unhealthy_count={{ count }}, detail={{ items }}
+                  entity_id: sensor.heating_valves_unhealthy_count
 
   - alias: "Heating Watchdog – eskalace výpadku hlavic"
     id: heating_watchdog_connectivity_escalation

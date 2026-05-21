@@ -26,6 +26,9 @@ automation:
     action:
       # Malé zpoždění, aby se po startu načetly všechny helpery/automations
       - delay: "00:00:10"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.heating_startup_reconcile_guard
 
       - choose:
           - conditions:
@@ -57,3 +60,7 @@ automation:
           name: "Topení – rozvrhy"
           message: "Po startu HA spuštěna synchronizace rozvrhů (smart zóny)."
           entity_id: input_select.topny_rezim
+      - delay: "00:00:15"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_startup_reconcile_guard

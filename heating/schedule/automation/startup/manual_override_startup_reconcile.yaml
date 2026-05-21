@@ -23,6 +23,9 @@ automation:
 
     action:
       - delay: "00:00:15"
+      - wait_template: "{{ is_state('input_boolean.heating_startup_reconcile_guard', 'off') }}"
+        timeout: "00:01:00"
+        continue_on_timeout: true
 
       - variables:
           zones: >
