@@ -18,6 +18,10 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] zóna je ve `variables.zones` mapě pro Boost ON.
 - [ ] `heating/control/watchdog_manual_override.yaml`
   - [ ] zóna je v obou seznamech `repeat.for_each` (12h i 24h watchdog).
+- [ ] `heating/schedule/automation/startup/manual_override_startup_reconcile.yaml`
+  - [ ] zóna je v seznamu helperů `input_boolean.<zona>_manual_override` pro startup reconcile.
+- [ ] `automations.yaml`
+  - [ ] existuje blueprint instance se `schedule_enable: input_boolean.schedule_enable_<zona>`.
 - [ ] `heating/core/groups.yaml`
   - [ ] `climate.<zona>` je v `group.heating_zones` (pro centrální přehled a navazující automace).
 
@@ -28,7 +32,7 @@ Spusť:
 python3 scripts/validate_zone_list_consistency.py
 ```
 
-Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy. Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny.
+Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery/group.heating_zones). Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny.
 
 ## 4) Minimální smoke test po změně
 - [ ] Auto → Boost → Auto a ověřit návrat setpointů.
