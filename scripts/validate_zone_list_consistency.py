@@ -18,6 +18,7 @@ FILES = {
     "watchdog": ROOT / "heating/control/watchdog_manual_override.yaml",
     "startup_reconcile": ROOT / "heating/schedule/automation/startup/manual_override_startup_reconcile.yaml",
     "automations": ROOT / "automations.yaml",
+    "core_groups": ROOT / "heating/core/groups.yaml",
 }
 
 
@@ -37,6 +38,7 @@ def main() -> int:
     watchdog = read_text(FILES["watchdog"])
     startup_reconcile = read_text(FILES["startup_reconcile"])
     automations = read_text(FILES["automations"])
+    core_groups = read_text(FILES["core_groups"])
 
     dispatch_last = extract_set(r"input_number\.([a-z0-9_]+)_last_comfort", dispatch)
     dispatch_schedule = extract_set(r"input_boolean\.([a-z0-9_]+)_schedule_active", dispatch)
@@ -52,6 +54,7 @@ def main() -> int:
     watchdog_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", watchdog)
     startup_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", startup_reconcile)
     automation_schedule = extract_set(r"input_boolean\.schedule_enable_([a-z0-9_]+)", automations)
+    core_group_climate = extract_set(r"climate\.([a-z0-9_]+)", core_groups)
 
     groups = {
         "dispatch_last": dispatch_last,
@@ -66,6 +69,7 @@ def main() -> int:
         "watchdog_manual": watchdog_manual,
         "startup_manual": startup_manual,
         "automation_schedule": automation_schedule,
+        "core_group_climate": core_group_climate,
     }
 
     baseline = dispatch_last

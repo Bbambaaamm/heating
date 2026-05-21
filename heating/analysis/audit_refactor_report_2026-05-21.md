@@ -91,3 +91,11 @@
    - `automations.yaml` (konzistence `schedule_enable_<zona>` u blueprint instancí).
 2. ✅ Zachována beze změny runtime logika topení (změna je pouze v auditním/validačním tooling).
 3. ✅ Přínos: menší riziko tiché divergence seznamů při přidání nové zóny, dřívější zachycení chyby před nasazením.
+
+
+## Další krok provedený v této iteraci (2026-05-21, navazující)
+1. ✅ Rozšířena statická validace `scripts/validate_zone_list_consistency.py` o kontrolu `heating/core/groups.yaml`:
+   - ověřuje se, že každá baseline zóna má `climate.<zona>` i v `group.heating_zones`.
+2. ✅ Aktualizován onboarding checklist `heating/analysis/zone_onboarding_checklist.md` o povinnou kontrolu zápisu zóny do `heating/core/groups.yaml`.
+3. ✅ Zachována runtime logika bez změny; úpravy jsou pouze v auditním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko, že nově přidaná zóna bude v orchestrace seznamech, ale nebude zahrnutá v centrální skupině zón.
