@@ -256,3 +256,9 @@ Cíl: ověřit celý stack proti tichým chybám (drift seznamů, cyklení autom
 3. Nakonec strukturální změny (centralizace seznamů / refaktor větví).
 
 Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresní chyby, a zároveň dává měřitelný důkaz, že systém po každém kroku běží predikovatelně.
+
+
+## Další krok provedený v této iteraci (2026-05-21, baseline validační artefakt)
+1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: uložen baseline artefakt s výstupem statické kontroly zón do `heating/analysis/baseline_validate_zones_2026-05-21.txt` (výstup z `python3 scripts/validate_zone_list_consistency.py`).
+2. ✅ Runtime logika topení zůstala beze změny; úprava je pouze auditně-procesní.
+3. ✅ Přínos: existuje dohledatelný baseline důkaz konzistence zón pro další řízené iterace debug/refactoru.
