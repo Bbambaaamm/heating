@@ -285,8 +285,9 @@ automation:
                 in_window: "{{ is_state(repeat.item.schedule, 'on') }}"
                 raw_last: "{{ states(repeat.item.last) }}"
                 last_comfort: >-
-                  {% if raw_last not in ['unknown','unavailable',''] %}
-                    {{ raw_last | float(22) }}
+                  {% set parsed_last = raw_last | float(default=none) %}
+                  {% if parsed_last is not none %}
+                    {{ parsed_last }}
                   {% else %}
                     {{ eco }}
                   {% endif %}

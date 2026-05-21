@@ -170,7 +170,10 @@ variables:
 
   mode: "{{ states('input_select.topny_rezim') }}"
   eco_temp: "{{ states(eco_temp_entity) | float(15) }}"
-  last_comfort: "{{ states(last_comfort_helper) | float(22) }}"
+  last_comfort_raw: "{{ states(last_comfort_helper) }}"
+  last_comfort: >-
+    {% set parsed = last_comfort_raw | float(default=none) %}
+    {% if parsed is not none %}{{ parsed }}{% else %}{{ eco_temp }}{% endif %}
   new_set: "{{ state_attr(climate_entity, 'temperature') | float(0) }}"
   min_temp: "{{ state_attr(climate_entity, 'min_temp') | float(5) }}"
   max_temp: "{{ state_attr(climate_entity, 'max_temp') | float(30) }}"
@@ -182,7 +185,7 @@ variables:
     {% else %}{{ x }}{% endif %}
 
   safe_comfort: >-
-    {% set x = last_comfort | float(22) %}
+    {% set x = last_comfort | float(eco_temp) %}
     {% if x < min_temp %}{{ min_temp }}
     {% elif x > max_temp %}{{ max_temp }}
     {% else %}{{ x }}{% endif %}
