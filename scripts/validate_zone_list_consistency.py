@@ -54,6 +54,8 @@ def main() -> int:
     ui_global_manual = read("heating/ui/packages/heating_global_manual.yaml")
     manual_override_helpers = read("heating/schedule/preferences/helpers/manual_override_helpers.yaml")
 
+    ui_timer_logic = read("heating/ui/controls/heating_timer_logic.yaml")
+
     validate_set("dispatch last_comfort", extract(r"input_number\.([\w]+)_last_comfort", dispatch), baseline, errors)
     validate_set("dispatch schedule_active", extract(r"input_boolean\.([\w]+)_schedule_active", dispatch), baseline, errors)
     validate_set("dispatch manual_override", extract(r"input_boolean\.([\w]+)_manual_override", dispatch), baseline, errors)
@@ -81,6 +83,8 @@ def main() -> int:
     validate_set("manual_override_helpers ui_select", extract(r"^\s*ui_select_([0-9A-Za-z_]+):\s*$", manual_override_helpers), baseline, errors)
     validate_set("manual_override_helpers timer", extract(r"^\s*([0-9A-Za-z_]+)_manual_override:\s*$", manual_override_helpers), baseline, errors)
     validate_set("manual_override_helpers type", extract(r"^\s*([0-9A-Za-z_]+)_manual_override_type:\s*$", manual_override_helpers), baseline, errors)
+
+    validate_set("ui timer logic timers", extract(r"timer\.([\w]+)_manual_override", ui_timer_logic), baseline, errors)
 
     for zone in BASELINE_ZONES:
         if f"manual: input_boolean.{zone}_manual_override" not in ui_global_manual:
