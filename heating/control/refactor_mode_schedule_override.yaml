@@ -75,6 +75,12 @@ script:
           text:
     sequence:
       - variables:
+          climate_state: "{{ states(climate_entity) }}"
+          climate_obj: "{{ states[climate_entity] if climate_entity in states else none }}"
+          climate_exists: "{{ climate_obj is not none }}"
+          climate_ready: >-
+            {{ climate_exists
+               and climate_state not in ['unknown', 'unavailable', ''] }}
           target_raw: "{{ requested_temp }}"
           target_valid: >-
             {% set raw = target_raw %}
@@ -98,7 +104,7 @@ script:
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ target_valid }}"
+                value_template: "{{ climate_ready and target_valid }}"
             sequence:
               - action: climate.set_hvac_mode
                 target:
@@ -130,8 +136,12 @@ script:
                     data:
                       name: "Heating dispatch"
                       message: >-
-                        WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }},
-                        nevalidní requested_temp={{ target_raw }} ({{ reason }}).
+                        WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }}.
+                        climate_exists={{ climate_exists }},
+                        climate_state={{ climate_state }},
+                        climate_ready={{ climate_ready }},
+                        target_valid={{ target_valid }},
+                        requested_temp={{ target_raw }} ({{ reason }}).
                       entity_id: "{{ climate_entity }}"
 
 automation:
