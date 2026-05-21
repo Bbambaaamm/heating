@@ -5,8 +5,8 @@
 Projekt obsahuje automatické ochranné a auditní kontroly, aby nebylo nutné je spouštět ručně.
 
 ### Kdy se kontroly spouští automaticky
-- **Před commitem** přes `pre-commit` hook (`heating-protective-checks`).
-- **V CI (GitHub Actions)** přes workflow `Heating audit and validation` při změnách v `heating/**`, `automations.yaml`, `configuration.yaml` a `scripts/**`.
+- **Primárně v CI (GitHub Actions)** přes workflow `Heating audit and validation` při změnách v `heating/**`, `automations.yaml`, `configuration.yaml` a `scripts/**`.
+- **Volitelně lokálně** přes `pre-commit` hook (`heating-protective-checks`) jako vývojářská pomůcka.
 
 ### Co se kontroluje
 1. Konzistence zón napříč orchestrace/listy/helpery (`scripts/validate_zone_list_consistency.py`).
@@ -21,7 +21,7 @@ Projekt obsahuje automatické ochranné a auditní kontroly, aby nebylo nutné j
 - **PASS**: všechny kontroly vrátí exit code 0.
 - **FAIL**: alespoň jedna kontrola vrátí exit code 1 → commit/CI se zastaví.
 
-### Lokální spuštění (volitelné)
+### Lokální spuštění (volitelné, ne primární ochrana)
 ```bash
 python3 scripts/run_protective_checks.py
 ```

@@ -365,3 +365,6 @@ Použij při každém incidentu topení:
 4. `scripts/validate_yaml_and_ha_style.py` – fail-fast YAML syntax + styl (trigger/condition/action).
 5. `scripts/validate_debug_guards.py` – guard kontrola pro `[DEBUG]` bloky.
 6. `scripts/validate_smoke_coverage.py` – fail-fast kontrola přítomnosti smoke/checklist guardrailů.
+
+7. Primární ochrana je CI v GitHub Actions; lokální pre-commit je pouze volitelná vývojářská pomůcka (nikoliv hlavní kontrolní mechanismus).
+8. Runtime ochrana po nasazení/restartu je řešena HA automací `heating_runtime_debug_audit`, která kontroluje guard stav a automaticky vypíná expirovaný debug.
