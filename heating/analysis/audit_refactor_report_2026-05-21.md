@@ -217,7 +217,7 @@ Cíl: ověřit celý stack proti tichým chybám (drift seznamů, cyklení autom
 ### Krok 1 — Statická kontrola kolizí a driftu (nízké riziko)
 1. Rozšířit statickou validaci o anti-kolizní pravidla:
    - stejná entita nesmí být ve stejném workflow řízena dvěma různými větvemi bez guard podmínky,
-   - každý `manual_override` helper musí mít přesně jednu startup reconcile cestu,
+   - ✅ každý `manual_override` helper musí mít přesně jednu startup reconcile cestu,
    - každá zóna musí mít konzistentní timer/helper pair bez duplicit.
 2. Výsledek ukládat jako report (PASS/FAIL + konkrétní řádky).
 3. Tento krok je čistě validační; runtime logika zůstává beze změny.
