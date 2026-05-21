@@ -113,3 +113,11 @@
    - kontrola existence `heating/core/zone_<zona>.yaml` pro každou baseline zónu.
 2. ✅ Přínos: nižší riziko tichého rozjezdu nekonzistence při onboardingu nové zóny (např. helpery existují, ale chybí core zóna soubor).
 3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu.
+
+## Další krok provedený v této iteraci (2026-05-21, rozšíření onboarding guardrailů)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu existence souborů navázaných na každou baseline zónu:
+   - `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`,
+   - `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml`.
+2. ✅ Aktualizován checklist `heating/analysis/zone_onboarding_checklist.md` o povinné ověření výše uvedených souborů pro každou novou zónu.
+3. ✅ Upřesněn popis validačního kroku v checklistu, že skript nekontroluje jen seznamy helperů, ale i přítomnost klíčových zónových souborů.
+4. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu a dokumentaci.
