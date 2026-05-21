@@ -262,3 +262,8 @@ Tento postup minimalizuje riziko, že při „úklidu“ vzniknou nové regresn�
 1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: uložen baseline artefakt s výstupem statické kontroly zón do `heating/analysis/baseline_validate_zones_2026-05-21.txt` (výstup z `python3 scripts/validate_zone_list_consistency.py`).
 2. ✅ Runtime logika topení zůstala beze změny; úprava je pouze auditně-procesní.
 3. ✅ Přínos: existuje dohledatelný baseline důkaz konzistence zón pro další řízené iterace debug/refactoru.
+
+## Další krok provedený v této iteraci (2026-05-21, baseline korelační tabulka)
+1. ✅ Splněn jeden dosud neuzavřený bod z „Krok 0 — Freeze a baseline“: založena tabulka „symptom → zdroj automace → zóna → čas“ jako šablona v `heating/analysis/symptom_source_zone_time_template_2026-05-21.md`.
+2. ✅ Runtime logika topení zůstala beze změny; úprava je čistě procesní/auditní.
+3. ✅ Přínos: jednotný formát sběru incidentních dat pro korelaci při replay smoke scénářů a následném root-cause debuggu.
