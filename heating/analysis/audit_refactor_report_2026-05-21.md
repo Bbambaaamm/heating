@@ -106,3 +106,10 @@
    - doplněna povinná kontrola `automations.yaml` pro `schedule_enable_<zona>` u blueprint instancí.
 2. ✅ Upřesněn popis validačního kroku v checklistu, že zahrnuje i startup reconcile, blueprint schedule helpery a `group.heating_zones`.
 3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze procesní/dokumentační pro snížení rizika tichého vynechání zóny při onboardingu.
+
+## Další krok provedený v této iteraci (2026-05-21, posílení statické validace)
+1. ✅ Rozšířen skript `scripts/validate_zone_list_consistency.py` o další konzervativní kontroly bez zásahu do runtime:
+   - kontrola konzistence `climate.<zona>` seznamu i v `automations.yaml` (vedle již hlídaného `schedule_enable_<zona>`),
+   - kontrola existence `heating/core/zone_<zona>.yaml` pro každou baseline zónu.
+2. ✅ Přínos: nižší riziko tichého rozjezdu nekonzistence při onboardingu nové zóny (např. helpery existují, ale chybí core zóna soubor).
+3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu.

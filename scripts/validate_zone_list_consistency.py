@@ -55,6 +55,7 @@ def main() -> int:
     startup_manual = extract_set(r"input_boolean\.([a-z0-9_]+)_manual_override", startup_reconcile)
     automation_schedule = extract_set(r"input_boolean\.schedule_enable_([a-z0-9_]+)", automations)
     core_group_climate = extract_set(r"climate\.([a-z0-9_]+)", core_groups)
+    automation_climate = extract_set(r"climate\.([a-z0-9_]+)", automations)
 
     groups = {
         "dispatch_last": dispatch_last,
@@ -69,6 +70,7 @@ def main() -> int:
         "watchdog_manual": watchdog_manual,
         "startup_manual": startup_manual,
         "automation_schedule": automation_schedule,
+        "automation_climate": automation_climate,
         "core_group_climate": core_group_climate,
     }
 
@@ -87,6 +89,15 @@ def main() -> int:
         print("❌ Nekonzistentní seznamy zón:")
         for item in failures:
             print(f"- {item}")
+        return 1
+
+    missing_zone_files = sorted(
+        zone for zone in baseline if not (ROOT / "heating/core" / f"zone_{zone}.yaml").exists()
+    )
+    if missing_zone_files:
+        print("❌ Chybí core definice zón (heating/core/zone_<zona>.yaml):")
+        for zone in missing_zone_files:
+            print(f"- zone_{zone}.yaml")
         return 1
 
     print("✅ Seznamy zón jsou konzistentní.")
