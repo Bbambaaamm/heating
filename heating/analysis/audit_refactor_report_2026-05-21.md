@@ -187,3 +187,11 @@
 2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly tohoto UI timer seznamu.
 3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
 4. ✅ Přínos: nižší riziko tiché divergence, kdy je zóna zavedena v override helper vrstvě, ale chybí v UI automaci, která ukončuje manuální override po expiraci časovače.
+
+## Další krok provedený v této iteraci (2026-05-21, validace obsahu zone prefs)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu obsahu `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml`:
+   - ověřuje se přítomnost `input_number.<zona>_last_comfort`,
+   - ověřují se očekávané bezpečné hranice (`min: 10`, `max: 30`).
+2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md`, aby explicitně vyžadoval kontrolu těchto položek v prefs souborech.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tichého onboardingu zóny s nekompletní nebo nebezpečně nastavenou výchozí komfortní preferencí.

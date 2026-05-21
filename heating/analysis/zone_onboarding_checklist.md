@@ -47,6 +47,8 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] soubor obsahuje minimálně hranice týdenního rozvrhu (`<zona>_monday_start`, `<zona>_sunday_end`).
 - [ ] `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml`
   - [ ] existuje prefs soubor zóny pro časové preference.
+  - [ ] soubor obsahuje `input_number.<zona>_last_comfort`.
+  - [ ] soubor obsahuje očekávané bezpečné hranice (`min: 10`, `max: 30`).
 
 ## 3) Rychlá validace konzistence
 Spusť:
@@ -55,7 +57,7 @@ Spusť:
 python3 scripts/validate_zone_list_consistency.py
 ```
 
-Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler helpery + UI startup sync + UI global manual map + `manual_override_helpers` + `heating_timer_logic`), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>` a že `schedule_helpers_<zona>.yaml` obsahuje `schedule_enable_<zona>` i minimální hranice týdenního okna (`<zona>_monday_start`, `<zona>_sunday_end`). Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity/helperů.
+Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler helpery + UI startup sync + UI global manual map + `manual_override_helpers` + `heating_timer_logic`), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>`, že `schedule_helpers_<zona>.yaml` obsahuje `schedule_enable_<zona>` i minimální hranice týdenního okna (`<zona>_monday_start`, `<zona>_sunday_end`) a že `zone_<zona>_prefs.yaml` obsahuje `input_number.<zona>_last_comfort` s očekávanými hranicemi (`min: 10`, `max: 30`). Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity/helperů.
 
 ## 4) Minimální smoke test po změně
 - [ ] Auto → Boost → Auto a ověřit návrat setpointů.
