@@ -76,7 +76,8 @@
 ## Doporučený další krok (konzervativní)
 1. ✅ Provedeno: sjednocena textová nekonzistence `Chodba zachod` -> `Chodba záchod` v `heating/control/mode_boost.yaml` (pouze display text, bez změny entit/ID).
 2. ✅ Provedeno: doplněn interní checklist `heating/analysis/zone_onboarding_checklist.md` + validační skript `scripts/validate_zone_list_consistency.py` pro kontrolu konzistence zón napříč seznamy.
-3. Teprve následně řešit centralizaci seznamů zón (nejrizikovější část), ideálně po přidání smoke testů.
+3. ✅ Provedeno: doplněna smoke test matice `heating/analysis/heating_smoke_test_matrix.md` jako vstupní brána před centralizací seznamů zón.
+4. Teprve následně řešit centralizaci seznamů zón (nejrizikovější část) s oporou o tuto testovací matici.
 
 ## Jak ověřit, že systém funguje správně po budoucích změnách
 - Validace konfigurace Home Assistant (`check_config`) v cílovém runtime prostředí.
