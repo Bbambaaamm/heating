@@ -37,6 +37,8 @@ Tento checklist je záměrně konzervativní: cílem je zabránit tichým chybá
   - [ ] existuje navázaný UI helper `input_boolean.ui_select_<zona>`.
 - [ ] `heating/ui/packages/heating_global_manual.yaml`
   - [ ] zóna je v `zone_map` konzistentně pro `manual`, `timer` i `type_select`.
+- [ ] `heating/ui/controls/heating_timer_logic.yaml`
+  - [ ] zóna je v `trigger.entity_id` seznamu `timer.<zona>_manual_override` pro vypnutí manuálu po vypršení časovače.
 - [ ] `heating/core/zone_<zona>.yaml`
   - [ ] soubor obsahuje správnou entitu `climate.<zona>` (nejen že existuje).
 - [ ] `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`
@@ -53,7 +55,7 @@ Spusť:
 python3 scripts/validate_zone_list_consistency.py
 ```
 
-Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler helpery + UI startup sync + UI global manual map + `manual_override_helpers`), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>` a že `schedule_helpers_<zona>.yaml` obsahuje `schedule_enable_<zona>` i minimální hranice týdenního okna (`<zona>_monday_start`, `<zona>_sunday_end`). Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity/helperů.
+Skript ověří, že slugy zón jsou konzistentní mezi klíčovými seznamy (dispatch/boost/watchdog/startup reconcile/blueprint schedule helpery + navázané blueprint helpery/group.heating_zones + scheduler helpery + UI startup sync + UI global manual map + `manual_override_helpers` + `heating_timer_logic`), současně zkontroluje existenci navazujících souborů `heating/core/zone_<zona>.yaml`, `heating/schedule/preferences/helpers/schedule_helpers_<zona>.yaml`, `heating/schedule/preferences/prefs/zone_<zona>_prefs.yaml` a navíc ověří, že v `heating/core/zone_<zona>.yaml` je skutečně použita odpovídající entita `climate.<zona>` a že `schedule_helpers_<zona>.yaml` obsahuje `schedule_enable_<zona>` i minimální hranice týdenního okna (`<zona>_monday_start`, `<zona>_sunday_end`). Pokud vrátí nenulový exit code, je potřeba doplnit chybějící zóny/soubory nebo opravit nekonzistenci entity/helperů.
 
 ## 4) Minimální smoke test po změně
 - [ ] Auto → Boost → Auto a ověřit návrat setpointů.

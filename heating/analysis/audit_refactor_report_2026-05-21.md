@@ -179,3 +179,11 @@
 2. ✅ Skript konzervativně validuje baseline zóny napříč klíčovými seznamy (dispatch, boost, watchdog, startup reconcile, blueprint inputy, skupiny, UI mapy) a současně kontroluje existenci/obsah navázaných zónových souborů.
 3. ✅ Runtime logika topení zůstala beze změny; úprava je pouze v auditním validačním tooling procesu.
 4. ✅ Přínos: odstranění tiché procesní mezery (checklist odkazoval na neexistující skript) a možnost opakovatelně ověřit konzistenci zón jedním příkazem před nasazením.
+
+
+## Další krok provedený v této iteraci (2026-05-21, UI timer guardrail)
+1. ✅ Rozšířen validační skript `scripts/validate_zone_list_consistency.py` o kontrolu `heating/ui/controls/heating_timer_logic.yaml`:
+   - ověřuje se, že každá baseline zóna má `timer.<zona>_manual_override` v `trigger.entity_id` seznamu automace pro vypnutí manuálu po vypršení timeru.
+2. ✅ Aktualizován `heating/analysis/zone_onboarding_checklist.md` o explicitní krok kontroly tohoto UI timer seznamu.
+3. ✅ Runtime logika topení zůstala beze změny; úpravy jsou pouze v auditním validačním tooling procesu a dokumentaci.
+4. ✅ Přínos: nižší riziko tiché divergence, kdy je zóna zavedena v override helper vrstvě, ale chybí v UI automaci, která ukončuje manuální override po expiraci časovače.
