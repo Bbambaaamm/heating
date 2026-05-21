@@ -138,6 +138,12 @@ automation:
                 manual: "{{ repeat.item.manual }}"
                 timer: "{{ repeat.item.timer }}"
                 manual_type: "{{ repeat.item.manual_type }}"
+                climate_state: "{{ states(climate) }}"
+                climate_obj: "{{ states[climate] if climate in states else none }}"
+                climate_exists: "{{ climate_obj is not none }}"
+                climate_ready: >-
+                  {{ climate_exists
+                     and climate_state not in ['unknown', 'unavailable', ''] }}
                 # Základ komfortu: preferuj input_number.*_last_comfort,
                 # když je unknown/unavailable → vezmi aktuální setpoint
                 comfort_base: >-
@@ -164,7 +170,7 @@ automation:
             - choose:
                 - conditions:
                     - condition: template
-                      value_template: "{{ not effective_manual }}"
+                      value_template: "{{ climate_ready and (not effective_manual) }}"
                   sequence:
                     - action: climate.set_hvac_mode
                       target:
@@ -180,17 +186,33 @@ automation:
                         entity_id: "{{ climate }}"
                       data:
                         temperature: "{{ target|round(1) }}"
-
-            - action: logbook.log
-              data:
-                name: "Boost → {{ repeat.item.name }}"
-                message: >-
-                  {% if effective_manual %}
-                    Přeskočeno (aktivní účinný manuální override).
-                  {% else %}
-                    Cíl {{ target|round(1) }} °C (zdroj={{ last }}, offset={{ boost_offset }})
-                  {% endif %}
-                entity_id: "{{ climate }}"
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ climate_ready }}"
+                  sequence:
+                    - action: logbook.log
+                      data:
+                        name: "Boost → {{ repeat.item.name }}"
+                        message: >-
+                          {% if effective_manual %}
+                            Přeskočeno (aktivní účinný manuální override).
+                          {% else %}
+                            Cíl {{ target|round(1) }} °C (zdroj={{ last }}, offset={{ boost_offset }})
+                          {% endif %}
+                        entity_id: "{{ climate }}"
+                - conditions:
+                    - condition: state
+                      entity_id: input_boolean.heating_debug_guard
+                      state: "on"
+                  sequence:
+                    - action: logbook.log
+                      data:
+                        name: "Boost → {{ repeat.item.name }}"
+                        message: >-
+                          WARNING: Přeskočeno – climate není ready
+                          (exists={{ climate_exists }}, state={{ climate_state }}).
+                        entity_id: "{{ climate }}"
 
   # -------------------------------------------------------------------
   # AUTOMATIZACE: Po vypršení Boostu vypnout tlačítko
