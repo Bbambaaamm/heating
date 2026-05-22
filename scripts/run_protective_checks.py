@@ -20,6 +20,7 @@ def main() -> int:
     checks = [
         ("Validace konzistence zón", [sys.executable, "scripts/validate_zone_list_consistency.py"]),
         ("YAML syntax + HA styl guard", [sys.executable, "scripts/validate_yaml_and_ha_style.py"]),
+        ("PyYAML hard dependency guard", [sys.executable, "scripts/check_pyyaml_hard_dependency.py"]),
         ("Debug guard kontroly", [sys.executable, "scripts/validate_debug_guards.py"]),
         ("Orchestrace smoke coverage guard", [sys.executable, "scripts/validate_smoke_coverage.py"]),
     ]

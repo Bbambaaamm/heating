@@ -64,3 +64,40 @@ automation:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.heating_startup_reconcile_guard
+
+  - id: heating_startup_reconcile_guard_watchdog
+    alias: "Topení – startup reconcile guard watchdog"
+    description: >
+      Konzervativní ochrana proti zaseknutému startup guardu.
+      Pokud guard zůstane zapnutý déle než 90 s, vynutí jeho vypnutí
+      a zapíše varování.
+    mode: single
+    initial_state: true
+
+    trigger:
+      - trigger: state
+        entity_id: input_boolean.heating_startup_reconcile_guard
+        to: "on"
+        for: "00:01:30"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.heating_startup_reconcile_guard
+        state: "on"
+
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_startup_reconcile_guard
+      - action: logbook.log
+        data:
+          name: "Topení – startup guard watchdog"
+          message: "Guard byl aktivní déle než 90 s, watchdog vynutil OFF."
+          entity_id: input_boolean.heating_startup_reconcile_guard
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_startup_reconcile_guard_watchdog
+          title: "Topení – watchdog startup guardu"
+          message: >-
+            ⚠️ Startup reconcile guard zůstal zapnutý déle než 90 s.
+            Watchdog vynutil jeho vypnutí na OFF.
