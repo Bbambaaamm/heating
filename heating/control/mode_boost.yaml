@@ -179,11 +179,16 @@ automation:
                            and (not effective_manual)
                            and is_state('input_boolean.heating_central_dispatch_enable', 'off') }}
                   sequence:
-                    - action: climate.set_hvac_mode
-                      target:
-                        entity_id: "{{ climate }}"
-                      data:
-                        hvac_mode: heat
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ climate_state != 'heat' }}"
+                          sequence:
+                            - action: climate.set_hvac_mode
+                              target:
+                                entity_id: "{{ climate }}"
+                              data:
+                                hvac_mode: heat
                     - condition: template
                       value_template: >-
                         {{ ((state_attr(climate, 'temperature') | float)

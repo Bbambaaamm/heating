@@ -15,11 +15,11 @@ def is_ci_environment() -> bool:
 
 
 def load_yaml_module():
-    """Bezpečně načte PyYAML a vrátí modul nebo None."""
+    """Bezpečně načte PyYAML a vrátí modul nebo vyhodí chybu."""
     try:
         import yaml  # type: ignore
-    except ModuleNotFoundError:
-        return None
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("PyYAML není dostupné. Nainstaluj balíček 'pyyaml'.") from exc
     return yaml
 
 
@@ -66,14 +66,11 @@ def yaml_files() -> list[Path]:
 
 
 def main() -> int:
-    yaml = load_yaml_module()
-    if yaml is None:
-        if is_ci_environment():
-            print("❌ PyYAML není dostupné v CI; YAML/HA style validace musí být povinně spuštěna.")
-            return 1
-        print("⚠️ PyYAML není dostupné, syntax YAML nelze ověřit.")
-        print("Nainstaluj balíček pyyaml pro lokální běh této kontroly.")
-        return 0
+    try:
+        yaml = load_yaml_module()
+    except RuntimeError as exc:
+        print(f"❌ {exc}")
+        return 1
 
     ha_loader = build_ha_loader(yaml)
 
