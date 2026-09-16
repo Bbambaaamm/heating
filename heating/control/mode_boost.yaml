@@ -331,19 +331,32 @@ automation:
         entity_id: input_select.topny_rezim
         from: "Boost"
     action:
+      # A queued cancellation must not clear a newer button/mode request.
+      # Recheck after each service call, which can yield to another automation.
+      - &boost_cancel_still_current
+        condition: template
+        value_template: >-
+          {{ is_state('input_boolean.topny_system_enable', 'off')
+             or is_state('input_select.topny_rezim', 'Off')
+             or (trigger.to_state is not none
+                 and states.input_boolean.boost_now.last_changed <= trigger.to_state.last_changed
+                 and states.input_select.topny_rezim.last_changed <= trigger.to_state.last_changed) }}
       - action: input_text.set_value
         target:
           entity_id: input_text.boost_until_utc
         data:
           value: "{{ utcnow().isoformat() }}"
+      - *boost_cancel_still_current
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
           datetime: "{{ now().isoformat() }}"
+      - *boost_cancel_still_current
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now
+      - *boost_cancel_still_current
       - choose:
           - conditions:
               - condition: state

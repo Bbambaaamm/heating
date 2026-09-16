@@ -1,2 +1,2 @@
-# Reference for isolated tests, not a declaration of the deployed HA version.
-homeassistant==2026.9.2
+# Core version used in production; all devices remain simulated in tests.
+homeassistant==2026.5.1

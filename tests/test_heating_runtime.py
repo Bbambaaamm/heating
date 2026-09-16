@@ -311,7 +311,10 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         a = automation(BOOST, "heating_boost_cancel")
         self.set("input_datetime.boost_until", (dt_util.now() + timedelta(minutes=20)).isoformat())
         self.set("input_select.topny_rezim", "Boost")
-        await self.run_automation(a, {"trigger": {"id": "button_off"}})
+        self.set("input_boolean.boost_now", "on")
+        self.set("input_boolean.boost_now", "off")
+        await self.run_automation(a, {"trigger": {
+            "id": "button_off", "to_state": self.hass.states.get("input_boolean.boost_now")}})
         self.assertLessEqual(self.hass.states.get("input_datetime.boost_until").attributes["timestamp"], dt_util.now().timestamp())
         self.assertNotEqual(self.hass.states.get("input_select.topny_rezim").state, "Boost")
 
@@ -587,6 +590,39 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.hass.async_block_till_done()
         self.assertEqual(self.hass.states.get("input_datetime.boost_until").state, deadline)
         self.assertEqual(len(self.writes("input_datetime", "set_datetime")), 1)
+
+    async def test_boost_cancel_rechecks_after_service_yields_to_new_request(self):
+        self.set("input_boolean.boost_now", "on")
+        self.set("input_boolean.boost_now", "off")
+        cancelled_state = self.hass.states.get("input_boolean.boost_now")
+        restarted = False
+
+        async def restart_after_clear(call):
+            nonlocal restarted
+            await self.service(call)
+            if not restarted:
+                restarted = True
+                self.set("input_boolean.boost_now", "on")
+                await self.run_automation(automation(BOOST, "heating_boost_start"))
+
+        self.hass.services.async_register("input_text", "set_value", restart_after_clear)
+        await self.run_automation(automation(BOOST, "heating_boost_cancel"), {
+            "trigger": {"id": "button_off", "to_state": cancelled_state}})
+        self.assertEqual(self.hass.states.get("input_boolean.boost_now").state, "on")
+        self.assertGreater(self.hass.states.get("input_datetime.boost_until").attributes["timestamp"],
+                           dt_util.now().timestamp() + 59 * 60)
+
+    async def test_old_button_cancel_cannot_clear_new_mode_boost(self):
+        self.set("input_boolean.boost_now", "on")
+        self.set("input_boolean.boost_now", "off")
+        cancelled_state = self.hass.states.get("input_boolean.boost_now")
+        self.set("input_select.topny_rezim", "Boost")
+        await self.run_automation(automation(BOOST, "heating_boost_start"))
+        deadline = self.hass.states.get("input_datetime.boost_until").state
+        await self.run_automation(automation(BOOST, "heating_boost_cancel"), {
+            "trigger": {"id": "button_off", "to_state": cancelled_state}})
+        self.assertEqual(self.hass.states.get("input_select.topny_rezim").state, "Boost")
+        self.assertEqual(self.hass.states.get("input_datetime.boost_until").state, deadline)
 
     async def test_boost_is_inactive_at_exact_deadline_without_latches(self):
         now = dt_util.now()
