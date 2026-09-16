@@ -29,6 +29,15 @@ def build_ha_loader(yaml_module):
     class HaLoader(yaml_module.SafeLoader):
         """SafeLoader rozšířený o HA tagy."""
 
+        def construct_mapping(self, node, deep=False):
+            keys = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                if key in keys:
+                    raise ValueError(f"duplicitní YAML klíč {key!r}, řádek {key_node.start_mark.line + 1}")
+                keys.add(key)
+            return super().construct_mapping(node, deep=deep)
+
     def construct_tagged(loader, tag_suffix, node):
         """Bezpečně načte tagged node bez ztráty syntax kontroly."""
         if isinstance(node, yaml_module.ScalarNode):
@@ -61,7 +70,8 @@ def build_ha_loader(yaml_module):
 
 
 def yaml_files() -> list[Path]:
-    files = [p for p in ROOT.rglob("*.yaml") if ".git" not in p.parts]
+    files = [p for extension in ("*.yaml", "*.yml") for p in ROOT.rglob(extension)
+             if ".git" not in p.parts]
     return sorted(files)
 
 
@@ -85,7 +95,7 @@ def main() -> int:
 
         if "automation" in file_path.parts or "automations.yaml" == file_path.name:
             if "triggers:" in text or "actions:" in text:
-                errors.append(f"{rel}: obsahuje legacy klíče triggers/actions, použij trigger/action.")
+                errors.append(f"{rel}: projekt používá styl trigger/action; triggers/actions jsou také platná HA syntaxe.")
 
     if errors:
         print("❌ YAML/HA guard: nalezeny problémy")

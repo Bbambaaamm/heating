@@ -20,7 +20,9 @@ template:
         unit_of_measurement: "%"
         state_class: measurement
         availability: >
-          {{ not is_state('climate.prizemi_chodba_zachod', 'unavailable') }}
+          {{ has_value('climate.prizemi_chodba_zachod')
+             and is_number(state_attr('climate.prizemi_chodba_zachod', 'pi_heating_demand'))
+             and 0 <= (state_attr('climate.prizemi_chodba_zachod', 'pi_heating_demand') | float(-1)) <= 100 }}
         state: >
           {% set e = states['climate.prizemi_chodba_zachod'] %}
           {% set age_sec = (as_timestamp(now()) - as_timestamp(e.last_updated)) if e is not none else 999999 %}

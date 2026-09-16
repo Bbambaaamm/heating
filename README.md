@@ -5,12 +5,12 @@
 Projekt obsahuje automatické ochranné a auditní kontroly, aby nebylo nutné je spouštět ručně.
 
 ### Kdy se kontroly spouští automaticky
-- **Primárně v CI (GitHub Actions)** přes workflow `Heating audit and validation` při změnách v `heating/**`, `automations.yaml`, `configuration.yaml` a `scripts/**`.
+- **Primárně v CI (GitHub Actions)** přes workflow `Heating audit and validation` při každém push a pull requestu; bez filtrů, které dříve vynechávaly blueprinty.
 - **Volitelně lokálně** přes `pre-commit` hook (`heating-protective-checks`) jako vývojářská pomůcka.
 
 ### Co se kontroluje
 1. Konzistence zón napříč orchestrace/listy/helpery (`scripts/validate_zone_list_consistency.py`).
-2. YAML syntaxe a HA styl guard (`trigger/condition/action`, zákaz legacy `triggers/actions`) (`scripts/validate_yaml_and_ha_style.py`).
+2. YAML syntaxe a HA styl guard (`trigger/condition/action`, projektový jednotný styl; `triggers/actions` jsou rovněž platná syntaxe HA) (`scripts/validate_yaml_and_ha_style.py`).
 3. Debug guardrail: jakýkoliv nový `[DEBUG]` blok musí obsahovat oba guardy:
    - `input_boolean.heating_debug_guard`
    - `input_datetime.heating_debug_until`
@@ -27,4 +27,33 @@ python3 scripts/run_protective_checks.py
 ```
 
 ### Poznámka k Home Assistant kompatibilitě
-Plná runtime kompatibilita se vždy potvrzuje až v cílovém HA prostředí (`ha core check`/`check_config`). V repozitáři je nyní zaveden fail-fast guard pro YAML syntax + styl a konzistenci orchestrace.
+Kontrola konfigurace (`ha core check`/`check_config`) je pouze jedna vrstva. Runtime kompatibilitu a chování je nutné potvrdit integračními scénáři v cílové verzi HA; přijetí služby není důkaz fyzické reakce zařízení.
+
+
+## Regresní audit 2026-09-16
+
+Podrobný audit, mapa, pokrytí a provozní ověřovací postup jsou předány vlastníkovi samostatně.
+Tato větev obsahuje opravy a reprodukovatelné testy se simulovanými daty.
+
+Izolované testy používají skutečné šablony, skripty a události HA Core **2026.9.2**, Python **3.14**,
+s testovacími entitami a simulovanými službami zařízení. Tato referenční verze není potvrzením
+verze nasazené v domácnosti. Testy nekomunikují s kotlem ani s živým HA.
+
+```sh
+python -m pip install -r requirements-test.txt
+python -m unittest discover -s tests -v
+python scripts/run_protective_checks.py
+```
+
+`HEATING_CONFIG_ROOT=/cesta/k/původnímu/checkoutu` umožňuje stejnou testovací sadu spustit proti
+původní konfiguraci. Kontrola `hass --script check_config -c /cesta/ke/config` je další vrstva;
+čtěte také její výstup, protože chybějící externí device trigger může být pouze zalogován.
+
+Režim a master přepínač po restartu obnovují předchozí hodnotu. V nové instalaci bez uloženého
+stavu začíná master vypnutý. Manuální časovače mají `restore: true`. Nové časové značky
+manuálního override se ukládají při jeho příští aktivaci; stáří override aktivního již před
+aktualizací nelze zpětně rekonstruovat. Prahy kotle, ECO teplota a Boost offset jsou zachovány.
+
+Boost ukládá jednoznačný konec v `input_text.boost_until_utc`; `input_datetime.boost_until` zůstává
+pro místní zobrazení a časový trigger. Starý termín při migraci má fallback na timestamp atribut
+původního helperu. Nový UTC termín zachovává délku i přes změnu letního času a restart.

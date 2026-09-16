@@ -12,6 +12,7 @@ template:
       - name: "Vrata UI"
         unique_id: vrata_ui
         device_class: gate
+        availability: "{{ has_value('cover.vrata_gatebox_position') }}"
 
         # Stav: u tebe jsou to stabilní stavy ze senzoru
         state: >
@@ -26,7 +27,7 @@ template:
           {% set s = states('cover.vrata_gatebox_position') %}
           {% if s == 'opening' %}0
           {% elif s == 'closing' %}100
-          {% else %}{{ state_attr('cover.vrata_gatebox_position','current_position') | default(0) | int }}
+          {% else %}{{ state_attr('cover.vrata_gatebox_position','current_position') | int(0) }}
           {% endif %}
 
         # Ovládání posílá na původní entitu

@@ -29,6 +29,10 @@ automation:
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.heating_startup_reconcile_guard
+      - delay: "00:00:15"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_startup_reconcile_guard
 
       - choose:
           - conditions:
@@ -60,10 +64,6 @@ automation:
           name: "Topení – rozvrhy"
           message: "Po startu HA spuštěna synchronizace rozvrhů (smart zóny)."
           entity_id: input_select.topny_rezim
-      - delay: "00:00:15"
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.heating_startup_reconcile_guard
 
   - id: heating_startup_reconcile_guard_watchdog
     alias: "Topení – startup reconcile guard watchdog"
@@ -75,6 +75,8 @@ automation:
     initial_state: true
 
     trigger:
+      - trigger: time_pattern
+        minutes: "/1"
       - trigger: state
         entity_id: input_boolean.heating_startup_reconcile_guard
         to: "on"
@@ -84,11 +86,18 @@ automation:
       - condition: state
         entity_id: input_boolean.heating_startup_reconcile_guard
         state: "on"
+      - condition: template
+        value_template: >-
+          {{ (now() - states.input_boolean.heating_startup_reconcile_guard.last_changed).total_seconds() >= 90 }}
 
     action:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.heating_startup_reconcile_guard
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_startup_reconcile_guard_watchdog
+          reason: guard_released
       - action: logbook.log
         data:
           name: "Topení – startup guard watchdog"

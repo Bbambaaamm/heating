@@ -1,0 +1,2 @@
+# Reference for isolated tests, not a declaration of the deployed HA version.
+homeassistant==2026.9.2
