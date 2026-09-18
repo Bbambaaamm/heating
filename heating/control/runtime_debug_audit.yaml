@@ -32,7 +32,7 @@ automation:
       - variables:
           debug_guard_on: "{{ is_state('input_boolean.heating_debug_guard', 'on') }}"
           debug_until_raw: "{{ states('input_datetime.heating_debug_until') }}"
-          debug_until_ts: "{{ as_timestamp(states('input_datetime.heating_debug_until'), default=0) }}"
+          debug_until_ts: "{{ state_attr('input_datetime.heating_debug_until', 'timestamp') | float(0) }}"
           now_ts: "{{ now().timestamp() }}"
           debug_expired: "{{ debug_until_ts > 0 and now_ts >= debug_until_ts }}"
           debug_until_missing: "{{ debug_until_raw in ['unknown', 'unavailable', ''] }}"

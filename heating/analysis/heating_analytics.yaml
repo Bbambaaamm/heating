@@ -15,8 +15,8 @@ sensor:
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
-    start: "{{ now() - timedelta(hours=24) }}"
-    end: "{{ now() }}"
+    start: "{{ utcnow() - timedelta(hours=24) }}"
+    end: "{{ utcnow() }}"
 
   # Doba hoření – posledních 24h (hodiny)
   - platform: history_stats
@@ -25,8 +25,8 @@ sensor:
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: time
-    start: "{{ now() - timedelta(hours=24) }}"
-    end: "{{ now() }}"
+    start: "{{ utcnow() - timedelta(hours=24) }}"
+    end: "{{ utcnow() }}"
 
   # Starty – poslední 1h
   - platform: history_stats
@@ -35,8 +35,8 @@ sensor:
     entity_id: binary_sensor.boiler_burngas
     state: "on"
     type: count
-    start: "{{ now() - timedelta(hours=1) }}"
-    end: "{{ now() }}"
+    start: "{{ utcnow() - timedelta(hours=1) }}"
+    end: "{{ utcnow() }}"
 
 # ---------------------------------------------------------------------
 # 2) Odvozené metriky (template)
@@ -109,7 +109,7 @@ template:
           {% if avg >= 30 %}
             100
           {% elif avg <= 5 %}
-            {{ (avg * 20) | round(0) }}
+            {{ ([avg, 0] | max * 4) | round(0) }}
           {% else %}
             {{ (20 + (avg - 5) * 3.2) | round(0) }}
           {% endif %}

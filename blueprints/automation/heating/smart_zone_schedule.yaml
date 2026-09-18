@@ -107,6 +107,8 @@ trigger:
   # Změna stavu Scheduler Booleanu (Komfort <-> Eco)
   - platform: state
     entity_id: !input scheduler_entity
+  - platform: state
+    entity_id: sensor.heating_schedule_windows
 
   # Změna enable flagu nebo režimu
   - platform: state
@@ -159,6 +161,7 @@ variables:
   zone_name: !input zone_name
   climate_entity: !input climate_entity
   scheduler_entity_id: !input scheduler_entity
+  schedule_enable_entity: !input schedule_enable
   last_comfort_helper: !input last_comfort_helper
   eco_temp_entity: !input eco_temp_default
   boost_active_entity: !input boost_active
@@ -191,7 +194,16 @@ variables:
     {% else %}{{ x }}{% endif %}
 
   # Co spustilo automatizaci
-  is_scheduler_trigger: "{{ trigger.platform == 'state' and trigger.entity_id == scheduler_entity_id }}"
+  is_scheduler_trigger: >-
+    {{ trigger.platform == 'state' and (
+         trigger.entity_id == scheduler_entity_id or (
+           trigger.entity_id == 'sensor.heating_schedule_windows'
+           and trigger.from_state is defined and trigger.from_state is not none
+           and trigger.to_state is defined and trigger.to_state is not none
+           and trigger.from_state.state == 'ready' and trigger.to_state.state == 'ready'
+           and (scheduler_entity_id in (trigger.from_state.attributes.get('active_helpers') or []))
+               != (scheduler_entity_id in (trigger.to_state.attributes.get('active_helpers') or []))
+         )) }}
   is_climate_trigger: "{{ trigger.platform == 'state' and trigger.entity_id == climate_entity }}"
 
   # Antispam
@@ -202,7 +214,7 @@ variables:
   since_last: "{{ (now_ts - last_trig_ts) | float(999999) }}"
 
   # === OKNO ===
-  in_window: "{{ is_state(scheduler_entity_id, 'on') }}"
+  in_window: "{{ scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or []) }}"
 
   # -----------------------------------------------------------------
   # 🧠 MANUÁLNÍ OVERRIDE – stav
@@ -249,6 +261,9 @@ variables:
 # ACTION
 # ---------------------------------------------------------------
 action:
+  - condition: state
+    entity_id: input_boolean.topny_system_enable
+    state: "on"
   # ===============================================================
   # 0) Interní změna teploty z automatizace/scriptu
   #    -> nevyhodnocovat znovu (omezí pseudo-smyčky)
@@ -279,45 +294,6 @@ action:
               name: "{{ zone_name }}"
               message: "Manuální override ukončen (další změna rozvrhu)."
               entity_id: "{{ climate_entity }}"
-
-  # ===============================================================
-  # 0b) 🧠 MANUÁLNÍ OVERRIDE – priorita nad rozvrhem
-  #     (každá hlavice se nastaví na last_comfort)
-  # ===============================================================
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ override_should_apply and mode in ['Auto','Boost','Eco'] and not central_dispatch_enabled }}"
-        sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ states(climate_entity) != 'heat' }}"
-                sequence:
-                  - service: climate.set_hvac_mode
-                    target:
-                      entity_id: "{{ climate_entity }}"
-                    data:
-                      hvac_mode: heat
-
-          - condition: template
-            value_template: >
-              {{ ((state_attr(climate_entity, 'temperature') | float)
-                  - (safe_comfort | float)) | abs > 0.1 }}
-
-          - service: climate.set_temperature
-            target:
-              entity_id: "{{ climate_entity }}"
-            data:
-              temperature: "{{ safe_comfort }}"
-
-          - service: logbook.log
-            data:
-              name: "{{ zone_name }}"
-              message: "MANUAL override – nastaven last comfort {{ safe_comfort }} °C"
-              entity_id: "{{ climate_entity }}"
-
-          - stop: "MANUAL override má prioritu – rozvrh se neaplikuje"
 
   # ---------------------------------------------------------------
   # 1) ZACHYCENÍ KOMFORTNÍ TEPLOTY PŘI RUČNÍ ZMĚNĚ SETPOINTU
@@ -403,6 +379,58 @@ action:
 
           - stop: "Ruční zásah mimo okno – přepnuto do manuálního override"
 
+  # Snapshot after ingest/cancellation, before any fallback device I/O.
+  - variables:
+      fallback_inputs: "{{ [states('input_select.topny_rezim'), states(eco_temp_entity), states(last_comfort_helper), states(scheduler_entity_id), states(boost_active_entity), states(manual_override_boolean), states(manual_override_type), states(manual_override_timer), states(schedule_enable_entity), scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}"
+  - condition: template
+    value_template: "{{ has_value(climate_entity) }}"
+
+  # ===============================================================
+  # 0b) 🧠 MANUÁLNÍ OVERRIDE – priorita nad rozvrhem
+  #     (každá hlavice se nastaví na last_comfort)
+  # ===============================================================
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ override_should_apply and is_state(manual_override_boolean, 'on') and mode in ['Auto','Boost','Eco'] and not central_dispatch_enabled }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ states(climate_entity) != 'heat' }}"
+                sequence:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      hvac_mode: heat
+
+          - condition: template
+            value_template: >
+              {{ not is_number(state_attr(climate_entity, 'temperature'))
+                 or ((state_attr(climate_entity, 'temperature') | float(0))
+                  - (safe_comfort | float)) | abs > 0.1 }}
+
+          - condition: template
+            value_template: >-
+              {{ is_state('input_boolean.topny_system_enable', 'on')
+                 and is_state('input_boolean.heating_central_dispatch_enable', 'off')
+                 and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                 and fallback_inputs == [states('input_select.topny_rezim'), states(eco_temp_entity), states(last_comfort_helper), states(scheduler_entity_id), states(boost_active_entity), states(manual_override_boolean), states(manual_override_type), states(manual_override_timer), states(schedule_enable_entity), scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              temperature: "{{ safe_comfort }}"
+
+          - service: logbook.log
+            data:
+              name: "{{ zone_name }}"
+              message: "MANUAL override – nastaven last comfort {{ safe_comfort }} °C"
+              entity_id: "{{ climate_entity }}"
+
+          - stop: "MANUAL override má prioritu – rozvrh se neaplikuje"
+
   # ---------------------------------------------------------------
   # 0) ANTISPAM – aplikaci rozvrhu throttle (NEPLATÍ pro scheduler trigger a neplatí pro ruční otočení)
   # ---------------------------------------------------------------
@@ -464,9 +492,16 @@ action:
 
           - condition: template
             value_template: >
-              {{ ((state_attr(climate_entity, 'temperature') | float)
+              {{ not is_number(state_attr(climate_entity, 'temperature'))
+                 or ((state_attr(climate_entity, 'temperature') | float(0))
                   - (safe_eco | float)) | abs > 0.1 }}
 
+          - condition: template
+            value_template: >-
+              {{ is_state('input_boolean.topny_system_enable', 'on')
+                 and is_state('input_boolean.heating_central_dispatch_enable', 'off')
+                 and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                 and fallback_inputs == [states('input_select.topny_rezim'), states(eco_temp_entity), states(last_comfort_helper), states(scheduler_entity_id), states(boost_active_entity), states(manual_override_boolean), states(manual_override_type), states(manual_override_timer), states(schedule_enable_entity), scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
           - service: climate.set_temperature
             target:
               entity_id: "{{ climate_entity }}"
@@ -503,9 +538,16 @@ action:
 
                   - condition: template
                     value_template: >
-                      {{ ((state_attr(climate_entity, 'temperature') | float)
+                      {{ not is_number(state_attr(climate_entity, 'temperature'))
+                         or ((state_attr(climate_entity, 'temperature') | float(0))
                           - (safe_comfort | float)) | abs > 0.1 }}
 
+                  - condition: template
+                    value_template: >-
+                      {{ is_state('input_boolean.topny_system_enable', 'on')
+                         and is_state('input_boolean.heating_central_dispatch_enable', 'off')
+                         and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                         and fallback_inputs == [states('input_select.topny_rezim'), states(eco_temp_entity), states(last_comfort_helper), states(scheduler_entity_id), states(boost_active_entity), states(manual_override_boolean), states(manual_override_type), states(manual_override_timer), states(schedule_enable_entity), scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ climate_entity }}"
@@ -536,9 +578,16 @@ action:
 
                   - condition: template
                     value_template: >
-                      {{ ((state_attr(climate_entity, 'temperature') | float)
+                      {{ not is_number(state_attr(climate_entity, 'temperature'))
+                         or ((state_attr(climate_entity, 'temperature') | float(0))
                           - (safe_eco | float)) | abs > 0.1 }}
 
+                  - condition: template
+                    value_template: >-
+                      {{ is_state('input_boolean.topny_system_enable', 'on')
+                         and is_state('input_boolean.heating_central_dispatch_enable', 'off')
+                         and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                         and fallback_inputs == [states('input_select.topny_rezim'), states(eco_temp_entity), states(last_comfort_helper), states(scheduler_entity_id), states(boost_active_entity), states(manual_override_boolean), states(manual_override_type), states(manual_override_timer), states(schedule_enable_entity), scheduler_entity_id in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ climate_entity }}"

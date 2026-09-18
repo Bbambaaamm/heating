@@ -2,20 +2,10 @@ name: Heating audit and validation
 
 on:
   pull_request:
-    paths:
-      - 'heating/**'
-      - 'automations.yaml'
-      - 'configuration.yaml'
-      - 'scripts/**'
-      - '.github/workflows/heating-audit-validation.yml'
   push:
-    branches: [ main, master ]
-    paths:
-      - 'heating/**'
-      - 'automations.yaml'
-      - 'configuration.yaml'
-      - 'scripts/**'
-      - '.github/workflows/heating-audit-validation.yml'
+
+permissions:
+  contents: read
 
 jobs:
   protective-checks:
@@ -36,3 +26,20 @@ jobs:
 
       - name: Run automatic protective checks
         run: python3 scripts/run_protective_checks.py
+
+  runtime-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14.2'
+      - name: Install isolated production-version runtime
+        run: python -m pip install -r requirements-test.txt
+      - name: Test HA 2026.5.1 templates, scripts and automation events with fake devices
+        run: python -m unittest discover -s tests -v
+      - name: Install additional compatibility reference
+        run: python -m pip install --upgrade homeassistant==2026.9.2
+      - name: Test HA 2026.9.2 compatibility with fake devices
+        run: python -m unittest discover -s tests -v

@@ -11,7 +11,6 @@ input_select:
   topny_rezim:
     name: "Topení – režim"
     icon: mdi:home-thermometer-outline
-    initial: Auto
     options:
       - Auto     # standardní režim
       - Eco      # úsporný režim (vyšší prahy, nižší komfort)
@@ -33,7 +32,6 @@ input_boolean:
   topny_system_enable:
     name: "Topení – povoleno"
     icon: mdi:power
-    initial: on
 
   # ▶️ Volba ignorovat otevřená okna (globální override)
   kotel_ignore_open_windows:
@@ -97,3 +95,10 @@ input_datetime:
     name: "Topení – debug do"
     has_date: true
     has_time: true
+
+# Canonical persisted deadline retains UTC offset across DST and restarts.
+# input_datetime.boost_until remains the local display and time trigger.
+input_text:
+  boost_until_utc:
+    name: "Boost – konec UTC"
+    max: 64

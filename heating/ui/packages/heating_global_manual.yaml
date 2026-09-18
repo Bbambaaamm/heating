@@ -92,6 +92,10 @@ script:
                         entity_id: "{{ repeat.item.timer }}"
                       data:
                         duration: "{{ duration_hms }}"
+                  else:
+                    - service: timer.cancel
+                      target:
+                        entity_id: "{{ repeat.item.timer }}"
                 
                 # C) Zapnutí manuálního režimu (hlavní switch)
                 - service: input_boolean.turn_on

@@ -15,7 +15,7 @@ input_boolean:
   heating_startup_reconcile_guard:
     name: "Heating – startup reconcile guard"
     icon: mdi:shield-sync
-    initial: off
+    initial: on
 
 template:
   - sensor:
@@ -61,6 +61,9 @@ script:
           entity:
             filter:
               domain: climate
+      expected_inputs:
+        name: Decision inputs at enqueue
+        description: "Volitelný snímek vstupů pro odmítnutí zastaralého požadavku ve frontě."
       requested_temp:
         name: Requested temperature
         description: "Požadovaná teplota před clampem na min/max atribut entity."
@@ -78,9 +81,27 @@ script:
         selector:
           text:
     sequence:
+      # Queued calls must still be permitted when they actually execute.
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: input_select.topny_rezim
+        state: [Auto, Eco, Boost]
       - variables:
+          decision_entities: >-
+            {% set z = climate_entity.split('.')[1] %}
+            {{ ['input_select.topny_rezim', 'binary_sensor.kotel_boost_active',
+                'input_number.eco_temp_default', 'input_number.boost_comfort_offset_c',
+                'input_number.' ~ z ~ '_last_comfort',
+                'input_boolean.' ~ z ~ '_schedule_active',
+                'input_boolean.' ~ z ~ '_manual_override',
+                'input_select.' ~ z ~ '_manual_override_type',
+                'timer.' ~ z ~ '_manual_override'] }}
+          schedule_helper: "{{ 'input_boolean.' ~ climate_entity.split('.')[1] ~ '_schedule_active' }}"
+          decision_inputs: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}"
           climate_state: "{{ states(climate_entity) }}"
-          climate_obj: "{{ states[climate_entity] if climate_entity in states else none }}"
+          climate_obj: "{{ states[climate_entity] }}"
           climate_exists: "{{ climate_obj is not none }}"
           climate_ready: >-
             {{ climate_exists
@@ -105,6 +126,8 @@ script:
             {% if x < tmin %}{{ tmin }}
             {% elif x > tmax %}{{ tmax }}
             {% else %}{{ x }}{% endif %}
+      - condition: template
+        value_template: "{{ expected_inputs is not defined or expected_inputs == decision_inputs }}"
       - choose:
           - conditions:
               - condition: template
@@ -120,38 +143,84 @@ script:
                           entity_id: "{{ climate_entity }}"
                         data:
                           hvac_mode: heat
+              # A device action can await I/O. Do not send its old setpoint
+              # if policy or this zone's inputs changed during that await.
               - condition: template
                 value_template: >-
-                  {{ ((state_attr(climate_entity, 'temperature') | float(target))
-                      - (target | float(0))) | abs > 0.1 }}
-              - action: climate.set_temperature
-                target:
-                  entity_id: "{{ climate_entity }}"
+                  {{ is_state('input_boolean.topny_system_enable', 'on')
+                     and (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ not is_number(state_attr(climate_entity, 'temperature'))
+                         or ((state_attr(climate_entity, 'temperature') | float(target))
+                          - (target | float(0))) | abs > 0.1 }}
+                then:
+                  - action: climate.set_temperature
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      temperature: "{{ target | round(1) }}"
+              # Check current state too: a report can arrive before the wait starts.
+              # One bounded wait, no blind retries. A newer intent cancels verification.
+              - wait_template: >-
+                  {{ not is_state('input_boolean.topny_system_enable', 'on')
+                     or (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] != decision_inputs
+                     or not has_value(climate_entity)
+                     or (is_state(climate_entity, 'heat')
+                         and is_number(state_attr(climate_entity, 'temperature'))
+                         and ((state_attr(climate_entity, 'temperature') | float(0))
+                              - (target | round(1))) | abs <= 0.1) }}
+                timeout: "00:00:30"
+                continue_on_timeout: true
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "on"
+              - condition: template
+                value_template: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}"
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ not (is_state(climate_entity, 'heat')
+                              and is_number(state_attr(climate_entity, 'temperature'))
+                              and ((state_attr(climate_entity, 'temperature') | float(0))
+                                   - (target | round(1))) | abs <= 0.1) }}
+                then:
+                  - action: persistent_notification.create
+                    continue_on_error: true
+                    data:
+                      notification_id: "{{ 'heating_target_' ~ climate_entity.split('.')[1] }}"
+                      title: "Topení – chybí potvrzení cíle"
+                      message: >-
+                        {{ climate_entity }} nehlásí požadovaný režim heat a cíl
+                        {{ target | round(1) }} °C ({{ reason }}).
+                        Stav: {{ states(climate_entity) }},
+                        hlášený cíl: {{ state_attr(climate_entity, 'temperature') }} °C.
+                        Automatické opakování nebylo provedeno. Zkontrolujte hlavici a spojení.
+                  - stop: "Hlavice nehlásí požadovaný režim nebo cílovou teplotu."
+                    error: true
+              - action: persistent_notification.dismiss
+                continue_on_error: true
                 data:
-                  temperature: "{{ target | round(1) }}"
+                  notification_id: "{{ 'heating_target_' ~ climate_entity.split('.')[1] }}"
               - action: logbook.log
                 data:
                   name: "Heating dispatch"
-                  message: "{{ climate_entity }} -> {{ target | round(1) }} °C ({{ reason }})"
+                  message: "Potvrzen hlášený cíl: {{ climate_entity }} -> {{ target | round(1) }} °C ({{ reason }})"
                   entity_id: "{{ climate_entity }}"
         default:
-          - choose:
-              - conditions:
-                  - condition: state
-                    entity_id: input_boolean.heating_debug_guard
-                    state: "on"
-                sequence:
-                  - action: logbook.log
-                    data:
-                      name: "Heating dispatch"
-                      message: >-
-                        WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }}.
-                        climate_exists={{ climate_exists }},
-                        climate_state={{ climate_state }},
-                        climate_ready={{ climate_ready }},
-                        target_valid={{ target_valid }},
-                        requested_temp={{ target_raw }} ({{ reason }}).
-                      entity_id: "{{ climate_entity }}"
+          - action: logbook.log
+            continue_on_error: true
+            data:
+              name: "Heating dispatch"
+              message: >-
+                WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }}.
+                climate_exists={{ climate_exists }}, climate_state={{ climate_state }},
+                climate_ready={{ climate_ready }}, target_valid={{ target_valid }},
+                requested_temp={{ target_raw }} ({{ reason }}).
+              entity_id: "{{ climate_entity }}"
+          - stop: "Nedostupná hlavice nebo neplatná cílová teplota."
+            error: true
 
 automation:
   - id: heating_failsafe_dispatch_inputs_unavailable
@@ -213,6 +282,10 @@ automation:
         entity_id: input_boolean.heating_central_dispatch_enable
         state: "on"
     action:
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_dispatch_inputs_recovered
+          reason: inputs_recovered
       - action: persistent_notification.dismiss
         data:
           notification_id: heating_dispatch_inputs_unavailable
@@ -230,6 +303,26 @@ automation:
         event: start
       - trigger: event
         event_type: heating_reconcile_requested
+      - trigger: event
+        event_type: automation_reloaded
+      - trigger: state
+        entity_id: sensor.heating_schedule_windows
+      - trigger: state
+        entity_id:
+          - climate.sklep_michal
+          - climate.prizemi_michal
+          - climate.prizemi_chodba_zachod
+          - climate.1p_jidelna
+          - climate.1p_kuchyn
+          - climate.1p_koupelna
+          - climate.1p_chodba
+          - climate.2p_mama
+        from:
+          - unavailable
+          - unknown
+      - trigger: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        to: "on"
       - trigger: state
         entity_id:
           - input_select.topny_rezim
@@ -311,7 +404,28 @@ automation:
 
     action:
       - delay: "00:00:02"
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.heating_central_dispatch_enable
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.heating_dispatch_inputs_available
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.heating_startup_reconcile_guard
+        state: "off"
+      # Read intent after the debounce, not before it.
       - variables:
+          eco: "{{ states('input_number.eco_temp_default') | float(15) }}"
+          boost_offset: "{{ states('input_number.boost_comfort_offset_c') | float(0) }}"
+          intent: >-
+            {% set mode = states('input_select.topny_rezim') %}
+            {% if mode == 'Off' %}off
+            {% elif is_state('binary_sensor.kotel_boost_active', 'on') %}boost
+            {% elif mode == 'Eco' %}eco
+            {% else %}auto{% endif %}
           trigger_entity: "{{ trigger.entity_id if trigger is defined and trigger.entity_id is defined else 'n/a' }}"
           trigger_id: "{{ trigger.id if trigger is defined and trigger.id is defined else 'n/a' }}"
           debug_guard: "{{ is_state('input_boolean.heating_debug_guard', 'on') }}"
@@ -349,8 +463,23 @@ automation:
       - repeat:
           for_each: "{{ zones }}"
           sequence:
+            - condition: template
+              value_template: >-
+                {% set mode = states('input_select.topny_rezim') %}
+                {% set current_intent = 'off' if mode == 'Off' else
+                   'boost' if is_state('binary_sensor.kotel_boost_active', 'on') else
+                   'eco' if mode == 'Eco' else 'auto' %}
+                {{ is_state('input_boolean.topny_system_enable', 'on')
+                   and is_state('input_boolean.heating_central_dispatch_enable', 'on')
+                   and current_intent == intent and intent != 'off' }}
             - variables:
-                in_window: "{{ is_state(repeat.item.schedule, 'on') }}"
+                expected_inputs: >-
+                  {{ [states('input_select.topny_rezim'), states('binary_sensor.kotel_boost_active'),
+                      states('input_number.eco_temp_default'), states('input_number.boost_comfort_offset_c'),
+                      states(repeat.item.last), states(repeat.item.schedule), states(repeat.item.manual),
+                      states(repeat.item.manual_type), states(repeat.item.timer),
+                      repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
+                in_window: "{{ repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or []) }}"
                 raw_last: "{{ states(repeat.item.last) }}"
                 last_comfort: >-
                   {% set parsed_last = raw_last | float(default=none) %}
@@ -387,7 +516,9 @@ automation:
                   {% endif %}
 
             - action: script.heating_apply_zone_target
+              continue_on_error: true
               data:
                 climate_entity: "{{ repeat.item.climate }}"
                 requested_temp: "{{ target }}"
+                expected_inputs: "{{ expected_inputs }}"
                 reason: "{{ reason }}"

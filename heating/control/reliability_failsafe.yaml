@@ -109,6 +109,8 @@ automation:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
+      - condition: template
+        value_template: "{{ not is_state('input_select.topny_rezim', 'Off') }}"
       - action: input_select.select_option
         target:
           entity_id: input_select.topny_rezim
@@ -117,6 +119,11 @@ automation:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boost_now
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.boost_until_utc
+        data:
+          value: "{{ utcnow().isoformat() }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
@@ -167,16 +174,15 @@ automation:
                 Reconcile větev byla bezpečně ukončena bez změn topení.
           - stop: "Startup guard timeout – bez aktivních zásahů."
       - variables:
-          boost_until_ts: "{{ as_timestamp(states('input_datetime.boost_until'), default=0) }}"
+          boost_until_ts: "{{ as_timestamp(states('input_text.boost_until_utc'), default=state_attr('input_datetime.boost_until', 'timestamp') | float(0)) }}"
           boost_should_be_active: "{{ now().timestamp() < boost_until_ts }}"
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ boost_should_be_active }}"
             sequence:
-              - action: input_boolean.turn_on
-                target:
-                  entity_id: input_boolean.boost_now
+              # The persisted deadline already keeps Boost active. Turning the
+              # button on would invoke heating_boost_start and extend it.
               - choose:
                   - conditions:
                       - condition: state
@@ -323,10 +329,7 @@ automation:
         entity_id: input_boolean.topny_system_enable
         state: "on"
       - condition: template
-        value_template: "{{ states('input_select.topny_rezim') in ['Auto', 'Eco'] }}"
-      - condition: state
-        entity_id: binary_sensor.kotel_boost_active
-        state: "off"
+        value_template: "{{ states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost'] }}"
     action:
       - choose:
           - conditions:

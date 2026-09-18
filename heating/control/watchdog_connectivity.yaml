@@ -235,9 +235,11 @@ automation:
       - variables:
           count: "{{ states('sensor.heating_valves_unhealthy_count') | int(0) }}"
           items: "{{ state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') | default([], true) }}"
-          signature: "{{ (items | tojson)[:250] }}"
+          # Stable identity of every affected valve; elapsed time is diagnostic
+          # data and must not bypass the 60 minute notification cooldown.
+          signature: "{{ items | map(attribute='climate_entity') | sort | join(',') }}"
           prev_signature: "{{ states('input_text.heating_watchdog_connectivity_last_signature') }}"
-          last_notify_ts: "{{ as_timestamp(states('input_datetime.heating_watchdog_connectivity_last_notify'), default=0) }}"
+          last_notify_ts: "{{ state_attr('input_datetime.heating_watchdog_connectivity_last_notify', 'timestamp') | float(0) }}"
           should_notify: >-
             {% set changed = signature != prev_signature %}
             {% set cooldown_elapsed = (as_timestamp(now()) - last_notify_ts) >= 3600 %}
@@ -318,6 +320,11 @@ automation:
         to: "on"
         for: "00:05:00"
     action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.heating_watchdog_connectivity_last_signature
+        data:
+          value: ""
       - service: persistent_notification.dismiss
         data:
           notification_id: heating_watchdog_connectivity_unhealthy

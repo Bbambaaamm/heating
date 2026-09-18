@@ -45,3 +45,7 @@ analysis/*
 !scripts/validate_debug_guards.py
 !scripts/validate_smoke_coverage.py
 !scripts/validate_zone_list_consistency.py
+!scripts/check_pyyaml_hard_dependency.py
+!requirements-test.txt
+!tests/
+!tests/*.py

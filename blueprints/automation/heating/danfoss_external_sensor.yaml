@@ -96,6 +96,22 @@ initial_state: true
 trigger:
   - platform: state
     entity_id: !input source_temp_sensor
+  # A source change during cooldown must be delivered after it ends, even
+  # if the temperature then remains constant. Also recover after restart.
+  - platform: time_pattern
+    minutes: "/1"
+  - platform: homeassistant
+    event: start
+  - platform: state
+    entity_id: !input danfoss_external_temp_number
+    from:
+      - unavailable
+      - unknown
+  - platform: state
+    entity_id: !input danfoss_prefer_external_switch
+    from:
+      - unavailable
+      - unknown
 
 condition: []
 
@@ -112,12 +128,12 @@ action:
       min_interval: !input antispam_min_interval_sec
 
       raw: "{{ states(src) }}"
-      temp: "{{ raw | float(999) }}"
-      temp_send: "{{ (raw | float(999)) | round(1) }}"
+      temp: "{{ raw | float if is_number(raw) else 999 }}"
+      temp_send: "{{ (temp | float(999)) | round(1) }}"
 
       last_sent: "{{ states(num) | float(none) }}"
       last_sent_ts: >
-        {% set obj = states[num] if num in states else none %}
+        {% set obj = states[num] %}
         {% if obj is none %}
           {{ none }}
         {% else %}
@@ -148,19 +164,9 @@ action:
           - condition: template
             value_template: >
               {{ raw not in ['unavailable', 'unknown', 'none', 'NaN']
+                 and has_value(num) and has_value(sw)
                  and min_valid <= temp <= max_valid }}
         sequence:
-          # zapnout externí senzor, pokud ještě není
-          - choose:
-              - conditions:
-                  - condition: state
-                    entity_id: !input danfoss_prefer_external_switch
-                    state: "off"
-                sequence:
-                  - service: switch.turn_on
-                    target:
-                      entity_id: !input danfoss_prefer_external_switch
-
           # antispam: delta + interval
           - choose:
               - conditions:
@@ -178,6 +184,20 @@ action:
                       name: "{{ zone_name }}"
                       message: "Externí teplota {{ temp_send }} °C → předána Danfoss hlavici."
                       entity_id: !input source_temp_sensor
+          # Enable the preference after a successful write, or if the device
+          # already reports the current value. Never enable it on an old value
+          # merely because cooldown blocked the update.
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input danfoss_prefer_external_switch
+                    state: "off"
+                  - condition: template
+                    value_template: "{{ not delta_ok or interval_ok }}"
+                sequence:
+                  - service: switch.turn_on
+                    target:
+                      entity_id: !input danfoss_prefer_external_switch
 
       # 🔹 Nevalidní / nedostupná teplota → jen zaloguj, nic neposílej
       - conditions:

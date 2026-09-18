@@ -18,7 +18,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.sklep_michal', 'unavailable') }}
+          {{ has_value('climate.sklep_michal') and is_number(state_attr('climate.sklep_michal', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.sklep_michal', 'current_temperature') | float(0) }}
 
@@ -30,7 +30,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.prizemi_michal', 'unavailable') }}
+          {{ has_value('climate.prizemi_michal') and is_number(state_attr('climate.prizemi_michal', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.prizemi_michal', 'current_temperature') | float(0) }}
 
@@ -42,7 +42,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.prizemi_chodba_zachod', 'unavailable') }}
+          {{ has_value('climate.prizemi_chodba_zachod') and is_number(state_attr('climate.prizemi_chodba_zachod', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.prizemi_chodba_zachod', 'current_temperature') | float(0) }}
 
@@ -54,7 +54,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.1p_kuchyn', 'unavailable') }}
+          {{ has_value('climate.1p_kuchyn') and is_number(state_attr('climate.1p_kuchyn', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.1p_kuchyn', 'current_temperature') | float(0) }}
 
@@ -66,7 +66,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.1p_jidelna', 'unavailable') }}
+          {{ has_value('climate.1p_jidelna') and is_number(state_attr('climate.1p_jidelna', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.1p_jidelna', 'current_temperature') | float(0) }}
 
@@ -78,7 +78,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.1p_chodba', 'unavailable') }}
+          {{ has_value('climate.1p_chodba') and is_number(state_attr('climate.1p_chodba', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.1p_chodba', 'current_temperature') | float(0) }}
 
@@ -90,7 +90,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.1p_koupelna', 'unavailable') }}
+          {{ has_value('climate.1p_koupelna') and is_number(state_attr('climate.1p_koupelna', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.1p_koupelna', 'current_temperature') | float(0) }}
 
@@ -102,7 +102,7 @@ template:
         device_class: temperature
         state_class: measurement
         availability: >
-          {{ not is_state('climate.2p_mama', 'unavailable') }}
+          {{ has_value('climate.2p_mama') and is_number(state_attr('climate.2p_mama', 'current_temperature')) }}
         state: >
           {{ state_attr('climate.2p_mama', 'current_temperature') | float(0) }}
 
@@ -125,7 +125,10 @@ template:
             {% for z in zones %}
               {% set obj = z.split('.')[1] %}
               {% set helper = 'input_boolean.' ~ obj ~ '_manual_override' %}
-              {% if states(helper) == 'on' %}
+              {% set kind = states('input_select.' ~ obj ~ '_manual_override_type') %}
+              {% set effective = states(helper) == 'on' and (kind == 'Do další změny rozvrhu'
+                 or (kind == 'Časovač' and is_state('timer.' ~ obj ~ '_manual_override', 'active'))) %}
+              {% if effective %}
                 {% set blocked.count = blocked.count + 1 %}
               {% endif %}
             {% endfor %}
@@ -142,7 +145,10 @@ template:
               {% for z in zones %}
                 {% set obj = z.split('.')[1] %}
                 {% set helper = 'input_boolean.' ~ obj ~ '_manual_override' %}
-                {% if states(helper) == 'on' %}
+                {% set kind = states('input_select.' ~ obj ~ '_manual_override_type') %}
+              {% set effective = states(helper) == 'on' and (kind == 'Do další změny rozvrhu'
+                 or (kind == 'Časovač' and is_state('timer.' ~ obj ~ '_manual_override', 'active'))) %}
+              {% if effective %}
                   {% set names.list = names.list + [state_attr(z, 'friendly_name') | default(states[z].name, true)] %}
                 {% endif %}
               {% endfor %}

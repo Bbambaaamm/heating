@@ -31,8 +31,6 @@ automation:
       - trigger: state
         entity_id: input_select.topny_rezim
         to: "Auto"
-      - trigger: homeassistant
-        event: start
 
     condition:
       - condition: state
@@ -61,6 +59,11 @@ automation:
       # ---------------------------------------------------------------
       # 2) Vynulovat boost_until (pro čistý stav)
       # ---------------------------------------------------------------
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.boost_until_utc
+        data:
+          value: "{{ utcnow().isoformat() }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until

@@ -32,13 +32,13 @@ template:
           {% set btn = is_state('input_boolean.boost_now','on') %}
           {% set until_raw = states('input_datetime.boost_until') %}
           {% set until_ok = until_raw not in ['unknown', 'unavailable', ''] %}
-          {% set uts = as_timestamp(until_raw, default=0) %}
+          {% set uts = as_timestamp(states('input_text.boost_until_utc'), default=state_attr('input_datetime.boost_until', 'timestamp') | float(0)) %}
           {{ mode_boost or btn or (until_ok and now().timestamp() < uts) }}
 
         attributes:
           until: "{{ states('input_datetime.boost_until') }}"
           remaining_min: >-
-            {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
+            {% set uts = as_timestamp(states('input_text.boost_until_utc'), default=state_attr('input_datetime.boost_until', 'timestamp') | float(0)) %}
             {% set rem = (uts - now().timestamp()) / 60 %}
             {{ rem|round(0) if rem > 0 else 0 }}
 
@@ -69,7 +69,15 @@ automation:
         entity_id: input_boolean.boost_now
         to: "on"
 
-    condition: []
+    condition:
+      # Restore/availability transitions are not a new user request.
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable'] }}
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
 
     action:
       - variables:
@@ -80,11 +88,16 @@ automation:
             {% elif x > 180 %}180
             {% else %}{{ x }}
             {% endif %}
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.boost_until_utc
+        data:
+          value: "{{ (utcnow() + timedelta(minutes=minutes)).isoformat() }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
-          datetime: "{{ (now() + timedelta(minutes=minutes)).isoformat() }}"
+          timestamp: "{{ as_timestamp(states('input_text.boost_until_utc')) }}"
 
   # -------------------------------------------------------------------
   # AUTOMATIZACE: Boost ON → nastavit komfortní setpointy v zónách
@@ -143,7 +156,7 @@ automation:
                 timer: "{{ repeat.item.timer }}"
                 manual_type: "{{ repeat.item.manual_type }}"
                 climate_state: "{{ states(climate) }}"
-                climate_obj: "{{ states[climate] if climate in states else none }}"
+                climate_obj: "{{ states[climate] }}"
                 climate_exists: "{{ climate_obj is not none }}"
                 climate_ready: >-
                   {{ climate_exists
@@ -171,12 +184,16 @@ automation:
                        or (states(manual_type) == 'Časovač' and is_state(timer, 'active'))
                      ) }}
 
-            - choose:
+            - continue_on_error: true
+              choose:
                 - conditions:
                     - condition: template
                       value_template: >-
                         {{ climate_ready
                            and (not effective_manual)
+                           and is_state('input_boolean.topny_system_enable', 'on')
+                           and is_state('binary_sensor.kotel_mode_off_block', 'off')
+                           and is_state('binary_sensor.kotel_boost_active', 'on')
                            and is_state('input_boolean.heating_central_dispatch_enable', 'off') }}
                   sequence:
                     - choose:
@@ -191,8 +208,21 @@ automation:
                                 hvac_mode: heat
                     - condition: template
                       value_template: >-
-                        {{ ((state_attr(climate, 'temperature') | float)
+                        {{ not is_number(state_attr(climate, 'temperature'))
+                           or ((state_attr(climate, 'temperature') | float(target))
                             - (target | float)) | abs > 0.1 }}
+                    - condition: template
+                      value_template: >-
+                        {{ is_state('input_boolean.topny_system_enable', 'on')
+                           and is_state('input_boolean.heating_central_dispatch_enable', 'off')
+                           and is_state('binary_sensor.kotel_mode_off_block', 'off')
+                           and is_state('binary_sensor.kotel_boost_active', 'on')
+                           and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                           and not (is_state(manual, 'on') and
+                             (states(manual_type) == 'Do další změny rozvrhu'
+                              or (states(manual_type) == 'Časovač' and is_state(timer, 'active'))))
+                           and states(last) | float(comfort_base) == comfort_base | float
+                           and states('input_number.boost_comfort_offset_c') | float(0) == boost_offset | float }}
                     - action: climate.set_temperature
                       target:
                         entity_id: "{{ climate }}"
@@ -240,14 +270,18 @@ automation:
     mode: queued
 
     trigger:
+      - trigger: time
+        at: input_datetime.boost_until
       - trigger: time_pattern
         minutes: "/1"
 
     condition:
       - condition: template
         value_template: >-
-          {% set uts = as_timestamp(states('input_datetime.boost_until'), default=0) %}
-          {{ is_state('input_boolean.boost_now','on') and now().timestamp() > uts }}
+          {% set uts = as_timestamp(states('input_text.boost_until_utc'), default=state_attr('input_datetime.boost_until', 'timestamp') | float(0)) %}
+          {{ (is_state('input_boolean.boost_now','on')
+              or is_state('input_select.topny_rezim','Boost'))
+             and now().timestamp() >= uts }}
 
     action:
       - action: input_boolean.turn_off
@@ -264,11 +298,76 @@ automation:
                   entity_id: input_select.topny_rezim
                 data:
                   option: "Auto"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.boost_until_utc
+        data:
+          value: "{{ utcnow().isoformat() }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boost_until
         data:
           datetime: "{{ now().isoformat() }}"
+
+  - id: heating_boost_cancel
+    alias: "Topení: zrušení Boostu odstraní i časový požadavek"
+    mode: restart
+    trigger:
+      - trigger: state
+        id: button_off
+        entity_id: input_boolean.boost_now
+        from: "on"
+        to: "off"
+      - trigger: state
+        id: system_off
+        entity_id: input_boolean.topny_system_enable
+        to: "off"
+      - trigger: state
+        id: mode_off
+        entity_id: input_select.topny_rezim
+        to: "Off"
+      - trigger: state
+        id: leave_boost
+        entity_id: input_select.topny_rezim
+        from: "Boost"
+    action:
+      # A queued cancellation must not clear a newer button/mode request.
+      # Recheck after each service call, which can yield to another automation.
+      - &boost_cancel_still_current
+        condition: template
+        value_template: >-
+          {{ is_state('input_boolean.topny_system_enable', 'off')
+             or is_state('input_select.topny_rezim', 'Off')
+             or (trigger.to_state is not none
+                 and states.input_boolean.boost_now.last_changed <= trigger.to_state.last_changed
+                 and states.input_select.topny_rezim.last_changed <= trigger.to_state.last_changed) }}
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.boost_until_utc
+        data:
+          value: "{{ utcnow().isoformat() }}"
+      - *boost_cancel_still_current
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boost_until
+        data:
+          datetime: "{{ now().isoformat() }}"
+      - *boost_cancel_still_current
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now
+      - *boost_cancel_still_current
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_select.topny_rezim
+                state: "Boost"
+            sequence:
+              - action: input_select.select_option
+                target:
+                  entity_id: input_select.topny_rezim
+                data:
+                  option: "Auto"
 
   # -------------------------------------------------------------------
   # AUTOMATIZACE: Po skončení Boostu znovu aplikovat rozvrhy

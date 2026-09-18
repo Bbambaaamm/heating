@@ -1,0 +1,2 @@
+# Core version used in production; all devices remain simulated in tests.
+homeassistant==2026.5.1

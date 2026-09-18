@@ -74,14 +74,21 @@ input_boolean:
 
 timer:
   sklep_michal_manual_override:
+    restore: true
   prizemi_michal_manual_override:
+    restore: true
   prizemi_chodba_zachod_manual_override:
+    restore: true
   1p_jidelna_manual_override:
+    restore: true
   1p_kuchyn_manual_override:
+    restore: true
   1p_koupelna_manual_override:
+    restore: true
   1p_chodba_manual_override:
+    restore: true
   2p_mama_manual_override:
-
+    restore: true
 
 input_select:
   sklep_michal_manual_override_type:
@@ -156,3 +163,22 @@ input_number:
     mode: slider
     unit_of_measurement: min
     icon: mdi:timer
+
+# Persistent activation time for the 24 h watchdog; survives HA restart.
+input_text:
+  sklep_michal_manual_override_started:
+    max: 64
+  prizemi_michal_manual_override_started:
+    max: 64
+  prizemi_chodba_zachod_manual_override_started:
+    max: 64
+  1p_jidelna_manual_override_started:
+    max: 64
+  1p_kuchyn_manual_override_started:
+    max: 64
+  1p_koupelna_manual_override_started:
+    max: 64
+  1p_chodba_manual_override_started:
+    max: 64
+  2p_mama_manual_override_started:
+    max: 64

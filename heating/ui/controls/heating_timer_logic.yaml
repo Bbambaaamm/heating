@@ -37,7 +37,9 @@ automation:
       # pojistka: vypínej jen když boolean existuje a je ON
       - condition: template
         value_template: >
-          {{ states[manual_boolean] is not none and is_state(manual_boolean, 'on') }}
+          {{ states[manual_boolean] is not none and is_state(manual_boolean, 'on')
+             and is_state(manual_boolean | replace('input_boolean.', 'input_select.') ~ '_type', 'Časovač')
+             and is_state(timer_entity, 'idle') }}
 
       - service: input_boolean.turn_off
         target:
