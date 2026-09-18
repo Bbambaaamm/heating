@@ -7,7 +7,91 @@
 # Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
+template:
+  - sensor:
+      - name: heating_schedule_windows
+        unique_id: heating_schedule_windows
+        state: "ready"
+        attributes:
+          # Scheduler computes weekdays, dates, midnight and DST. Its switch being
+          # ON means enabled, NOT that a comfort interval is currently active.
+          # Project schedules use one helper and one ON/OFF action per timeslot,
+          # without additional conditions (Scheduler's attributes omit those).
+          active_helpers: >-
+            {% set ns = namespace(active=[]) %}
+            {% for s in states.switch if s.state in ['on', 'triggered'] %}
+              {% set targets = s.attributes.get('entities', []) %}
+              {% set slot = s.attributes.get('current_slot') %}
+              {% set actions = s.attributes.get('actions', []) %}
+              {% if targets is sequence and targets is not string
+                    and targets | count == 1
+                    and targets[0] is string
+                    and targets[0].startswith('input_boolean.')
+                    and targets[0].endswith('_schedule_active')
+                    and slot is integer and slot is not boolean
+                    and actions is sequence and actions is not string
+                    and 0 <= slot < actions | count
+                    and actions[slot] is mapping
+                    and actions[slot].get('service') == 'input_boolean.turn_on' %}
+                {% set ns.active = ns.active + [targets[0]] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.active | unique | sort | list }}
+
 automation:
+  - id: heating_sync_schedule_helpers
+    alias: "Topení – příznaky podle skutečných oken Scheduleru"
+    description: >-
+      Opraví obnovené nebo osiřelé příznaky rozvrhu podle aktuálních
+      časových úseků. Chybějící, vypnutý nebo nedostupný rozvrh není komfort.
+      Během manuálního override pomocný příznak nemění, aby jeho oprava
+      nebyla zaměněna za ukončující změnu rozvrhu.
+    mode: restart
+    initial_state: true
+    trigger:
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: automation_reloaded
+      - trigger: state
+        entity_id: sensor.heating_schedule_windows
+      - trigger: time_pattern
+        minutes: "/1"
+    action:
+      - condition: state
+        entity_id: sensor.heating_schedule_windows
+        state: "ready"
+      - repeat:
+          for_each:
+            - sklep_michal
+            - prizemi_michal
+            - prizemi_chodba_zachod
+            - 1p_jidelna
+            - 1p_kuchyn
+            - 1p_koupelna
+            - 1p_chodba
+            - 2p_mama
+          sequence:
+            - variables:
+                helper: "{{ 'input_boolean.' ~ repeat.item ~ '_schedule_active' }}"
+                manual: "{{ 'input_boolean.' ~ repeat.item ~ '_manual_override' }}"
+                active: "{{ helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or []) }}"
+            - if:
+                - condition: template
+                  value_template: "{{ is_state(manual, 'off') }}"
+              then:
+                - choose:
+                    - conditions: "{{ active and is_state(helper, 'off') }}"
+                      sequence:
+                        - action: input_boolean.turn_on
+                          target:
+                            entity_id: "{{ helper }}"
+                    - conditions: "{{ not active and is_state(helper, 'on') }}"
+                      sequence:
+                        - action: input_boolean.turn_off
+                          target:
+                            entity_id: "{{ helper }}"
+
   - id: heating_startup_schedule_sync
     alias: "Topení – synchronizace rozvrhů po startu HA"
     description: >

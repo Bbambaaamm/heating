@@ -34,6 +34,7 @@ ZONES = ["sklep_michal", "prizemi_michal", "prizemi_chodba_zachod", "1p_jidelna"
          "1p_kuchyn", "1p_koupelna", "1p_chodba", "2p_mama"]
 DISPATCH = "heating/control/refactor_mode_schedule_override.yaml"
 BOOST = "heating/control/mode_boost.yaml"
+SCHEDULE_SYNC = "heating/schedule/automation/startup/startup_schedule_sync.yaml"
 
 
 def read(path):
@@ -68,6 +69,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.set("input_number.eco_temp_default", "15")
         self.set("input_number.boost_comfort_offset_c", "1")
         self.set("input_number.boost_minutes", "60")
+        self.set("sensor.heating_schedule_windows", "ready",
+                 active_helpers=[f"input_boolean.{z}_schedule_active" for z in ZONES])
         for z in ZONES:
             self.set(f"climate.{z}", "heat", temperature=18, min_temp=5, max_temp=30,
                      current_temperature=19, pi_heating_demand=30)
@@ -183,7 +186,7 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await entity_registry.async_load(self.hass, load_empty=True)
         await trigger.async_setup(self.hass)
         await condition.async_setup(self.hass)
-        self.hass.state = CoreState.running
+        self.hass.set_state(CoreState.running)
         self.assertTrue(await async_setup_component(self.hass, "automation", {"automation": automations}))
         await self.hass.async_block_till_done()
         self.assertEqual(len(self.hass.states.async_all("automation")), len(automations))
@@ -643,6 +646,7 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.set("input_boolean.1p_chodba_manual_override", "on")
         self.set("input_select.1p_chodba_manual_override_type", "Do další změny rozvrhu")
         self.set("input_boolean.1p_chodba_schedule_active", "off")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
         await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "input_boolean.1p_chodba_schedule_active"}, "this": {"entity_id": "automation.test"}})
         self.assertEqual(self.hass.states.get("input_boolean.1p_chodba_manual_override").state, "off")
         self.assertEqual(self.hass.states.get("climate.1p_chodba").attributes["temperature"], 15)
@@ -793,13 +797,158 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(self.render(boost["state"]))
 
     async def test_queued_decision_with_changed_inputs_is_rejected(self):
-        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle"]
+        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", True]
         self.set("input_select.topny_rezim", "Eco")
         await self.apply(expected_inputs=snapshot)
         self.assertEqual(self.writes(), [])
         snapshot[0] = "Eco"
         await self.apply(requested_temp=15, expected_inputs=snapshot)
         self.assertEqual(self.writes()[0][2]["temperature"], 15)
+
+    def scheduler_rule(self, entity="switch.schedule_test", zone="sklep_michal",
+                       state="on", slot=1, **attrs):
+        data = dict(entities=[f"input_boolean.{zone}_schedule_active"],
+                    current_slot=slot, timeslots=["00:00 - 08:00", "08:00 - 20:00", "20:00 - 00:00"],
+                    actions=[{"service": "input_boolean.turn_off"},
+                             {"service": "input_boolean.turn_on"},
+                             {"service": "input_boolean.turn_off"}])
+        data.update(attrs)
+        self.set(entity, state, **data)
+
+    def rendered_schedule_windows(self):
+        sensor = read(SCHEDULE_SYNC)["template"][0]["sensor"][0]
+        return self.render(sensor["attributes"]["active_helpers"])
+
+    async def test_auto_missing_schedule_does_not_trust_restored_comfort_flag(self):
+        self.set("input_number.sklep_michal_last_comfort", "20")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        # The real reported problem: old helper ON, no Scheduler rule, Auto mode.
+        await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_number.sklep_michal_last_comfort").state, "20")
+
+    async def test_scheduler_window_uses_current_slot_not_enabled_switch(self):
+        helper = "input_boolean.sklep_michal_schedule_active"
+        for state, slot, expected in [("on", 1, [helper]), ("triggered", 1, [helper]),
+                                      ("on", 0, []), ("on", 2, []), ("on", None, []),
+                                      ("off", 1, []), ("unavailable", 1, []),
+                                      ("unknown", 1, []), ("completed", 1, []),
+                                      ("on", -1, []), ("on", 99, []),
+                                      ("on", True, []), ("on", "1", [])]:
+            with self.subTest(state=state, slot=slot):
+                self.scheduler_rule(state=state, slot=slot)
+                self.assertEqual(self.rendered_schedule_windows(), expected)
+        # Index zero is valid too; it must not be mistaken for false/null.
+        self.scheduler_rule(slot=0, actions=[{"service": "input_boolean.turn_on"}])
+        self.assertEqual(self.rendered_schedule_windows(), [helper])
+
+    async def test_scheduler_rules_combine_current_windows_and_reject_ambiguous_targets(self):
+        self.scheduler_rule("switch.renamed_schedule", slot=1)
+        self.scheduler_rule("switch.schedule_other_day", slot=None)
+        self.scheduler_rule("switch.schedule_eco", slot=0)
+        self.scheduler_rule("switch.schedule_duplicate", slot=1)
+        self.assertEqual(self.rendered_schedule_windows(), ["input_boolean.sklep_michal_schedule_active"])
+        for e in list(self.hass.states.async_all("switch")):
+            self.hass.states.async_remove(e.entity_id)
+        for attrs in [dict(actions=None), dict(actions=[{}, {}, {}]), dict(entities=None),
+                      dict(entities="input_boolean.sklep_michal_schedule_active"),
+                      dict(entities=["input_boolean.sklep_michal_schedule_active", "input_boolean.1p_chodba_schedule_active"])]:
+            with self.subTest(attrs=attrs):
+                self.scheduler_rule(**attrs)
+                self.assertEqual(self.rendered_schedule_windows(), [])
+
+    async def test_helper_reconciliation_repairs_both_directions_without_repeated_writes(self):
+        a = automation(SCHEDULE_SYNC, "heating_sync_schedule_helpers")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        await self.run_automation(a)
+        self.assertTrue(all(self.hass.states.get(f"input_boolean.{z}_schedule_active").state == "off" for z in ZONES))
+        self.set("sensor.heating_schedule_windows", "ready",
+                 active_helpers=["input_boolean.sklep_michal_schedule_active"])
+        await self.run_automation(a)
+        self.assertEqual(self.hass.states.get("input_boolean.sklep_michal_schedule_active").state, "on")
+        self.calls.clear()
+        await self.run_automation(a)
+        self.assertEqual(self.writes("input_boolean", "turn_on"), [])
+        self.assertEqual(self.writes("input_boolean", "turn_off"), [])
+
+    async def test_missing_schedule_does_not_cancel_manual_or_prevent_boost(self):
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("timer.sklep_michal_manual_override", "active")
+        await self.run_automation(automation(SCHEDULE_SYNC, "heating_sync_schedule_helpers"))
+        self.assertEqual(self.hass.states.get("input_boolean.sklep_michal_schedule_active").state, "on")
+        a = automation(DISPATCH, "heating_dispatch_mode_schedule_override")
+        await self.run_automation(a)
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 21)
+        self.set("input_boolean.sklep_michal_manual_override", "off")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        await self.run_automation(a)
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 22)
+        self.set("binary_sensor.kotel_boost_active", "off")
+        await self.run_automation(a)
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+
+    async def test_fallback_missing_schedule_uses_eco_despite_helper_on(self):
+        instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.sklep_michal")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.set("input_boolean.heating_central_dispatch_enable", "off")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "input_select.topny_rezim"}, "this": {"entity_id": "automation.test"}})
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+
+    async def test_real_window_change_ends_only_its_zones_manual_override(self):
+        instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.sklep_michal")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("input_select.sklep_michal_manual_override_type", "Do další změny rozvrhu")
+        for changed_zone in ["1p_chodba", "sklep_michal"]:
+            before = self.hass.states.get("sensor.heating_schedule_windows")
+            self.set("sensor.heating_schedule_windows", "ready",
+                     active_helpers=[h for h in before.attributes["active_helpers"]
+                                     if h != f"input_boolean.{changed_zone}_schedule_active"])
+            after = self.hass.states.get("sensor.heating_schedule_windows")
+            await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "sensor.heating_schedule_windows",
+                                                     "from_state": before, "to_state": after},
+                                          "this": {"entity_id": "automation.test"}})
+            self.assertEqual(self.hass.states.get("input_boolean.sklep_michal_manual_override").state,
+                             "off" if changed_zone == "sklep_michal" else "on")
+
+    async def test_window_ends_during_hvac_io_rejects_old_comfort_target(self):
+        self.set("climate.1p_chodba", "off", temperature=15, min_temp=5, max_temp=30)
+        async def mode_then_window_ends(call):
+            await self.service(call)
+            self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        self.hass.services.async_register("climate", "set_hvac_mode", mode_then_window_ends)
+        await self.apply(requested_temp=21)
+        self.assertEqual(self.writes(), [], "An old comfort target must not survive a real window ending")
+
+    async def test_actual_template_tracks_rule_addition_end_and_deletion(self):
+        dispatch = automation(DISPATCH, "heating_dispatch_mode_schedule_override")
+        dispatch["action"][0]["delay"] = {"milliseconds": 20}
+        await self.load_automations([dispatch, automation(SCHEDULE_SYNC, "heating_sync_schedule_helpers")])
+        self.hass.states.async_remove("sensor.heating_schedule_windows")
+        self.assertTrue(await async_setup_component(self.hass, "template", {
+            "template": read(SCHEDULE_SYNC)["template"]}))
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("sensor.heating_schedule_windows").state, "ready")
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.scheduler_rule(slot=1)
+        await asyncio.sleep(1.2)  # HA domain-template rate limit is one second.
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 21)
+        self.scheduler_rule(slot=2)
+        await asyncio.sleep(1.2)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.scheduler_rule(slot=1)
+        await asyncio.sleep(1.2)
+        await self.hass.async_block_till_done()
+        self.hass.states.async_remove("switch.schedule_test")
+        self.hass.bus.async_fire("automation_reloaded")
+        await asyncio.sleep(1.2)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_boolean.sklep_michal_schedule_active").state, "off")
 
     async def test_datetime_consumers_use_entity_timestamp(self):
         self.set("input_datetime.heating_watchdog_connectivity_last_notify", "2026-09-16 12:00:00", timestamp=1789552800)

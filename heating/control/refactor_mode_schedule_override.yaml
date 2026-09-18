@@ -98,7 +98,8 @@ script:
                 'input_boolean.' ~ z ~ '_manual_override',
                 'input_select.' ~ z ~ '_manual_override_type',
                 'timer.' ~ z ~ '_manual_override'] }}
-          decision_inputs: "{{ decision_entities | map('states') | list }}"
+          schedule_helper: "{{ 'input_boolean.' ~ climate_entity.split('.')[1] ~ '_schedule_active' }}"
+          decision_inputs: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}"
           climate_state: "{{ states(climate_entity) }}"
           climate_obj: "{{ states[climate_entity] }}"
           climate_exists: "{{ climate_obj is not none }}"
@@ -147,7 +148,7 @@ script:
               - condition: template
                 value_template: >-
                   {{ is_state('input_boolean.topny_system_enable', 'on')
-                     and decision_entities | map('states') | list == decision_inputs }}
+                     and (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}
               - if:
                   - condition: template
                     value_template: >-
@@ -164,7 +165,7 @@ script:
               # One bounded wait, no blind retries. A newer intent cancels verification.
               - wait_template: >-
                   {{ not is_state('input_boolean.topny_system_enable', 'on')
-                     or decision_entities | map('states') | list != decision_inputs
+                     or (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] != decision_inputs
                      or not has_value(climate_entity)
                      or (is_state(climate_entity, 'heat')
                          and is_number(state_attr(climate_entity, 'temperature'))
@@ -176,7 +177,7 @@ script:
                 entity_id: input_boolean.topny_system_enable
                 state: "on"
               - condition: template
-                value_template: "{{ decision_entities | map('states') | list == decision_inputs }}"
+                value_template: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}"
               - if:
                   - condition: template
                     value_template: >-
@@ -304,6 +305,8 @@ automation:
         event_type: heating_reconcile_requested
       - trigger: event
         event_type: automation_reloaded
+      - trigger: state
+        entity_id: sensor.heating_schedule_windows
       - trigger: state
         entity_id:
           - climate.sklep_michal
@@ -474,8 +477,9 @@ automation:
                   {{ [states('input_select.topny_rezim'), states('binary_sensor.kotel_boost_active'),
                       states('input_number.eco_temp_default'), states('input_number.boost_comfort_offset_c'),
                       states(repeat.item.last), states(repeat.item.schedule), states(repeat.item.manual),
-                      states(repeat.item.manual_type), states(repeat.item.timer)] }}
-                in_window: "{{ is_state(repeat.item.schedule, 'on') }}"
+                      states(repeat.item.manual_type), states(repeat.item.timer),
+                      repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
+                in_window: "{{ repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or []) }}"
                 raw_last: "{{ states(repeat.item.last) }}"
                 last_comfort: >-
                   {% set parsed_last = raw_last | float(default=none) %}

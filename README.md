@@ -73,9 +73,35 @@ Odmítnutý neplatný požadavek nebo nedostupná hlavice se zapíše i při vyp
 a běh skončí chybou. Úspěch potvrzuje stav hlášený integrací; fyzické otevření ventilu
 ani dodávku tepla tím test neprokazuje.
 
+### Skutečné rozvrhové okno a chybějící rozvrh
+
+V režimu Auto bez manuálního override patří komfort pouze do aktuálního komfortního
+úseku Scheduleru. Mimo úsek, bez rozvrhu nebo při vypnutém/nedostupném rozvrhu se použije
+`eco_temp_default` (v projektu 15 °C). Uložený `last_comfort` ani obnovený příznak
+`*_schedule_active=on` samy o sobě komfortní okno nevytvářejí. Boost a platný manuální
+override zachovávají své priority; po jejich skončení se znovu použije skutečné okno.
+
+`sensor.heating_schedule_windows` čte `current_slot` a jeho akci z atributů Scheduleru.
+Stav rozvrhového přepínače `on` znamená jen povolený rozvrh; při vykonání akce může být
+krátce `triggered`. Kalendářní dny, přechod přes půlnoc a DST vyhodnocuje Scheduler.
+Chybějící nebo neplatný index úseku nezakládá požadavek na komfort. Při více rozvrzích
+zóny stačí jeden skutečně aktivní komfortní úsek. Stejný výsledek používá centrální řízení
+i záložní blueprint; změna okna zneplatní také starý požadavek čekající na hlavici.
+
+Adaptér je určen pro zde používané časové rozvrhy: jedna cílová zónová boolean entita,
+jedna akce `input_boolean.turn_on/turn_off` na úsek, bez dalších podmínek. Scheduler
+ve stavových atributech nezveřejňuje podmínky ani všechny akce. Podmíněné nebo vícecílové
+rozvrhy proto vyžadují samostatné rozšíření adaptéru. Při kontrole 18. 9. 2026 všech
+19 existujících rozvrhů odpovídalo podporovanému formátu, sklep neměl žádný.
+
+Pomocné příznaky se srovnají po startu, reloadu, změně oken a kontrolně každou minutu.
+Synchronizace nepřepisuje příznak zóny během manuálního override, aby oprava starého
+stavu nezrušila manuál. Skutečná změna okna dané zóny nadále ukončuje manuál typu
+„Do další změny rozvrhu“. Změna okna jiné zóny jej neukončí.
+
 Před nasazením porovnejte zdrojové YAML balíčky s načtenou konfigurací, zachovejte jejich
-původní kopie a ověřte cíle všech zón. Chybějící rozvrh, význam vypnutého rozvrhu a chování
-při výpadku musí mít určenou politiku. Oprava společného skriptu začne při příštím běhu
+původní kopie a ověřte cíle všech zón. Význam vypnutého zónového přepínače `schedule_enable`
+a ostatní pravidla při výpadku jsou samostatné otázky. Oprava společného skriptu začne při příštím běhu
 uplatňovat požadavky všech zón. Pro první test je nutná ověřená izolace jedné zóny.
 Samotné sloučení PR nenahradí instalaci souborů do `/config`, kontrolu konfigurace a
 provozní ověření. Balíčkové skripty nenahrazujte duplicitami vytvořenými přes UI API.
