@@ -192,18 +192,3 @@
       message: Máma je doma
   mode: single
 
-- id: '1776000000001'
-  alias: Export entit do snapshotu
-  description: >-
-    Pravidelně ukládá snapshot entit do /config/analysis/entities_snapshot.json
-    bez Git operací (commit/push běží mimo HA runtime).
-  trigger:
-  - platform: homeassistant
-    event: start
-  - platform: time_pattern
-    minutes: "/30"
-  condition: []
-  action:
-  - service: shell_command.export_entities_snapshot
-    data: {}
-  mode: single
