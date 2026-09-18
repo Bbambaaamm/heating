@@ -2,6 +2,46 @@
 
 Datum: 2026-05-21
 
+## Stav při dokončení PR #71 (2026-09-18)
+
+Tento dokument uchovává historický statický audit z 21. května. Původní nálezy,
+produkční verdikt i číselný odhad jistoty níže popisují tehdejší stav; nejsou
+aktuálním potvrzením ani zamítnutím provozní spolehlivosti.
+
+Vyhodnocení níže porovnává audit s opravami v [PR #74](https://github.com/Bbambaaamm/heating/pull/74),
+commit `932b8ebff045a95e5e585a0b0503f6a1482811e4`. Tento PR byl sloučen do `main`.
+Historický audit se přijímá jako dokumentace; jeho přijetí neznamená, že všechna
+doporučení byla implementována.
+
+| Nález / doporučení | Stav po opravách #74 a zbývající práce |
+| --- | --- |
+| A1: nepotvrzený zápis cíle | Sdílený centrální skript ověřuje hlášený režim `heat` a cíl s tolerancí 0,1 °C, čeká nejvýše 30 s a při neúspěchu vyvolá oznámení a chybu. Změna požadavku ukončí staré ověřování. Automatické retry nebylo zavedeno. Přímá záložní cesta Boostu v `mode_boost.yaml` tuto potvrzovací smyčku nemá; sjednocení všech cest zůstává otevřené. Report integrace nedokazuje fyzický účinek. |
+| B1: start a uvolnění guardu | Startup synchronizace i watchdog po uvolnění guardu vysílají `heating_reconcile_requested`; pořadí pokrývá regresní test. Centrální řízení reaguje také na reload a návrat hlavice. Konvergence skutečných zařízení po restartu ještě vyžaduje provozní ověření. |
+| B2: množství logů | Obecný dispatch log a některé diagnostické větve jsou pod debug guardem. Potvrzení cíle se však stále zapisuje při každé úspěšné kontrole, i bez změny setpointu; úplné omezení logování na změny zůstává otevřené. |
+| B3: přechod mezi centrálním a záložním Boostem | Před zápisy se znovu kontroluje aktuální řízení a požadavek; zapnutí centrálního řízení spouští dispatch. Úplné předání vlastnictví v obou směrech během Boostu ani navržený throttling nejsou tímto uzavřeny. |
+| B4: krátké výpadky a obnova Zigbee | Současný watchdog má 5minutovou stabilní obnovu, eskalaci při více než jedné problémové hlavici po 30 minutách a stabilní identifikaci incidentu pro 60minutový cooldown stejné skupiny hlavic. Periodická kontrola po 10 minutách nevyžaduje vždy předchozí 10minutové trvání poruchy; úplná filtrace krátkých výpadků a degradované řízení zůstávají samostatnou otázkou. |
+| C1–C2: metriky a strukturované logy | Důvod požadavku je součástí diagnostiky, ale metrika `write_success_rate` a jednotné schéma všech provozních logů nejsou dokončené. |
+| C3: kontrola po restartu | Izolované testy nenahrazují kontrolu cílů všech zón, časování kotle a fyzických zařízení po aktivaci. Automatická kontrola celé instalace do 2–3 minut není tímto auditem doložena. |
+| C4: deduplikace oznámení | Potvrzování cíle používá stabilní ID pro zónu, watchdog stabilní ID a cooldown. Nejde o plošný rate limit všech oznámení. |
+| C5: drift blueprintů | Existují kontroly konzistence zón a integrační regresní testy; úplná kontrola schématu všech vstupů blueprintů proti všem instancím není zavedena. |
+| D1: chybějící PyYAML | Aktuální ochranné kontroly při chybějícím PyYAML selžou i lokálně. Historický úspěch s přeskočenou YAML validací již není platným postupem. |
+
+### Důkazy a provozní stav k 18. září
+
+- Lokálně prošlo 72/72 testů na HA Core 2026.5.1 i 2026.9.2;
+  [CI ověřeného commitu](https://github.com/Bbambaaamm/heating/actions/runs/35323731534)
+  úspěšně dokončilo ochranné kontroly a runtime testy na obou verzích.
+- Vlastník doložil instalaci souborů tohoto commitu do `/config` a úspěšný `ha core check`.
+  Restart/reload aktivující nové balíčky a následné provozní ověření zatím doložené nejsou.
+- PR #65 a #66 byly uzavřeny jako nahrazené současnými ochrannými kontrolami;
+  jejich konfliktní staré větve nebyly sloučeny.
+- Pro Auto je potvrzené pravidlo: mimo skutečné komfortní okno nebo bez rozvrhu
+  použít ECO (v projektu 15 °C), při zachování platného manuálu a Boostu.
+  Samostatně zůstává vyjasnění a ověření širších pravidel pro vypnutý zónový
+  `schedule_enable`, master off a otevřené okno.
+
+Následuje původní audit beze změn.
+
 ## A) Kritické chyby
 
 ### A1) Reálná možnost „quiet failure“ při zápisu setpointu do TRV (bez retry/backoff/ověření)
