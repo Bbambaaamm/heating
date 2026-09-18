@@ -31,6 +31,7 @@ blueprint:
 
     schedule_enable:
       name: Enable boolean pro rozvrh zóny
+      description: "Vypnuto = ECO i při manuálu nebo Boostu. Zapnuto = běžné řízení zóny."
       selector:
         entity:
           domain: input_boolean
@@ -149,10 +150,7 @@ trigger:
 # ---------------------------------------------------------------
 # CONDITIONS
 # ---------------------------------------------------------------
-condition:
-  - condition: state
-    entity_id: !input schedule_enable
-    state: "on"
+condition: []
 
 # ---------------------------------------------------------------
 # VARIABLES
@@ -294,6 +292,36 @@ action:
               name: "{{ zone_name }}"
               message: "Manuální override ukončen (další změna rozvrhu)."
               entity_id: "{{ climate_entity }}"
+
+  # ---------------------------------------------------------------
+  # Vypnutý kalendář vynucuje ECO před zachycením ručního komfortu.
+  # Sdílený apply skript hlídá master/Off, nové vstupy i potvrzení hlavice.
+  # Při centrálním řízení jen vyžádáme nové vyhodnocení (také po ručním +/-).
+  # ---------------------------------------------------------------
+  - choose:
+      - conditions:
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: !input schedule_enable
+                state: "on"
+        sequence:
+          - if:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            then:
+              - event: heating_reconcile_requested
+                event_data:
+                  source: schedule_disabled_zone
+                  zone: "{{ climate_entity }}"
+            else:
+              - service: script.heating_apply_zone_target
+                data:
+                  climate_entity: !input climate_entity
+                  requested_temp: "{{ safe_eco }}"
+                  reason: schedule_disabled_eco
+          - stop: "Kalendář vypnutý – zóna zůstává v ECO"
 
   # ---------------------------------------------------------------
   # 1) ZACHYCENÍ KOMFORTNÍ TEPLOTY PŘI RUČNÍ ZMĚNĚ SETPOINTU
