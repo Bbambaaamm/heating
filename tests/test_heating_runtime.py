@@ -796,8 +796,100 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with patch("homeassistant.util.dt.now", return_value=at_expiry):
                 self.assertFalse(self.render(boost["state"]))
 
+    async def test_disabled_calendar_forces_eco_only_for_its_zone(self):
+        for disabled in ZONES:
+            with self.subTest(zone=disabled):
+                for z in ZONES:
+                    self.set(f"input_boolean.schedule_enable_{z}", "off" if z == disabled else "on")
+                await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+                for z in ZONES:
+                    self.assertEqual(self.hass.states.get(f"climate.{z}").attributes["temperature"],
+                                     15 if z == disabled else 21)
+
+    async def test_disabled_calendar_wins_over_boost_manual_and_window_changes(self):
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("timer.sklep_michal_manual_override", "active")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        for windows in ([], ["input_boolean.sklep_michal_schedule_active"]):
+            self.set("sensor.heating_schedule_windows", "ready", active_helpers=windows)
+            await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+            self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_number.sklep_michal_last_comfort").state, "21")
+
+    async def test_calendar_toggle_events_apply_eco_and_restore_current_window(self):
+        a = automation(DISPATCH, "heating_dispatch_mode_schedule_override")
+        a["action"][0]["delay"] = {"milliseconds": 10}
+        await self.load_automations([a])
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.set("input_boolean.schedule_enable_sklep_michal", "on")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 21)
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        await asyncio.sleep(.15)
+        self.set("input_boolean.schedule_enable_sklep_michal", "on")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+
+    async def test_calendar_off_during_hvac_io_rejects_old_comfort(self):
+        self.set("climate.1p_chodba", "off", temperature=18, min_temp=5, max_temp=30)
+        async def disable_calendar(call):
+            await self.service(call)
+            self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        self.hass.services.async_register("climate", "set_hvac_mode", disable_calendar)
+        await self.apply(requested_temp=21)
+        self.assertEqual(self.writes(), [])
+        await self.apply(requested_temp=21)
+        self.assertEqual(self.hass.states.get("climate.1p_chodba").attributes["temperature"], 15)
+
+    async def test_calendar_change_rejects_queued_snapshot(self):
+        old = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", "on", True]
+        self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        await self.apply(expected_inputs=old)
+        self.assertEqual(self.writes(), [])
+        old[-2] = "off"
+        await self.apply(requested_temp=15, expected_inputs=old)
+        self.assertEqual(self.writes()[0][2]["temperature"], 15)
+
+    async def test_fallback_disabled_calendar_does_not_capture_manual_temperature(self):
+        instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.sklep_michal")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.assertEqual(a["condition"], [])  # Off must not prevent its own handler running.
+        self.set("input_boolean.heating_central_dispatch_enable", "off")
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("timer.sklep_michal_manual_override", "active")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        before = self.hass.states.get("climate.sklep_michal")
+        self.hass.states.async_set("climate.sklep_michal", "heat",
+                                  dict(before.attributes, temperature=25), context=Context(user_id="test-user"))
+        await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "climate.sklep_michal",
+                                  "from_state": before, "to_state": self.hass.states.get("climate.sklep_michal")},
+                                  "this": {"entity_id": "automation.test"}})
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_number.sklep_michal_last_comfort").state, "21")
+        self.calls.clear()
+        await self.run_automation(automation(BOOST, "heating_boost_apply_comfort_on"))
+        self.assertFalse(any(c[2]["entity_id"] == "climate.sklep_michal" for c in self.writes()))
+
+    async def test_disabled_calendar_never_reenables_global_off_or_master_off(self):
+        self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        self.set("input_select.topny_rezim", "Off")
+        await self.apply(requested_temp=15)
+        self.assertEqual(self.writes(), [])
+        self.set("input_select.topny_rezim", "Auto")
+        self.set("input_boolean.topny_system_enable", "off")
+        await self.apply(requested_temp=15)
+        self.assertEqual(self.writes(), [])
+
     async def test_queued_decision_with_changed_inputs_is_rejected(self):
-        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", True]
+        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", "on", True]
         self.set("input_select.topny_rezim", "Eco")
         await self.apply(expected_inputs=snapshot)
         self.assertEqual(self.writes(), [])

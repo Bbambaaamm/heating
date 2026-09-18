@@ -99,9 +99,23 @@ Synchronizace nepřepisuje příznak zóny během manuálního override, aby opr
 stavu nezrušila manuál. Skutečná změna okna dané zóny nadále ukončuje manuál typu
 „Do další změny rozvrhu“. Změna okna jiné zóny jej neukončí.
 
+Zónový kalendář `input_boolean.schedule_enable_<zona>` má od této opravy jasný význam:
+vypnuto = ECO z `input_number.eco_temp_default` (aktuálně 15 °C), i při platném manuálu
+nebo globálním Boostu. Také nedostupný přepínač nezakládá komfort. Zapnutí znovu
+vyhodnotí aktuální režim, dosud platný manuál a skutečné časové okno. Plány ani uložený
+komfort se při vypnutí nemažou. Globální Off nebo vypnutý hlavní systém mají dál přednost
+a oprava v nich nezapíná hlavice. Ruční +/- při vypnutém kalendáři se vrátí na ECO a
+nepřepíše uloženou komfortní teplotu. Manuální příznak/časovač se nemaže samotným vypnutím
+kalendáře; jeho dosavadní pravidla ukončení zůstávají zachována.
+
+Přepnutí kalendáře spustí centrální vyhodnocení s běžným dvousekundovým debounce.
+Stav kalendáře je součástí snímku vstupů ve frontě i kontrol po komunikaci s hlavicí.
+Záložní blueprint řeší vypnutí přes společný ověřovaný apply skript; legacy Boost
+přeskakuje vypnuté zóny a znovu kontroluje kalendář těsně před odesláním teploty.
+
 Před nasazením porovnejte zdrojové YAML balíčky s načtenou konfigurací, zachovejte jejich
-původní kopie a ověřte cíle všech zón. Význam vypnutého zónového přepínače `schedule_enable`
-a ostatní pravidla při výpadku jsou samostatné otázky. Oprava společného skriptu začne při příštím běhu
+původní kopie a ověřte cíle všech zón. Ostatní pravidla při výpadku jsou samostatné otázky.
+Oprava společného skriptu začne při příštím běhu
 uplatňovat požadavky všech zón. Pro první test je nutná ověřená izolace jedné zóny.
 Samotné sloučení PR nenahradí instalaci souborů do `/config`, kontrolu konfigurace a
 provozní ověření. Balíčkové skripty nenahrazujte duplicitami vytvořenými přes UI API.
