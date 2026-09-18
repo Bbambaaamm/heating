@@ -85,18 +85,20 @@ script:
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
-      - condition: template
-        value_template: "{{ states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost'] }}"
+      - condition: state
+        entity_id: input_select.topny_rezim
+        state: [Auto, Eco, Boost]
       - variables:
-          decision_inputs: >-
+          decision_entities: >-
             {% set z = climate_entity.split('.')[1] %}
-            {{ [states('input_select.topny_rezim'), states('binary_sensor.kotel_boost_active'),
-                states('input_number.eco_temp_default'), states('input_number.boost_comfort_offset_c'),
-                states('input_number.' ~ z ~ '_last_comfort'),
-                states('input_boolean.' ~ z ~ '_schedule_active'),
-                states('input_boolean.' ~ z ~ '_manual_override'),
-                states('input_select.' ~ z ~ '_manual_override_type'),
-                states('timer.' ~ z ~ '_manual_override')] }}
+            {{ ['input_select.topny_rezim', 'binary_sensor.kotel_boost_active',
+                'input_number.eco_temp_default', 'input_number.boost_comfort_offset_c',
+                'input_number.' ~ z ~ '_last_comfort',
+                'input_boolean.' ~ z ~ '_schedule_active',
+                'input_boolean.' ~ z ~ '_manual_override',
+                'input_select.' ~ z ~ '_manual_override_type',
+                'timer.' ~ z ~ '_manual_override'] }}
+          decision_inputs: "{{ decision_entities | map('states') | list }}"
           climate_state: "{{ states(climate_entity) }}"
           climate_obj: "{{ states[climate_entity] }}"
           climate_exists: "{{ climate_obj is not none }}"
@@ -144,48 +146,80 @@ script:
               # if policy or this zone's inputs changed during that await.
               - condition: template
                 value_template: >-
-                  {% set z = climate_entity.split('.')[1] %}
-                  {% set current = [states('input_select.topny_rezim'), states('binary_sensor.kotel_boost_active'),
-                    states('input_number.eco_temp_default'), states('input_number.boost_comfort_offset_c'),
-                    states('input_number.' ~ z ~ '_last_comfort'),
-                    states('input_boolean.' ~ z ~ '_schedule_active'),
-                    states('input_boolean.' ~ z ~ '_manual_override'),
-                    states('input_select.' ~ z ~ '_manual_override_type'),
-                    states('timer.' ~ z ~ '_manual_override')] %}
-                  {{ is_state('input_boolean.topny_system_enable', 'on') and current == decision_inputs }}
+                  {{ is_state('input_boolean.topny_system_enable', 'on')
+                     and decision_entities | map('states') | list == decision_inputs }}
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ not is_number(state_attr(climate_entity, 'temperature'))
+                         or ((state_attr(climate_entity, 'temperature') | float(target))
+                          - (target | float(0))) | abs > 0.1 }}
+                then:
+                  - action: climate.set_temperature
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      temperature: "{{ target | round(1) }}"
+              # Check current state too: a report can arrive before the wait starts.
+              # One bounded wait, no blind retries. A newer intent cancels verification.
+              - wait_template: >-
+                  {{ not is_state('input_boolean.topny_system_enable', 'on')
+                     or decision_entities | map('states') | list != decision_inputs
+                     or not has_value(climate_entity)
+                     or (is_state(climate_entity, 'heat')
+                         and is_number(state_attr(climate_entity, 'temperature'))
+                         and ((state_attr(climate_entity, 'temperature') | float(0))
+                              - (target | round(1))) | abs <= 0.1) }}
+                timeout: "00:00:30"
+                continue_on_timeout: true
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "on"
               - condition: template
-                value_template: >-
-                  {{ not is_number(state_attr(climate_entity, 'temperature'))
-                     or ((state_attr(climate_entity, 'temperature') | float(target))
-                      - (target | float(0))) | abs > 0.1 }}
-              - action: climate.set_temperature
-                target:
-                  entity_id: "{{ climate_entity }}"
+                value_template: "{{ decision_entities | map('states') | list == decision_inputs }}"
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ not (is_state(climate_entity, 'heat')
+                              and is_number(state_attr(climate_entity, 'temperature'))
+                              and ((state_attr(climate_entity, 'temperature') | float(0))
+                                   - (target | round(1))) | abs <= 0.1) }}
+                then:
+                  - action: persistent_notification.create
+                    continue_on_error: true
+                    data:
+                      notification_id: "{{ 'heating_target_' ~ climate_entity.split('.')[1] }}"
+                      title: "Topení – chybí potvrzení cíle"
+                      message: >-
+                        {{ climate_entity }} nehlásí požadovaný režim heat a cíl
+                        {{ target | round(1) }} °C ({{ reason }}).
+                        Stav: {{ states(climate_entity) }},
+                        hlášený cíl: {{ state_attr(climate_entity, 'temperature') }} °C.
+                        Automatické opakování nebylo provedeno. Zkontrolujte hlavici a spojení.
+                  - stop: "Hlavice nehlásí požadovaný režim nebo cílovou teplotu."
+                    error: true
+              - action: persistent_notification.dismiss
+                continue_on_error: true
                 data:
-                  temperature: "{{ target | round(1) }}"
+                  notification_id: "{{ 'heating_target_' ~ climate_entity.split('.')[1] }}"
               - action: logbook.log
                 data:
                   name: "Heating dispatch"
-                  message: "{{ climate_entity }} -> {{ target | round(1) }} °C ({{ reason }})"
+                  message: "Potvrzen hlášený cíl: {{ climate_entity }} -> {{ target | round(1) }} °C ({{ reason }})"
                   entity_id: "{{ climate_entity }}"
         default:
-          - choose:
-              - conditions:
-                  - condition: state
-                    entity_id: input_boolean.heating_debug_guard
-                    state: "on"
-                sequence:
-                  - action: logbook.log
-                    data:
-                      name: "Heating dispatch"
-                      message: >-
-                        WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }}.
-                        climate_exists={{ climate_exists }},
-                        climate_state={{ climate_state }},
-                        climate_ready={{ climate_ready }},
-                        target_valid={{ target_valid }},
-                        requested_temp={{ target_raw }} ({{ reason }}).
-                      entity_id: "{{ climate_entity }}"
+          - action: logbook.log
+            continue_on_error: true
+            data:
+              name: "Heating dispatch"
+              message: >-
+                WARNING: Přeskočeno nastavení teploty pro {{ climate_entity }}.
+                climate_exists={{ climate_exists }}, climate_state={{ climate_state }},
+                climate_ready={{ climate_ready }}, target_valid={{ target_valid }},
+                requested_temp={{ target_raw }} ({{ reason }}).
+              entity_id: "{{ climate_entity }}"
+          - stop: "Nedostupná hlavice nebo neplatná cílová teplota."
+            error: true
 
 automation:
   - id: heating_failsafe_dispatch_inputs_unavailable

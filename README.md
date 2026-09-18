@@ -57,3 +57,25 @@ aktualizací nelze zpětně rekonstruovat. Prahy kotle, ECO teplota a Boost offs
 Boost ukládá jednoznačný konec v `input_text.boost_until_utc`; `input_datetime.boost_until` zůstává
 pro místní zobrazení a časový trigger. Starý termín při migraci má fallback na timestamp atribut
 původního helperu. Nový UTC termín zachovává délku i přes změnu letního času a restart.
+
+### Potvrzení cíle hlavice
+
+Centrální skript po příkazu ověřuje režim `heat` a hlášenou cílovou teplotu s tolerancí
+0,1 °C. Kontrola přijme i report doručený před začátkem čekání. Čeká nejvýše 30 sekund
+na zónu; tento výchozí limit je nutné při provozní zkoušce porovnat s odezvou zařízení.
+Při změně rozhodovacích vstupů nebo vypnutí masteru ukončí kontrolu starého požadavku.
+Příkaz automaticky neopakuje. Fronta může být při chybě zdržena nejvýše o tento interval
+na každou zónu; ostatní zóny pokračují díky existujícímu `continue_on_error` v dispatchi.
+
+Nepotvrzený cíl vyvolá chybu ve stopě a oznámení v HA se stabilním ID pro danou zónu.
+Oznámení se smaže až při další úspěšné kontrole, i pokud už není třeba nový zápis.
+Odmítnutý neplatný požadavek nebo nedostupná hlavice se zapíše i při vypnutém debug režimu
+a běh skončí chybou. Úspěch potvrzuje stav hlášený integrací; fyzické otevření ventilu
+ani dodávku tepla tím test neprokazuje.
+
+Před nasazením porovnejte zdrojové YAML balíčky s načtenou konfigurací, zachovejte jejich
+původní kopie a ověřte cíle všech zón. Chybějící rozvrh, význam vypnutého rozvrhu a chování
+při výpadku musí mít určenou politiku. Oprava společného skriptu začne při příštím běhu
+uplatňovat požadavky všech zón. Pro první test je nutná ověřená izolace jedné zóny.
+Samotné sloučení PR nenahradí instalaci souborů do `/config`, kontrolu konfigurace a
+provozní ověření. Balíčkové skripty nenahrazujte duplicitami vytvořenými přes UI API.

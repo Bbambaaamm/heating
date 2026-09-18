@@ -24,6 +24,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.script import Script
 from homeassistant.helpers.script_variables import ScriptVariables
 from homeassistant.helpers.template import Template
+from homeassistant.helpers.trace import trace_clear, trace_get
 from homeassistant.loader import async_setup
 from homeassistant.util import dt as dt_util
 from homeassistant.util.yaml import load_yaml
@@ -51,6 +52,7 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         dt_util.set_default_time_zone(dt_util.get_time_zone("Europe/Prague"))
         self.calls = []
         self.fail_entity = None
+        self.ignore_temperature_entity = None
         self.scripts = []
         self.set("input_select.topny_rezim", "Auto")
         self.set("sensor.heating_global_intent", "auto")
@@ -109,6 +111,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             entity = entity[0]
         if call.domain == "climate" and entity == self.fail_entity:
             raise HomeAssistantError("Injected device communication failure")
+        if call.service == "set_temperature" and entity == self.ignore_temperature_entity:
+            return  # Service accepted, but the device did not report the target.
         if not entity:
             return
         old = self.hass.states.get(entity)
@@ -151,8 +155,26 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.run_sequence(seq, variables, a.get("variables"))
 
     async def apply(self, climate_entity="climate.1p_chodba", requested_temp=21, reason="audit", **extra):
-        await self.run_sequence(read(DISPATCH)["script"]["heating_apply_zone_target"]["sequence"],
+        sequence = deepcopy(read(DISPATCH)["script"]["heating_apply_zone_target"]["sequence"])
+        def scale_confirmation(obj):
+            if isinstance(obj, dict):
+                if "wait_template" in obj and "timeout" in obj:
+                    obj["timeout"] = {"milliseconds": 150}
+                for value in obj.values():
+                    scale_confirmation(value)
+            elif isinstance(obj, list):
+                for value in obj:
+                    scale_confirmation(value)
+        scale_confirmation(sequence)
+        trace_clear()
+        await self.run_sequence(sequence,
                                 dict(climate_entity=climate_entity, requested_temp=requested_temp, reason=reason, **extra))
+        return [entry.as_dict() for entries in (trace_get(clear=False) or {}).values() for entry in entries]
+
+    async def assert_target_rejected(self, **kwargs):
+        trace = await self.apply(**kwargs)
+        self.assertTrue(any(step.get("result", {}).get("error") is True for step in trace),
+                        "Rejected target must have an explicit error stop in its actual HA trace")
 
     async def load_automations(self, automations):
         self.hass.config_entries = ConfigEntries(self.hass, {})
@@ -225,16 +247,81 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.apply()
         self.assertEqual(len(self.writes()), 1)
 
+    async def test_unacknowledged_target_reports_failure_without_debug(self):
+        self.ignore_temperature_entity = "climate.1p_chodba"
+        await self.assert_target_rejected()
+        self.assertEqual(len(self.writes()), 1, "No blind retry of an old target")
+        notices = self.writes("persistent_notification", "create")
+        self.assertEqual(len(notices), 1)
+        self.assertEqual(notices[0][2]["notification_id"], "heating_target_1p_chodba")
+        self.assertFalse(any("potvrzen" in c[2].get("message", "").lower()
+                             for c in self.writes("logbook", "log")))
+
+    async def test_delayed_target_report_is_confirmed(self):
+        self.ignore_temperature_entity = "climate.1p_chodba"
+        task = asyncio.create_task(self.apply())
+        try:
+            await asyncio.sleep(0.03)
+            self.assertFalse(task.done(), "Service acceptance is not confirmation")
+            self.set("climate.1p_chodba", "heat", temperature=21, min_temp=5, max_temp=30)
+            await task
+            self.assertEqual(self.writes("persistent_notification", "create"), [])
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    async def test_superseded_target_does_not_raise_false_alarm(self):
+        self.ignore_temperature_entity = "climate.1p_chodba"
+        task = asyncio.create_task(self.apply())
+        await asyncio.sleep(0.03)
+        self.set("input_select.topny_rezim", "Eco")
+        await task
+        self.assertEqual(self.writes("persistent_notification", "create"), [])
+        self.assertEqual(self.writes("persistent_notification", "dismiss"), [])
+        self.assertEqual(self.writes("logbook", "log"), [])
+
+    async def test_disconnected_device_is_not_confirmed_from_stale_attribute(self):
+        async def disconnected(call):
+            self.calls.append((call.domain, call.service, dict(call.data)))
+            self.set("climate.1p_chodba", "unavailable", temperature=21)
+        self.hass.services.async_register("climate", "set_temperature", disconnected)
+        await self.assert_target_rejected()
+        self.assertEqual(len(self.writes("persistent_notification", "create")), 1)
+
+    async def test_unacknowledged_hvac_mode_is_not_success_when_target_matches(self):
+        self.set("climate.1p_chodba", "off", temperature=21, min_temp=5, max_temp=30)
+        async def ignored_mode(call):
+            self.calls.append((call.domain, call.service, dict(call.data)))
+        self.hass.services.async_register("climate", "set_hvac_mode", ignored_mode)
+        await self.assert_target_rejected()
+        self.assertEqual(self.writes(), [])
+
+    async def test_confirmed_idempotent_target_clears_previous_failure(self):
+        self.set("climate.1p_chodba", "heat", temperature=21, min_temp=5, max_temp=30)
+        await self.apply()
+        self.assertEqual(self.writes(), [])
+        self.assertEqual(self.writes("persistent_notification", "dismiss")[0][2]["notification_id"],
+                         "heating_target_1p_chodba")
+
+    async def test_unacknowledged_first_zone_does_not_skip_remaining_zones(self):
+        self.ignore_temperature_entity = "climate.sklep_michal"
+        await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+        self.assertEqual(len(self.writes("persistent_notification", "create")), 1)
+        for z in ZONES[1:]:
+            self.assertEqual(self.hass.states.get(f"climate.{z}").attributes["temperature"], 21)
+
     async def test_target_clamped_to_device_limits(self):
         await self.apply(requested_temp=99)
         self.assertEqual(self.writes()[0][2]["temperature"], 30)
 
     async def test_invalid_targets_and_unavailable_device_never_write(self):
         for value in (None, "unknown", "nan", "inf", "bad"):
-            await self.apply(requested_temp=value)
+            await self.assert_target_rejected(requested_temp=value)
         self.set("climate.1p_chodba", "unavailable")
-        await self.apply()
+        await self.assert_target_rejected()
         self.assertEqual(self.writes(), [])
+        self.assertEqual(len(self.writes("logbook", "log")), 6)
 
     async def test_disabled_system_cannot_apply_queued_target(self):
         self.set("input_boolean.topny_system_enable", "off")
