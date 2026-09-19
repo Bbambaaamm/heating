@@ -7,6 +7,9 @@
 # Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
+# Bez initial: při restartu obnovit poslední skutečné nastavení obsluhy.
+# Nová instalace bez historie obnovy vyžaduje nastavení politiky před zapnutím
+# hlavního systému. Referenční hodnoty: 15 %, 5 %, 1 zóna, 120 s / 300 s.
 input_number:
 
   # -------------------------------------------------------------------
@@ -22,7 +25,6 @@ input_number:
     min: 0
     max: 100
     step: 1
-    initial: 15
 
   # -------------------------------------------------------------------
   # HELPER: Minimální demand zóny pro započítání do rozhodování kotle (%)
@@ -39,7 +41,6 @@ input_number:
     min: 0
     max: 100
     step: 1
-    initial: 5
 
   # -------------------------------------------------------------------
   # HELPER: Minimální počet aktivních zón
@@ -53,7 +54,6 @@ input_number:
     min: 0
     max: 10
     step: 1
-    initial: 1
 
   # -------------------------------------------------------------------
   # HELPER: Zpoždění zapnutí kotle (sekundy)
@@ -68,7 +68,6 @@ input_number:
     min: 0
     max: 900
     step: 10
-    initial: 120
 
   # -------------------------------------------------------------------
   # HELPER: Zpoždění vypnutí kotle (sekundy)
@@ -83,4 +82,3 @@ input_number:
     min: 0
     max: 1800
     step: 10
-    initial: 300

@@ -11,7 +11,7 @@ input_boolean:
   heating_central_dispatch_enable:
     name: "Heating – central dispatch enable"
     icon: mdi:source-branch-check
-    initial: on
+    # Obnovit poslední volbu centrálního / záložního řízení.
   heating_startup_reconcile_guard:
     name: "Heating – startup reconcile guard"
     icon: mdi:shield-sync

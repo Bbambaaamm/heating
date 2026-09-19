@@ -8,6 +8,37 @@
 # =====================================================================
 
 sensor:
+  # history_stats/count počítá úseky ON překrývající období, nikoli pouze
+  # hrany OFF->ON. Započte i úsek zahájený před začátkem okna a může započíst
+  # obnovení po výpadku dat. ID původních senzorů zachována pro dashboardy.
+  # Hořák může cyklovat při nepřetržitě sepnutém relé; sledujeme obě vrstvy.
+  - platform: history_stats
+    name: "kotel_relay_on_periods_1h"
+    unique_id: kotel_relay_on_periods_1h
+    entity_id: switch.kotel_rele_spinac
+    state: "on"
+    type: count
+    start: "{{ utcnow() - timedelta(hours=1) }}"
+    end: "{{ utcnow() }}"
+
+  - platform: history_stats
+    name: "kotel_relay_on_periods_24h"
+    unique_id: kotel_relay_on_periods_24h
+    entity_id: switch.kotel_rele_spinac
+    state: "on"
+    type: count
+    start: "{{ utcnow() - timedelta(hours=24) }}"
+    end: "{{ utcnow() }}"
+
+  - platform: history_stats
+    name: "kotel_relay_on_time_24h"
+    unique_id: kotel_relay_on_time_24h
+    entity_id: switch.kotel_rele_spinac
+    state: "on"
+    type: time
+    start: "{{ utcnow() - timedelta(hours=24) }}"
+    end: "{{ utcnow() }}"
+
   # Starty – posledních 24h
   - platform: history_stats
     name: "kotel_start_count_24h"
