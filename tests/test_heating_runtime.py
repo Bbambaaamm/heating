@@ -15,7 +15,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from homeassistant.core import Context, CoreState, HomeAssistant
+from homeassistant.core import Context, CoreState, HomeAssistant, State
 from homeassistant.config_entries import ConfigEntries
 from homeassistant.setup import async_setup_component
 from homeassistant.helpers import condition, trigger, entity_registry, device_registry
@@ -509,6 +509,117 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0.10)
         self.assertEqual(self.writes("switch", "turn_off"), [])
 
+    async def test_boiler_pending_start_is_cancelled_immediately_on_lost_demand(self):
+        self.boiler_inputs(requested=False)
+        await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
+        self.boiler_inputs(requested=True)
+        await asyncio.sleep(0.02)
+        self.set("binary_sensor.kotel_should_be_on", "unavailable")
+        await asyncio.sleep(0.015)
+        a = self.hass.states.async_all("automation")[0]
+        self.assertEqual(a.attributes["current"], 0)
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+
+    async def test_boiler_pending_stop_is_cancelled_immediately_on_returned_demand(self):
+        self.boiler_inputs(requested=True, relay="on")
+        await self.load_automations([self.fast_boiler("kotel_turn_off_by_policy")])
+        self.boiler_inputs(requested=False, relay="on")
+        await asyncio.sleep(0.02)
+        self.boiler_inputs(requested=True, relay="on")
+        await asyncio.sleep(0.015)
+        a = self.hass.states.async_all("automation")[0]
+        self.assertEqual(a.attributes["current"], 0)
+        self.assertEqual(self.writes("switch", "turn_off"), [])
+
+    async def test_boiler_cannot_start_with_stale_decision_after_mode_off(self):
+        self.boiler_inputs(requested=False)
+        await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
+        self.boiler_inputs(requested=True)
+        await asyncio.sleep(0.02)
+        # Deliberately hold derived policy sensors at their old values.
+        self.set("input_select.topny_rezim", "Off")
+        await asyncio.sleep(0.10)
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+
+    async def test_boiler_cannot_start_with_direct_off_block(self):
+        self.boiler_inputs(requested=True)
+        self.set("binary_sensor.kotel_mode_off_block", "on")
+        await self.run_automation(automation("heating/control/kotel_control.yaml", "kotel_turn_on_by_policy"))
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+
+    async def test_new_boiler_request_gets_full_delay_after_interruption(self):
+        self.boiler_inputs(requested=False)
+        await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
+        self.boiler_inputs(requested=True)
+        await asyncio.sleep(0.04)
+        self.boiler_inputs(requested=False)
+        await asyncio.sleep(0.01)
+        self.boiler_inputs(requested=True)
+        await asyncio.sleep(0.04)
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+        await asyncio.sleep(0.06)
+        self.assertEqual(len(self.writes("switch", "turn_on")), 1)
+
+    async def test_boiler_policy_restores_all_operator_values(self):
+        restored = dict(kotel_min_avg_demand_pct=35, kotel_min_zone_demand_pct=12,
+                        kotel_min_active_zones=3, kotel_on_delay_sec=240,
+                        kotel_off_delay_sec=420)
+        async def last_state(entity):
+            key = entity.entity_id.split(".")[1]
+            return State(entity.entity_id, str(restored[key])) if key in restored else None
+        self.hass.config_entries = ConfigEntries(self.hass, {})
+        await entity_registry.async_load(self.hass, load_empty=True)
+        with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
+            self.assertTrue(await async_setup_component(self.hass, "input_number",
+                            read("heating/policy/policy_config.yaml")))
+            await self.hass.async_block_till_done()
+        for key, value in restored.items():
+            self.assertEqual(float(self.hass.states.get(f"input_number.{key}").state), value)
+
+    async def test_switched_off_zones_do_not_keep_boiler_demand_from_stale_pi(self):
+        for z in ZONES:
+            t = read(f"heating/core/zone_{z}.yaml")["template"][0]["sensor"][0]
+            self.set(f"climate.{z}", "off", pi_heating_demand=100)
+            self.assertEqual(self.render(t["state"]), 0, z)
+            self.set(f"climate.{z}", "heat", pi_heating_demand=30)
+            self.assertEqual(self.render(t["state"]), 30, z)
+
+    async def test_calendar_and_window_choices_survive_restart(self):
+        helpers = {}
+        for z in ZONES:
+            helpers.update(read(f"heating/schedule/preferences/helpers/schedule_helpers_{z}.yaml")["input_boolean"])
+        controls = read("heating/ui/controls/mode_controls.yaml")["input_boolean"]
+        helpers["kotel_ignore_open_windows"] = controls["kotel_ignore_open_windows"]
+        dispatch = read(DISPATCH)["input_boolean"]
+        helpers.update(dispatch)
+        for key in helpers:
+            self.hass.states.async_remove(f"input_boolean.{key}")
+        async def last_state(entity):
+            return State(entity.entity_id, "off")
+        self.hass.config_entries = ConfigEntries(self.hass, {})
+        await entity_registry.async_load(self.hass, load_empty=True)
+        with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
+            self.assertTrue(await async_setup_component(self.hass, "input_boolean", {"input_boolean": helpers}))
+            await self.hass.async_block_till_done()
+        for key in helpers:
+            expected = "on" if key == "heating_startup_reconcile_guard" else "off"
+            self.assertEqual(self.hass.states.get(f"input_boolean.{key}").state, expected, key)
+
+    async def test_eco_and_boost_settings_survive_restart(self):
+        restored = dict(eco_temp_default=16.5, boost_minutes=30, boost_comfort_offset_c=2)
+        helpers = read("heating/ui/controls/mode_controls.yaml")["input_number"]
+        for key in helpers:
+            self.hass.states.async_remove(f"input_number.{key}")
+        async def last_state(entity):
+            return State(entity.entity_id, str(restored[entity.entity_id.split(".")[1]]))
+        self.hass.config_entries = ConfigEntries(self.hass, {})
+        await entity_registry.async_load(self.hass, load_empty=True)
+        with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
+            self.assertTrue(await async_setup_component(self.hass, "input_number", {"input_number": helpers}))
+            await self.hass.async_block_till_done()
+        for key, value in restored.items():
+            self.assertEqual(float(self.hass.states.get(f"input_number.{key}").state), value, key)
+
     async def test_relay_reconnect_reapplies_unfulfilled_request(self):
         self.boiler_inputs(requested=True, relay="unavailable")
         await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
@@ -796,8 +907,100 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with patch("homeassistant.util.dt.now", return_value=at_expiry):
                 self.assertFalse(self.render(boost["state"]))
 
+    async def test_disabled_calendar_forces_eco_only_for_its_zone(self):
+        for disabled in ZONES:
+            with self.subTest(zone=disabled):
+                for z in ZONES:
+                    self.set(f"input_boolean.schedule_enable_{z}", "off" if z == disabled else "on")
+                await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+                for z in ZONES:
+                    self.assertEqual(self.hass.states.get(f"climate.{z}").attributes["temperature"],
+                                     15 if z == disabled else 21)
+
+    async def test_disabled_calendar_wins_over_boost_manual_and_window_changes(self):
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("timer.sklep_michal_manual_override", "active")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        for windows in ([], ["input_boolean.sklep_michal_schedule_active"]):
+            self.set("sensor.heating_schedule_windows", "ready", active_helpers=windows)
+            await self.run_automation(automation(DISPATCH, "heating_dispatch_mode_schedule_override"))
+            self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_number.sklep_michal_last_comfort").state, "21")
+
+    async def test_calendar_toggle_events_apply_eco_and_restore_current_window(self):
+        a = automation(DISPATCH, "heating_dispatch_mode_schedule_override")
+        a["action"][0]["delay"] = {"milliseconds": 10}
+        await self.load_automations([a])
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.set("input_boolean.schedule_enable_sklep_michal", "on")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 21)
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        await asyncio.sleep(.15)
+        self.set("input_boolean.schedule_enable_sklep_michal", "on")
+        await asyncio.sleep(.15)
+        await self.hass.async_block_till_done()
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+
+    async def test_calendar_off_during_hvac_io_rejects_old_comfort(self):
+        self.set("climate.1p_chodba", "off", temperature=18, min_temp=5, max_temp=30)
+        async def disable_calendar(call):
+            await self.service(call)
+            self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        self.hass.services.async_register("climate", "set_hvac_mode", disable_calendar)
+        await self.apply(requested_temp=21)
+        self.assertEqual(self.writes(), [])
+        await self.apply(requested_temp=21)
+        self.assertEqual(self.hass.states.get("climate.1p_chodba").attributes["temperature"], 15)
+
+    async def test_calendar_change_rejects_queued_snapshot(self):
+        old = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", "on", True]
+        self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        await self.apply(expected_inputs=old)
+        self.assertEqual(self.writes(), [])
+        old[-2] = "off"
+        await self.apply(requested_temp=15, expected_inputs=old)
+        self.assertEqual(self.writes()[0][2]["temperature"], 15)
+
+    async def test_fallback_disabled_calendar_does_not_capture_manual_temperature(self):
+        instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.sklep_michal")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.assertEqual(a["condition"], [])  # Off must not prevent its own handler running.
+        self.set("input_boolean.heating_central_dispatch_enable", "off")
+        self.set("input_boolean.schedule_enable_sklep_michal", "off")
+        self.set("input_boolean.sklep_michal_manual_override", "on")
+        self.set("timer.sklep_michal_manual_override", "active")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        before = self.hass.states.get("climate.sklep_michal")
+        self.hass.states.async_set("climate.sklep_michal", "heat",
+                                  dict(before.attributes, temperature=25), context=Context(user_id="test-user"))
+        await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "climate.sklep_michal",
+                                  "from_state": before, "to_state": self.hass.states.get("climate.sklep_michal")},
+                                  "this": {"entity_id": "automation.test"}})
+        self.assertEqual(self.hass.states.get("climate.sklep_michal").attributes["temperature"], 15)
+        self.assertEqual(self.hass.states.get("input_number.sklep_michal_last_comfort").state, "21")
+        self.calls.clear()
+        await self.run_automation(automation(BOOST, "heating_boost_apply_comfort_on"))
+        self.assertFalse(any(c[2]["entity_id"] == "climate.sklep_michal" for c in self.writes()))
+
+    async def test_disabled_calendar_never_reenables_global_off_or_master_off(self):
+        self.set("input_boolean.schedule_enable_1p_chodba", "off")
+        self.set("input_select.topny_rezim", "Off")
+        await self.apply(requested_temp=15)
+        self.assertEqual(self.writes(), [])
+        self.set("input_select.topny_rezim", "Auto")
+        self.set("input_boolean.topny_system_enable", "off")
+        await self.apply(requested_temp=15)
+        self.assertEqual(self.writes(), [])
+
     async def test_queued_decision_with_changed_inputs_is_rejected(self):
-        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", True]
+        snapshot = ["Auto", "off", "15", "1", "21", "on", "off", "Časovač", "idle", "on", True]
         self.set("input_select.topny_rezim", "Eco")
         await self.apply(expected_inputs=snapshot)
         self.assertEqual(self.writes(), [])
@@ -960,7 +1163,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_history_windows_are_elapsed_hours_across_dst(self):
         local = datetime(2026, 10, 25, 12, 0, tzinfo=dt_util.get_default_time_zone())
-        for sensor, hours in zip(read("heating/analysis/heating_analytics.yaml")["sensor"], [24, 24, 1]):
+        for sensor in read("heating/analysis/heating_analytics.yaml")["sensor"]:
+            hours = 1 if sensor["name"].endswith("_1h") else 24
             with patch("homeassistant.util.dt.now", return_value=local), patch("homeassistant.util.dt.utcnow", return_value=dt_util.as_utc(local)):
                 start, end = self.render(sensor["start"]), self.render(sensor["end"])
             self.assertEqual(dt_util.as_timestamp(end) - dt_util.as_timestamp(start), hours * 3600)
