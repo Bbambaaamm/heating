@@ -18,7 +18,7 @@ template:
       # SENSOR: Efektivní minimální průměrná poptávka (%)
       # Logika:
       # - režim Off → prakticky blokace (999)
-      # - Boost → povolit okamžitě (0 %)
+      # - Boost nesmí obejít průtokový práh
       # - Eco → zvýší požadavek o +10 %
       # - Auto → použije základní hodnotu z input_number
       # ----------------------------------------------------------------
@@ -26,13 +26,11 @@ template:
         unique_id: kotel_effective_min_avg_demand_pct
         unit_of_measurement: "%"
         state: >-
-          {% set base  = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
+          {% set configured = states('input_number.kotel_min_avg_demand_pct') | int(15) %}
+          {% set base = [configured, 15] | max %}
           {% set mode  = states('input_select.topny_rezim') %}
-          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
           {% if mode == 'Off' %}
             999
-          {% elif boost %}
-            0
           {% elif mode == 'Eco' %}
             {{ [base + 10, 100] | min }}
           {% else %}
@@ -43,20 +41,18 @@ template:
       # SENSOR: Efektivní minimální počet aktivních zón
       # Logika:
       # - Off → blokace (99)
-      # - Boost → stačí jedna zóna
+      # - Boost nesmí obejít hydraulické minimum
       # - Eco → zpřísnění +1 zóna
       # - Auto → základní hodnota
       # ----------------------------------------------------------------
       - name: "kotel_effective_min_active_zones"
         unique_id: kotel_effective_min_active_zones
         state: >-
-          {% set base  = states('input_number.kotel_min_active_zones') | int(2) %}
+          {% set configured = states('input_number.kotel_min_active_zones') | int(2) %}
+          {% set base = [configured, 2] | max %}
           {% set mode  = states('input_select.topny_rezim') %}
-          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
           {% if mode == 'Off' %}
             99
-          {% elif boost %}
-            1
           {% elif mode == 'Eco' %}
             {{ base + 1 }}
           {% else %}
@@ -66,39 +62,28 @@ template:
       # ----------------------------------------------------------------
       # SENSOR: Efektivní ON delay
       # Logika:
-      # - Boost → okamžitě (0s)
-      # - jinak použije standardní hodnotu
+      # - minimálně 120 s ve všech režimech, včetně Boostu
+      # - dává hlavicím čas mechanicky otevřít před požadavkem kotle
       # ----------------------------------------------------------------
       - name: "kotel_effective_on_delay_sec"
         unique_id: kotel_effective_on_delay_sec
         unit_of_measurement: "s"
         state: >-
-          {% set base = states('input_number.kotel_on_delay_sec') | int(120) %}
-          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
-          {{ 0 if boost else base }}
+          {% set configured = states('input_number.kotel_on_delay_sec') | int(120) %}
+          {{ [configured, 120] | max }}
 
       # ----------------------------------------------------------------
       # SENSOR: Efektivní OFF delay
       # Logika:
-      # - Eco → delší vypínání (+60s)
-      # - Boost → nikdy pod 300s
-      # - Auto → základní hodnota
+      # - nejvýše 30 s ve všech režimech
+      # - relé musí odpadnout dříve, než termostatické ventily zavřou průtok
       # ----------------------------------------------------------------
       - name: "kotel_effective_off_delay_sec"
         unique_id: kotel_effective_off_delay_sec
         unit_of_measurement: "s"
         state: >-
-          {% set base = states('input_number.kotel_off_delay_sec') | int(300) %}
-          {% set mode = states('input_select.topny_rezim') %}
-          {% set boost = is_state('binary_sensor.kotel_boost_active','on') %}
-
-          {% if boost %}
-            {{ [base, 300] | max }}
-          {% elif mode == 'Eco' %}
-            {{ base + 60 }}
-          {% else %}
-            {{ base }}
-          {% endif %}
+          {% set configured = states('input_number.kotel_off_delay_sec') | int(10) %}
+          {{ [[configured, 0] | max, 30] | min }}
 
   # ===================================================================
   # SEKCE: Účinné prahy – binární senzory (vyhodnocení)

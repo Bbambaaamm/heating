@@ -7,6 +7,9 @@
 # Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
 # =====================================================================
 
+# Bez initial: při restartu obnovit poslední skutečné nastavení obsluhy.
+# Nová instalace bez historie obnovy vyžaduje nastavení politiky před zapnutím
+# hlavního systému. Referenční hodnoty: 15 %, 5 %, 2 zóny, 120 s / 10 s.
 input_number:
 
   # -------------------------------------------------------------------
@@ -22,7 +25,6 @@ input_number:
     min: 0
     max: 100
     step: 1
-    initial: 15
 
   # -------------------------------------------------------------------
   # HELPER: Minimální demand zóny pro započítání do rozhodování kotle (%)
@@ -39,13 +41,13 @@ input_number:
     min: 0
     max: 100
     step: 1
-    initial: 5
 
   # -------------------------------------------------------------------
   # HELPER: Minimální počet aktivních zón
   # Logika:
   # - určuje, kolik zón musí být „aktivních“, aby se kotel mohl zapnout
-  # - zabraňuje spouštění kvůli jediné zóně na krátkou dobu
+  # - jedna zóna je hydraulicky zakázaná: při provozním testu vyvolala 2964
+  # - hodnota 2 je bezpečnostní minimum, ne potvrzené hydraulické optimum
   # -------------------------------------------------------------------
   kotel_min_active_zones:
     name: "Kotel – min. počet aktivních zón"
@@ -53,7 +55,6 @@ input_number:
     min: 0
     max: 10
     step: 1
-    initial: 1
 
   # -------------------------------------------------------------------
   # HELPER: Zpoždění zapnutí kotle (sekundy)
@@ -68,12 +69,11 @@ input_number:
     min: 0
     max: 900
     step: 10
-    initial: 120
 
   # -------------------------------------------------------------------
   # HELPER: Zpoždění vypnutí kotle (sekundy)
   # Logika:
-  # - po zániku všech požadavků počká X sekund, než kotel vypne
+  # - po zániku požadavků vypne relé téměř okamžitě, dříve než se TRV zavřou
   # - pokud během čekání přijde nový požadavek, odpočet se zruší
   # -------------------------------------------------------------------
   kotel_off_delay_sec:
@@ -83,4 +83,3 @@ input_number:
     min: 0
     max: 1800
     step: 10
-    initial: 300

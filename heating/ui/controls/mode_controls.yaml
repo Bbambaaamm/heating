@@ -37,7 +37,7 @@ input_boolean:
   kotel_ignore_open_windows:
     name: "Kotel – ignorovat otevřená okna"
     icon: mdi:window-open-variant
-    initial: on
+    # Zachovat poslední nastavení při restartu.
 
   # ▶️ Guard pro řízené debug okno topení
   heating_debug_guard:
@@ -59,7 +59,7 @@ input_number:
     step: 10
     unit_of_measurement: min
     icon: mdi:timer
-    initial: 60
+    # Zachovat poslední nastavení při restartu.
 
   # Comfort offset
   boost_comfort_offset_c:
@@ -69,7 +69,7 @@ input_number:
     step: 0.5
     unit_of_measurement: "°C"
     icon: mdi:thermometer-plus
-    initial: 1.0
+    # Zachovat poslední nastavení při restartu.
 
   # 🌿 ECO cílová teplota
   eco_temp_default:
@@ -79,7 +79,7 @@ input_number:
     step: 0.5
     unit_of_measurement: "°C"
     icon: mdi:leaf
-    initial: 15.0
+    # Zachovat poslední nastavení při restartu.
 
 
 # =====================================================================

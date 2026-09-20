@@ -11,7 +11,7 @@ input_boolean:
   schedule_enable_prizemi_michal:
     name: "Rozvrh – Přízemí Michal zapnuto"
     icon: mdi:calendar-clock
-    initial: on
+    # Obnovit poslední volbu kalendáře; restart nesmí zónu znovu povolit.
 
 
 # ---------------------------------------------------------------------
