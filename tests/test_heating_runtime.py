@@ -591,6 +591,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             key = entity.entity_id.split(".")[1]
             return State(entity.entity_id, str(restored[key])) if key in restored else None
         self.hass.config_entries = ConfigEntries(self.hass, {})
+        device_registry.async_setup(self.hass)
+        await device_registry.async_load(self.hass, load_empty=True)
         await entity_registry.async_load(self.hass, load_empty=True)
         with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
             self.assertTrue(await async_setup_component(self.hass, "input_number",
@@ -620,6 +622,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         async def last_state(entity):
             return State(entity.entity_id, "off")
         self.hass.config_entries = ConfigEntries(self.hass, {})
+        device_registry.async_setup(self.hass)
+        await device_registry.async_load(self.hass, load_empty=True)
         await entity_registry.async_load(self.hass, load_empty=True)
         with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
             self.assertTrue(await async_setup_component(self.hass, "input_boolean", {"input_boolean": helpers}))
@@ -636,6 +640,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         async def last_state(entity):
             return State(entity.entity_id, str(restored[entity.entity_id.split(".")[1]]))
         self.hass.config_entries = ConfigEntries(self.hass, {})
+        device_registry.async_setup(self.hass)
+        await device_registry.async_load(self.hass, load_empty=True)
         await entity_registry.async_load(self.hass, load_empty=True)
         with patch("homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state", new=last_state):
             self.assertTrue(await async_setup_component(self.hass, "input_number", {"input_number": helpers}))
