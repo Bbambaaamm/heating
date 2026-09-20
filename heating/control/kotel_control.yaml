@@ -42,7 +42,9 @@ automation:
         entity_id: binary_sensor.kotel_mode_off_block
         state: "off"
       - delay:
-          seconds: "{{ states('sensor.kotel_effective_on_delay_sec') | int(120) }}"
+          # Druhá nezávislá pojistka: ani vadný efektivní senzor nesmí
+          # spustit kotel dříve, než se termostatické ventily otevřou.
+          seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120] | max }}"
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
@@ -88,7 +90,8 @@ automation:
         entity_id: switch.kotel_rele_spinac
         state: "on"
       - delay:
-          seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(300) }}"
+          # Po zániku požadavku nenechávej hořák běžet proti zavírajícím TRV.
+          seconds: "{{ [[states('sensor.kotel_effective_off_delay_sec') | int(10), 0] | max, 30] | min }}"
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
         state: "off"

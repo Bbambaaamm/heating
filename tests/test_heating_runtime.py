@@ -473,6 +473,29 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 self.set(f"sensor.zona_{z}_demand", "30")
             self.assertEqual([self.render(s["state"]) for s in sensors], [count, 30, 30])
 
+    async def test_boost_never_relaxes_boiler_flow_safety_policy(self):
+        sensors = {s["unique_id"]: s for s in read("heating/policy/policy_effective.yaml")["template"][0]["sensor"]}
+        self.set("input_select.topny_rezim", "Auto")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        self.set("input_number.kotel_min_avg_demand_pct", "0")
+        self.set("input_number.kotel_min_active_zones", "0")
+        self.set("input_number.kotel_on_delay_sec", "0")
+        self.set("input_number.kotel_off_delay_sec", "999")
+        self.assertEqual(self.render(sensors["kotel_effective_min_avg_demand_pct"]["state"]), 15)
+        self.assertEqual(self.render(sensors["kotel_effective_min_active_zones"]["state"]), 2)
+        self.assertEqual(self.render(sensors["kotel_effective_on_delay_sec"]["state"]), 120)
+        self.assertEqual(self.render(sensors["kotel_effective_off_delay_sec"]["state"]), 30)
+
+    async def test_relay_timing_has_independent_hard_safety_bounds(self):
+        turn_on = automation("heating/control/kotel_control.yaml", "kotel_turn_on_by_policy")
+        turn_off = automation("heating/control/kotel_control.yaml", "kotel_turn_off_by_policy")
+        self.set("sensor.kotel_effective_on_delay_sec", "0")
+        self.set("sensor.kotel_effective_off_delay_sec", "999")
+        on_delay = next(step["delay"]["seconds"] for step in turn_on["action"] if "delay" in step)
+        off_delay = next(step["delay"]["seconds"] for step in turn_off["action"] if "delay" in step)
+        self.assertEqual(self.render(on_delay), 120)
+        self.assertEqual(self.render(off_delay), 30)
+
     async def test_boiler_on_delay_survives_boost_attribute_reports(self):
         self.boiler_inputs(requested=False)
         await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
@@ -749,6 +772,58 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "climate.1p_chodba", "from_state": before, "to_state": after}, "this": {"entity_id": "automation.test"}})
         self.assertEqual(self.hass.states.get("input_number.1p_chodba_last_comfort").state, "23.0")
         self.assertEqual(self.hass.states.get("climate.1p_chodba").attributes["temperature"], 23)
+
+    async def test_parentless_zigbee_ack_of_policy_target_is_not_manual_override(self):
+        instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.prizemi_michal")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.set("input_number.prizemi_michal_last_comfort", "20")
+        self.set("binary_sensor.kotel_boost_active", "on")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        before = self.hass.states.get("climate.prizemi_michal")
+        self.hass.states.async_set("climate.prizemi_michal", "heat",
+                                  dict(before.attributes, temperature=21), context=Context())
+        after = self.hass.states.get("climate.prizemi_michal")
+        await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "climate.prizemi_michal",
+                                  "from_state": before, "to_state": after},
+                                  "this": {"entity_id": "automation.test"}})
+        self.assertEqual(self.hass.states.get("input_boolean.prizemi_michal_manual_override").state, "off")
+
+        # A different parentless target is still a genuine physical-head change.
+        before = after
+        self.hass.states.async_set("climate.prizemi_michal", "heat",
+                                  dict(before.attributes, temperature=22), context=Context())
+        after = self.hass.states.get("climate.prizemi_michal")
+        await self.run_automation(a, {"trigger": {"platform": "state", "entity_id": "climate.prizemi_michal",
+                                  "from_state": before, "to_state": after},
+                                  "this": {"entity_id": "automation.test"}})
+        self.assertEqual(self.hass.states.get("input_boolean.prizemi_michal_manual_override").state, "on")
+
+    async def test_low_flow_fault_stops_relay_before_opening_all_valves(self):
+        self.set("switch.kotel_rele_spinac", "on")
+        self.set("input_boolean.boost_now", "on")
+        self.set("input_boolean.heating_service_mode", "off")
+        a = automation("heating/control/reliability_failsafe.yaml", "heating_boiler_low_flow_package_guard")
+        await self.run_automation(a, {"trigger": {"id": "2964"}})
+        self.assertEqual(self.hass.states.get("switch.kotel_rele_spinac").state, "off")
+        self.assertEqual(self.hass.states.get("input_boolean.topny_system_enable").state, "off")
+        self.assertEqual(self.hass.states.get("input_boolean.boost_now").state, "off")
+        self.assertEqual(self.hass.states.get("input_boolean.heating_service_mode").state, "on")
+        for z in ZONES:
+            self.assertEqual(self.hass.states.get(f"climate.{z}").attributes["temperature"], 29)
+        first_control = next(c for c in self.calls if c[0] in ["switch", "climate"])
+        self.assertEqual(first_control[:2], ("switch", "turn_off"))
+
+    async def test_service_mode_package_guard_is_fast_and_independent(self):
+        guard = automation(
+            "heating/control/reliability_failsafe.yaml",
+            "heating_service_mode_package_hard_guard",
+        )
+        self.assertEqual(guard["mode"], "parallel")
+        self.assertEqual(
+            [step["action"] for step in guard["action"]],
+            ["switch.turn_off", "input_boolean.turn_off"],
+        )
+        self.assertNotIn("climate", str(guard["action"]))
 
     async def test_fallback_schedule_transition_ends_manual_without_old_target(self):
         instance = next(a for a in read("automations.yaml") if a.get("use_blueprint", {}).get("input", {}).get("climate_entity") == "climate.1p_chodba")
