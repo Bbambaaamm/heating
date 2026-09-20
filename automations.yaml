@@ -170,7 +170,7 @@
   description: Jednorázová kontrola adaptace zahájené 18. 9. 2026 v 16:28. Oznámí
     výsledek při ukončení nebo v 19:45. Nemění nastavení hlavic ani kotle; po oznámení
     se vypne.
-  triggers:
+  trigger:
   - trigger: state
     entity_id: sensor.1p_chodba_stav_adaptacniho_behu
     attribute: Valve_characteristic_found
@@ -187,7 +187,7 @@
   - trigger: time
     at: '19:45:00'
     id: deadline
-  actions:
+  action:
   - choose:
     - conditions:
       - condition: state
@@ -234,13 +234,14 @@
     relé a nastaví všech osm hlavic na 29 °C, aby se ventily otevřely pro servis nebo
     odvzdušnění. Při vypnutí obnoví původní stav hlavního povolení a vyžádá nové vyhodnocení
     rozvrhů.
-  triggers:
+  trigger:
   - trigger: state
     entity_id: input_boolean.heating_service_mode
     to: 'on'
     id: service_on
   - trigger: state
     entity_id: input_boolean.heating_service_mode
+    from: 'on'
     to: 'off'
     id: service_off
   - trigger: homeassistant
@@ -254,34 +255,43 @@
     entity_id: input_boolean.topny_system_enable
     to: 'on'
     id: main_guard
-  conditions: []
-  actions:
+  condition: []
+  action:
   - choose:
     - conditions:
       - condition: trigger
         id: service_on
       sequence:
-      - if:
-        - condition: state
-          entity_id: input_boolean.topny_system_enable
-          state: 'on'
-        then:
-        - action: input_boolean.turn_on
-          target:
-            entity_id: input_boolean.heating_service_restore_main_enable
-        else:
-        - action: input_boolean.turn_off
-          target:
-            entity_id: input_boolean.heating_service_restore_main_enable
       - action: switch.turn_off
         target:
           entity_id: switch.kotel_rele_spinac
-        note: Relé se vypíná před manipulací s hlavicemi; kotel zůstává napájený pro
-          displej a diagnostiku.
+        alias: Relé se vypíná před uložením stavu a manipulací s hlavicemi.
+      # Uložený stav patří celé servisní relaci. Obnova helperu po startu
+      # nebo po nedostupnosti není nové zapnutí a nesmí jej přepsat.
+      - if:
+        - condition: template
+          value_template: >-
+            {{ trigger.from_state is defined
+               and trigger.from_state is not none
+               and trigger.from_state.state == 'off'
+               and states('input_boolean.topny_system_enable') in ['on', 'off'] }}
+        then:
+        - if:
+          - condition: state
+            entity_id: input_boolean.topny_system_enable
+            state: 'on'
+          then:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.heating_service_restore_main_enable
+          else:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.heating_service_restore_main_enable
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.topny_system_enable
-        note: Zastaví centrální i záložní řízení hlavic po dobu servisu.
+        alias: Zastaví centrální i záložní řízení hlavic po dobu servisu.
       - parallel:
         - sequence:
           - action: climate.set_hvac_mode
@@ -387,7 +397,7 @@
             data:
               temperature: 29
             continue_on_error: true
-        note: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
+        alias: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
           ostatní.
       - action: persistent_notification.create
         data:
@@ -521,7 +531,7 @@
               data:
                 temperature: 29
               continue_on_error: true
-          note: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
+          alias: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
             ostatní.
       - action: persistent_notification.create
         data:
@@ -536,7 +546,7 @@
       - action: switch.turn_off
         target:
           entity_id: switch.kotel_rele_spinac
-        note: Před návratem do automatiky zůstane relé vypnuté; případné sepnutí projde
+        alias: Před návratem do automatiky zůstane relé vypnuté; případné sepnutí projde
           běžným zpožděním.
       - if:
         - condition: state
@@ -581,7 +591,7 @@
   alias: 'Topení – servisní režim: okamžitá ochrana relé'
   description: Nezávislá bezpečnostní pojistka servisního režimu. Pomalé nebo chybující
     povely Zigbee hlavic nesmějí zdržet vypnutí kotlového relé a hlavního povolení.
-  triggers:
+  trigger:
   - trigger: state
     entity_id: switch.kotel_rele_spinac
     to: 'on'
@@ -593,11 +603,11 @@
   - trigger: homeassistant
     event: start
     id: ha_start
-  conditions:
+  condition:
   - condition: state
     entity_id: input_boolean.heating_service_mode
     state: 'on'
-  actions:
+  action:
   - action: switch.turn_off
     target:
       entity_id: switch.kotel_rele_spinac
@@ -611,7 +621,7 @@
   alias: Topení – ochrana při nedostatečném průtoku kotlem
   description: Při servisním kódu 2964–2967 okamžitě odpojí požadavek kotle, vypne
     hlavní řízení a zapne servisní režim, který otevře chytré hlavice.
-  triggers:
+  trigger:
   - trigger: state
     entity_id: sensor.boiler_servicecodenumber
     to: '2964'
@@ -628,8 +638,8 @@
     entity_id: sensor.boiler_servicecodenumber
     to: '2967'
     id: '2967'
-  conditions: []
-  actions:
+  condition: []
+  action:
   - action: switch.turn_off
     target:
       entity_id: switch.kotel_rele_spinac

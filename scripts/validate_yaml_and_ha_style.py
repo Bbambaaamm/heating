@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -94,7 +95,8 @@ def main() -> int:
             errors.append(f"{rel}: YAML parse error: {exc}")
 
         if "automation" in file_path.parts or "automations.yaml" == file_path.name:
-            if "triggers:" in text or "actions:" in text:
+            # Match mapping keys, not service data such as stop_actions.
+            if re.search(r"(?m)^\s*(?:-\s*)?(?:triggers|actions)\s*:", text):
                 errors.append(f"{rel}: projekt používá styl trigger/action; triggers/actions jsou také platná HA syntaxe.")
 
     if errors:
