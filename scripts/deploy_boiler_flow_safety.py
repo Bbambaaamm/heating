@@ -22,6 +22,8 @@ import subprocess
 import tempfile
 
 
+BASELINE_COMMIT = "a04f9fee9f6671283164add761cfecedf881c2b9"
+
 BASELINE_SHA256 = {
     "blueprints/automation/heating/smart_zone_schedule.yaml":
         "4320b9fc3e002dc292fc455e7ffff484c41e0245147f6429d78a63e7fac290ef",
