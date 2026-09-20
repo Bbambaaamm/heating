@@ -11,7 +11,7 @@ input_boolean:
   heating_central_dispatch_enable:
     name: "Heating – central dispatch enable"
     icon: mdi:source-branch-check
-    initial: on
+    # Obnovit poslední volbu centrálního / záložního řízení.
   heating_startup_reconcile_guard:
     name: "Heating – startup reconcile guard"
     icon: mdi:shield-sync
@@ -97,7 +97,8 @@ script:
                 'input_boolean.' ~ z ~ '_schedule_active',
                 'input_boolean.' ~ z ~ '_manual_override',
                 'input_select.' ~ z ~ '_manual_override_type',
-                'timer.' ~ z ~ '_manual_override'] }}
+                'timer.' ~ z ~ '_manual_override',
+                'input_boolean.schedule_enable_' ~ z] }}
           schedule_helper: "{{ 'input_boolean.' ~ climate_entity.split('.')[1] ~ '_schedule_active' }}"
           decision_inputs: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}"
           climate_state: "{{ states(climate_entity) }}"
@@ -106,7 +107,10 @@ script:
           climate_ready: >-
             {{ climate_exists
                and climate_state not in ['unknown', 'unavailable', ''] }}
-          target_raw: "{{ requested_temp }}"
+          # A disabled zone stays at ECO even for direct/queued script callers.
+          target_raw: >-
+            {{ requested_temp if is_state('input_boolean.schedule_enable_' ~ climate_entity.split('.')[1], 'on')
+               else states('input_number.eco_temp_default') }}
           target_valid: >-
             {% set raw = target_raw %}
             {% if raw is none %}
@@ -309,6 +313,16 @@ automation:
         entity_id: sensor.heating_schedule_windows
       - trigger: state
         entity_id:
+          - input_boolean.schedule_enable_sklep_michal
+          - input_boolean.schedule_enable_prizemi_michal
+          - input_boolean.schedule_enable_prizemi_chodba_zachod
+          - input_boolean.schedule_enable_1p_jidelna
+          - input_boolean.schedule_enable_1p_kuchyn
+          - input_boolean.schedule_enable_1p_koupelna
+          - input_boolean.schedule_enable_1p_chodba
+          - input_boolean.schedule_enable_2p_mama
+      - trigger: state
+        entity_id:
           - climate.sklep_michal
           - climate.prizemi_michal
           - climate.prizemi_chodba_zachod
@@ -478,6 +492,7 @@ automation:
                       states('input_number.eco_temp_default'), states('input_number.boost_comfort_offset_c'),
                       states(repeat.item.last), states(repeat.item.schedule), states(repeat.item.manual),
                       states(repeat.item.manual_type), states(repeat.item.timer),
+                      states('input_boolean.schedule_enable_' ~ repeat.item.climate.split('.')[1]),
                       repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] }}
                 in_window: "{{ repeat.item.schedule in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or []) }}"
                 raw_last: "{{ states(repeat.item.last) }}"
@@ -496,7 +511,9 @@ automation:
                            and is_state(repeat.item.timer, 'active'))
                      ) }}
                 target: >-
-                  {% if override_effective %}
+                  {% if not is_state('input_boolean.schedule_enable_' ~ repeat.item.climate.split('.')[1], 'on') %}
+                    {{ eco }}
+                  {% elif override_effective %}
                     {{ last_comfort }}
                   {% elif intent == 'boost' %}
                     {{ last_comfort + boost_offset }}
@@ -508,7 +525,8 @@ automation:
                     {{ eco }}
                   {% endif %}
                 reason: >-
-                  {% if override_effective %}override
+                  {% if not is_state('input_boolean.schedule_enable_' ~ repeat.item.climate.split('.')[1], 'on') %}schedule_disabled_eco
+                  {% elif override_effective %}override
                   {% elif intent == 'boost' %}boost
                   {% elif intent == 'eco' %}eco
                   {% elif in_window %}schedule_comfort

@@ -1,17 +1,3 @@
-# =====================================================================
-# Soubor   : automations.yaml
-# Modul    : Obecné automatizace
-# Účel     : Sdílené automatizace mimo topné balíčky
-# Autor    : Michal
-# Poslední úprava : 2026-04-10
-# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
-# Poznámka : Tento soubor drží pouze instanční blueprint automace; doménová runtime logika topení je v `heating/*` packages.
-# =====================================================================
-
-# ---------------------------------------------------------------------
-# Instanční automace blueprintu smart_zone_schedule
-# Poznámka: Každá položka váže konkrétní zónu na helpery rozvrhu a override.
-# ---------------------------------------------------------------------
 - id: '1763973069444'
   alias: Rozvrh Přízemí - Michal (BP)
   description: ''
@@ -140,10 +126,6 @@
       manual_override_boolean: input_boolean.prizemi_chodba_zachod_manual_override
       manual_override_timer: timer.prizemi_chodba_zachod_manual_override
       manual_override_type: input_select.prizemi_chodba_zachod_manual_override_type
-# ---------------------------------------------------------------------
-# Instanční automace blueprintu danfoss_external_sensor
-# Poznámka: Zajišťuje přepis externí teploty do Danfoss hlavic.
-# ---------------------------------------------------------------------
 - id: '1764976713111'
   alias: Externí sensor - 1.P - Jídelna
   description: ''
@@ -167,10 +149,6 @@
 - id: '1771525903912'
   alias: 'Přítomnost Mámy '
   description: ''
-  # -------------------------------------------------------------------
-  # Logika spuštění automace
-  # - reaguje na vstup sledovaného zařízení do zóny Home
-  # -------------------------------------------------------------------
   trigger:
   - device_id: 7f7e7655eb51a2b8bcf3e7353a846706
     domain: device_tracker
@@ -181,14 +159,491 @@
     trigger: device
     zone: zone.home
   condition: []
-  # -------------------------------------------------------------------
-  # Finální akce
-  # - odeslání notifikace při příjezdu
-  # -------------------------------------------------------------------
   action:
   - action: notify.notify
     metadata: {}
     data:
       message: Máma je doma
   mode: single
-
+- id: '1789741778892'
+  alias: Topení – kontrola adaptace chodby 2026-09-18
+  description: Jednorázová kontrola adaptace zahájené 18. 9. 2026 v 16:28. Oznámí
+    výsledek při ukončení nebo v 19:45. Nemění nastavení hlavic ani kotle; po oznámení
+    se vypne.
+  triggers:
+  - trigger: state
+    entity_id: sensor.1p_chodba_stav_adaptacniho_behu
+    attribute: Valve_characteristic_found
+    to: true
+    id: found
+  - trigger: state
+    entity_id: sensor.1p_chodba_stav_adaptacniho_behu
+    attribute: In_progress
+    from: true
+    to: false
+    for:
+      seconds: 30
+    id: ended
+  - trigger: time
+    at: '19:45:00'
+    id: deadline
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: sensor.1p_chodba_stav_adaptacniho_behu
+        attribute: Valve_characteristic_found
+        state: true
+      sequence:
+      - action: persistent_notification.create
+        data:
+          title: Topení – adaptace chodby
+          message: Adaptace hlavice na chodbě v 1. patře je úspěšná. Hlavice potvrdila
+            naučenou charakteristiku ventilu.
+          notification_id: heating_chodba_adaptation_20260918
+    - conditions:
+      - condition: state
+        entity_id: sensor.1p_chodba_stav_adaptacniho_behu
+        attribute: In_progress
+        state: true
+      sequence:
+      - action: persistent_notification.create
+        data:
+          title: Topení – adaptace chodby
+          message: Adaptace hlavice na chodbě stále probíhá. Do kontrolního času 19:45
+            nebyl úspěch potvrzen. Stav je vidět v Diagnostice hlavic; opravu zatím
+            nelze považovat za dokončenou.
+          notification_id: heating_chodba_adaptation_20260918
+    default:
+    - action: persistent_notification.create
+      data:
+        title: Topení – adaptace chodby
+        message: 'Úspěšná adaptace hlavice na chodbě nebyla potvrzena. Zkontroluj
+          Diagnostiku hlavic: dostupnost, přívod tepla a případné přerušení změnou
+          požadované teploty. Naučená charakteristika ventilu zatím není potvrzena.'
+        notification_id: heating_chodba_adaptation_20260918
+  - action: automation.turn_off
+    target:
+      entity_id: automation.topeni_kontrola_adaptace_chodby_2026_09_18
+    data:
+      stop_actions: false
+  mode: single
+- id: heating_service_mode_guard
+  alias: Topení – servisní režim
+  description: Při zapnutí bezpečně zablokuje běžné řízení, okamžitě vypne kotlové
+    relé a nastaví všech osm hlavic na 29 °C, aby se ventily otevřely pro servis nebo
+    odvzdušnění. Při vypnutí obnoví původní stav hlavního povolení a vyžádá nové vyhodnocení
+    rozvrhů.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.heating_service_mode
+    to: 'on'
+    id: service_on
+  - trigger: state
+    entity_id: input_boolean.heating_service_mode
+    to: 'off'
+    id: service_off
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  - trigger: state
+    entity_id: switch.kotel_rele_spinac
+    to: 'on'
+    id: relay_guard
+  - trigger: state
+    entity_id: input_boolean.topny_system_enable
+    to: 'on'
+    id: main_guard
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: service_on
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topny_system_enable
+          state: 'on'
+        then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.heating_service_restore_main_enable
+        else:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.heating_service_restore_main_enable
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+        note: Relé se vypíná před manipulací s hlavicemi; kotel zůstává napájený pro
+          displej a diagnostiku.
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topny_system_enable
+        note: Zastaví centrální i záložní řízení hlavic po dobu servisu.
+      - parallel:
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.sklep_michal
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.sklep_michal
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.prizemi_michal
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.prizemi_michal
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.prizemi_chodba_zachod
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.prizemi_chodba_zachod
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.1p_kuchyn
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.1p_kuchyn
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.1p_jidelna
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.1p_jidelna
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.1p_chodba
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.1p_chodba
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.1p_koupelna
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.1p_koupelna
+            data:
+              temperature: 29
+            continue_on_error: true
+        - sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.2p_mama
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.2p_mama
+            data:
+              temperature: 29
+            continue_on_error: true
+        note: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
+          ostatní.
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_service_mode
+          title: Servisní režim topení je aktivní
+          message: Kotlové relé je blokované, hlavní řízení je pozastavené a všech
+            8 hlavic má cíl 29 °C. Počkej několik minut na mechanické otevření ventilů.
+            Režim ukonči stejným přepínačem.
+    - conditions:
+      - condition: trigger
+        id:
+        - ha_start
+        - relay_guard
+        - main_guard
+      - condition: state
+        entity_id: input_boolean.heating_service_mode
+        state: 'on'
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topny_system_enable
+      - if:
+        - condition: trigger
+          id: ha_start
+        then:
+        - parallel:
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.sklep_michal
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.sklep_michal
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.prizemi_michal
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.prizemi_michal
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.prizemi_chodba_zachod
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.prizemi_chodba_zachod
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.1p_kuchyn
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.1p_kuchyn
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.1p_jidelna
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.1p_jidelna
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.1p_chodba
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.1p_chodba
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.1p_koupelna
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.1p_koupelna
+              data:
+                temperature: 29
+              continue_on_error: true
+          - sequence:
+            - action: climate.set_hvac_mode
+              target:
+                entity_id: climate.2p_mama
+              data:
+                hvac_mode: heat
+              continue_on_error: true
+            - action: climate.set_temperature
+              target:
+                entity_id: climate.2p_mama
+              data:
+                temperature: 29
+              continue_on_error: true
+          note: Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje
+            ostatní.
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_service_mode
+          title: Servisní režim topení je aktivní
+          message: Kotlové relé je blokované, hlavní řízení je pozastavené a hlavice
+            jsou otevřené pro servis.
+    - conditions:
+      - condition: trigger
+        id: service_off
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+        note: Před návratem do automatiky zůstane relé vypnuté; případné sepnutí projde
+          běžným zpožděním.
+      - if:
+        - condition: state
+          entity_id: input_boolean.heating_service_restore_main_enable
+          state: 'on'
+        then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.topny_system_enable
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_boolean.heating_central_dispatch_enable
+            state: 'on'
+          sequence:
+          - event: heating_reconcile_requested
+            event_data:
+              source: heating_service_mode
+              reason: service_mode_ended
+        default:
+        - action: automation.trigger
+          target:
+            entity_id:
+            - automation.1_patro_jidelna_bp
+            - automation.2_patro_mama_bp
+            - automation.prizemi_michal_bp
+            - automation.rozvrh_1_patro_chodba_bp
+            - automation.rozvrh_1_patro_koupelna_bp
+            - automation.rozvrh_1_patro_kuchyn_bp
+            - automation.rozvrh_prizemi_chodba_zachod_bp
+            - automation.rozvrh_sklep_michal_bp
+          continue_on_error: true
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_service_restore_main_enable
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: heating_service_mode
+  mode: queued
+  max: 10
+- id: heating_service_mode_hard_guard
+  alias: 'Topení – servisní režim: okamžitá ochrana relé'
+  description: Nezávislá bezpečnostní pojistka servisního režimu. Pomalé nebo chybující
+    povely Zigbee hlavic nesmějí zdržet vypnutí kotlového relé a hlavního povolení.
+  triggers:
+  - trigger: state
+    entity_id: switch.kotel_rele_spinac
+    to: 'on'
+    id: relay_on
+  - trigger: state
+    entity_id: input_boolean.topny_system_enable
+    to: 'on'
+    id: main_on
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  conditions:
+  - condition: state
+    entity_id: input_boolean.heating_service_mode
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.kotel_rele_spinac
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.topny_system_enable
+  mode: parallel
+  max: 10
+  max_exceeded: silent
+- id: heating_boiler_low_flow_hard_guard
+  alias: Topení – ochrana při nedostatečném průtoku kotlem
+  description: Při servisním kódu 2964–2967 okamžitě odpojí požadavek kotle, vypne
+    hlavní řízení a zapne servisní režim, který otevře chytré hlavice.
+  triggers:
+  - trigger: state
+    entity_id: sensor.boiler_servicecodenumber
+    to: '2964'
+    id: '2964'
+  - trigger: state
+    entity_id: sensor.boiler_servicecodenumber
+    to: '2965'
+    id: '2965'
+  - trigger: state
+    entity_id: sensor.boiler_servicecodenumber
+    to: '2966'
+    id: '2966'
+  - trigger: state
+    entity_id: sensor.boiler_servicecodenumber
+    to: '2967'
+    id: '2967'
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.kotel_rele_spinac
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.topny_system_enable
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.heating_service_mode
+  - action: persistent_notification.create
+    data:
+      notification_id: heating_boiler_low_flow_guard
+      title: Topení zastaveno – nedostatečný průtok
+      message: Kotel ohlásil servisní kód {{ trigger.id }}. Relé a hlavní řízení byly
+        vypnuty a servisní režim otevře chytré hlavice. Manuální ventily ponechte
+        otevřené a před dalším spuštěním zkontrolujte průtok.
+  mode: restart

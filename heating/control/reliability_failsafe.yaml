@@ -44,6 +44,8 @@ template:
             'heating_boost_start',
             'heating_boost_apply_comfort_on',
             'heating_boost_reapply_schedule_off',
+            'heating_boiler_low_flow_package_guard',
+            'heating_service_mode_package_hard_guard',
             'kotel_turn_on_by_policy',
             'kotel_turn_off_by_policy',
             'heating_startup_schedule_sync'
@@ -60,6 +62,8 @@ template:
               'heating_boost_start',
               'heating_boost_apply_comfort_on',
               'heating_boost_reapply_schedule_off',
+              'heating_boiler_low_flow_package_guard',
+              'heating_service_mode_package_hard_guard',
               'kotel_turn_on_by_policy',
               'kotel_turn_off_by_policy',
               'heating_startup_schedule_sync'
@@ -72,6 +76,155 @@ template:
             {{ required_ids | reject('in', healthy_ids) | list }}
 
 automation:
+  - id: heating_service_mode_package_hard_guard
+    alias: "Topení Fail-safe – servisní režim blokuje relé"
+    description: >
+      Nezávislá rychlá pojistka. Otevírání Zigbee hlavic v servisní
+      automatizaci nesmí zdržet vypnutí kotlového relé a hlavního řízení.
+    mode: parallel
+    max: 10
+    max_exceeded: silent
+    trigger:
+      - trigger: state
+        entity_id: switch.kotel_rele_spinac
+        to: "on"
+      - trigger: state
+        entity_id: input_boolean.topny_system_enable
+        to: "on"
+      - trigger: homeassistant
+        event: start
+    condition:
+      - condition: state
+        entity_id: input_boolean.heating_service_mode
+        state: "on"
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topny_system_enable
+
+  - id: heating_boiler_low_flow_package_guard
+    alias: "Topení Fail-safe – nedostatečný průtok kotlem"
+    description: >
+      Kódy 2964–2967 znamenají nedostatečný průtok nebo nebezpečně rychlý
+      růst teploty. Relé a hlavní řízení se vypnou před otevíráním hlavic.
+    mode: restart
+    trigger:
+      - trigger: state
+        entity_id: sensor.boiler_servicecodenumber
+        to: "2964"
+        id: "2964"
+      - trigger: state
+        entity_id: sensor.boiler_servicecodenumber
+        to: "2965"
+        id: "2965"
+      - trigger: state
+        entity_id: sensor.boiler_servicecodenumber
+        to: "2966"
+        id: "2966"
+      - trigger: state
+        entity_id: sensor.boiler_servicecodenumber
+        to: "2967"
+        id: "2967"
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topny_system_enable
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boost_now
+      - action: input_boolean.turn_on
+        continue_on_error: true
+        target:
+          entity_id: input_boolean.heating_service_mode
+      - parallel:
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.sklep_michal}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.sklep_michal}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.prizemi_michal}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.prizemi_michal}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.prizemi_chodba_zachod}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.prizemi_chodba_zachod}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.1p_jidelna}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.1p_jidelna}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.1p_kuchyn}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.1p_kuchyn}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.1p_koupelna}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.1p_koupelna}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.1p_chodba}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.1p_chodba}
+                data: {temperature: 29}
+          - sequence:
+              - action: climate.set_hvac_mode
+                continue_on_error: true
+                target: {entity_id: climate.2p_mama}
+                data: {hvac_mode: heat}
+              - action: climate.set_temperature
+                continue_on_error: true
+                target: {entity_id: climate.2p_mama}
+                data: {temperature: 29}
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_boiler_low_flow_guard
+          title: "Topení zastaveno – nedostatečný průtok"
+          message: >-
+            Kotel ohlásil servisní kód {{ trigger.id }}. Relé, Boost a hlavní
+            řízení byly vypnuty, servisní režim byl zapnut a chytré hlavice
+            dostaly bezpečný cíl 29 °C. Manuální ventily ponechte otevřené a
+            před dalším spuštěním zkontrolujte průtok.
+
   - id: heating_failsafe_helpers_unavailable_warning
     alias: "Topení Fail-safe – helpery nedostupné (warning fáze)"
     mode: single

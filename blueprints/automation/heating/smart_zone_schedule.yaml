@@ -31,6 +31,7 @@ blueprint:
 
     schedule_enable:
       name: Enable boolean pro rozvrh zóny
+      description: "Vypnuto = ECO i při manuálu nebo Boostu. Zapnuto = běžné řízení zóny."
       selector:
         entity:
           domain: input_boolean
@@ -149,10 +150,7 @@ trigger:
 # ---------------------------------------------------------------
 # CONDITIONS
 # ---------------------------------------------------------------
-condition:
-  - condition: state
-    entity_id: !input schedule_enable
-    state: "on"
+condition: []
 
 # ---------------------------------------------------------------
 # VARIABLES
@@ -225,24 +223,42 @@ variables:
   boost_active_now: "{{ is_state(boost_active_entity, 'on') }}"
   central_dispatch_enabled: "{{ is_state('input_boolean.heating_central_dispatch_enable', 'on') }}"
 
+  override_should_apply: >
+    {{ override_active
+       and (override_type == 'Do další změny rozvrhu'
+            or (override_type == 'Časovač' and override_timer_active)) }}
+
   # -----------------------------------------------------------------
-  # 🧠 Ruční zásah uživatele (UI / fyzická hlavice)
-  # - user_id != null (změna z Dashboardu/Appky)
-  # - parent_id == null (změna fyzicky na zařízení, která nemá "rodiče" v automatizaci)
-  # - from_state != null (pojistka proti „restore/startup“ událostem)
+  # 🧠 Korelace setpointu s právě platnou politikou
+  # Některé Zigbee hlavice potvrzují i automatický příkaz novou zprávou bez
+  # parent_id. Samotný prázdný parent_id proto NENÍ důkaz ručního zásahu.
+  # Report shodný s cílem aktuální politiky je potvrzení automatizace.
   # -----------------------------------------------------------------
-  is_user_action: >
-    {{ trigger is defined
-      and trigger.to_state is defined
-      and trigger.to_state.context is defined
-      and (
-        (trigger.to_state.context.user_id is not none)
-        or (
-          trigger.to_state.context.user_id is none
-          and trigger.to_state.context.parent_id is none
-          and trigger.from_state is not none
-        )
-      ) }}
+  expected_target_raw: >-
+    {% if not is_state(schedule_enable_entity, 'on') %}
+      {{ safe_eco }}
+    {% elif override_should_apply %}
+      {{ safe_comfort }}
+    {% elif boost_active_now %}
+      {{ (safe_comfort | float) + (states('input_number.boost_comfort_offset_c') | float(0)) }}
+    {% elif mode == 'Eco' %}
+      {{ safe_eco }}
+    {% elif mode in ['Auto', 'Boost'] and in_window %}
+      {{ safe_comfort }}
+    {% else %}
+      {{ safe_eco }}
+    {% endif %}
+
+  expected_target: >-
+    {% set x = expected_target_raw | float(safe_eco) %}
+    {% if x < min_temp %}{{ min_temp }}
+    {% elif x > max_temp %}{{ max_temp }}
+    {% else %}{{ x }}{% endif %}
+
+  is_expected_policy_report: >-
+    {{ is_climate_trigger
+       and mode in ['Auto', 'Eco', 'Boost']
+       and ((new_set | float(0)) - (expected_target | float(0))) | abs <= 0.1 }}
 
   is_internal_climate_change: >
     {{ is_climate_trigger
@@ -250,12 +266,29 @@ variables:
        and trigger.to_state is defined
        and trigger.to_state.context is defined
        and trigger.to_state.context.user_id is none
-       and trigger.to_state.context.parent_id is not none }}
+       and (trigger.to_state.context.parent_id is not none
+            or is_expected_policy_report) }}
 
-  override_should_apply: >
-    {{ override_active
-       and (override_type == 'Do další změny rozvrhu'
-            or (override_type == 'Časovač' and override_timer_active)) }}
+  # -----------------------------------------------------------------
+  # 🧠 Ruční zásah uživatele (UI / fyzická hlavice)
+  # - user_id != null: explicitní změna z Dashboardu/Appky
+  # - bez user_id/parent_id: fyzická hlavice, ale pouze pokud report
+  #   neodpovídá cíli právě platné automatické politiky
+  # -----------------------------------------------------------------
+  is_user_action: >
+    {{ is_climate_trigger
+       and trigger is defined
+       and trigger.to_state is defined
+       and trigger.to_state.context is defined
+       and trigger.from_state is not none
+       and (
+         trigger.to_state.context.user_id is not none
+         or (
+           trigger.to_state.context.user_id is none
+           and trigger.to_state.context.parent_id is none
+           and not is_expected_policy_report
+         )
+       ) }}
 
 # ---------------------------------------------------------------
 # ACTION
@@ -294,6 +327,36 @@ action:
               name: "{{ zone_name }}"
               message: "Manuální override ukončen (další změna rozvrhu)."
               entity_id: "{{ climate_entity }}"
+
+  # ---------------------------------------------------------------
+  # Vypnutý kalendář vynucuje ECO před zachycením ručního komfortu.
+  # Sdílený apply skript hlídá master/Off, nové vstupy i potvrzení hlavice.
+  # Při centrálním řízení jen vyžádáme nové vyhodnocení (také po ručním +/-).
+  # ---------------------------------------------------------------
+  - choose:
+      - conditions:
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: !input schedule_enable
+                state: "on"
+        sequence:
+          - if:
+              - condition: state
+                entity_id: input_boolean.heating_central_dispatch_enable
+                state: "on"
+            then:
+              - event: heating_reconcile_requested
+                event_data:
+                  source: schedule_disabled_zone
+                  zone: "{{ climate_entity }}"
+            else:
+              - service: script.heating_apply_zone_target
+                data:
+                  climate_entity: !input climate_entity
+                  requested_temp: "{{ safe_eco }}"
+                  reason: schedule_disabled_eco
+          - stop: "Kalendář vypnutý – zóna zůstává v ECO"
 
   # ---------------------------------------------------------------
   # 1) ZACHYCENÍ KOMFORTNÍ TEPLOTY PŘI RUČNÍ ZMĚNĚ SETPOINTU

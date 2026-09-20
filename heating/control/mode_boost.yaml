@@ -151,6 +151,7 @@ automation:
           sequence:
             - variables:
                 climate: "{{ repeat.item.climate }}"
+                schedule_enable: "{{ 'input_boolean.schedule_enable_' ~ repeat.item.climate.split('.')[1] }}"
                 last: "{{ repeat.item.last }}"
                 manual: "{{ repeat.item.manual }}"
                 timer: "{{ repeat.item.timer }}"
@@ -190,6 +191,7 @@ automation:
                     - condition: template
                       value_template: >-
                         {{ climate_ready
+                           and is_state(schedule_enable, 'on')
                            and (not effective_manual)
                            and is_state('input_boolean.topny_system_enable', 'on')
                            and is_state('binary_sensor.kotel_mode_off_block', 'off')
@@ -218,6 +220,7 @@ automation:
                            and is_state('binary_sensor.kotel_mode_off_block', 'off')
                            and is_state('binary_sensor.kotel_boost_active', 'on')
                            and states('input_select.topny_rezim') in ['Auto', 'Eco', 'Boost']
+                           and is_state(schedule_enable, 'on')
                            and not (is_state(manual, 'on') and
                              (states(manual_type) == 'Do další změny rozvrhu'
                               or (states(manual_type) == 'Časovač' and is_state(timer, 'active'))))

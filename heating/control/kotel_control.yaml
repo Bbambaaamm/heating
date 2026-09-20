@@ -1,36 +1,59 @@
 # Řízení relé: časování se váže na změnu rozhodnutí, nikoli na každý PI report.
 # Jde o debounce požadavku; nejde o výrobcem stanovené minimum chodu/odstávky.
+# Podmínky jsou uvnitř action: opačný stav musí zrušit rozběhnutý odpočet
+# i tehdy, kdy by podmínky nového běhu neprošly. PI reporty odpočet nerestartují.
 automation:
   - alias: "Kotel: zapnout při splnění politiky"
     id: kotel_turn_on_by_policy
     mode: restart
     trigger:
       - trigger: state
-        entity_id: binary_sensor.kotel_should_be_on
-        to: "on"
+        entity_id:
+          - binary_sensor.kotel_should_be_on
+          - input_boolean.topny_system_enable
+          - input_select.topny_rezim
+          - binary_sensor.kotel_mode_off_block
+        to: null
       - trigger: state
         entity_id: sensor.kotel_effective_on_delay_sec
         to: null
       - trigger: state
         entity_id: switch.kotel_rele_spinac
-        to: "off"
+        to: null
       - trigger: homeassistant
         event: start
       - trigger: event
         event_type: automation_reloaded
-    condition:
+    condition: []
+    action:
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
         state: "on"
       - condition: state
         entity_id: switch.kotel_rele_spinac
         state: "off"
-    action:
-      - delay:
-          seconds: "{{ states('sensor.kotel_effective_on_delay_sec') | int(120) }}"
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
+      - condition: state
+        entity_id: input_select.topny_rezim
+        state: ["Auto", "Eco", "Boost"]
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - delay:
+          # Druhá nezávislá pojistka: ani vadný efektivní senzor nesmí
+          # spustit kotel dříve, než se termostatické ventily otevřou.
+          seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120] | max }}"
+      - condition: state
+        entity_id: input_boolean.topny_system_enable
+        state: "on"
+      - condition: state
+        entity_id: input_select.topny_rezim
+        state: ["Auto", "Eco", "Boost"]
+      - condition: state
+        entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
         state: "on"
@@ -47,27 +70,28 @@ automation:
     trigger:
       - trigger: state
         entity_id: binary_sensor.kotel_should_be_on
-        to: "off"
+        to: null
       - trigger: state
         entity_id: sensor.kotel_effective_off_delay_sec
         to: null
       - trigger: state
         entity_id: switch.kotel_rele_spinac
-        to: "on"
+        to: null
       - trigger: homeassistant
         event: start
       - trigger: event
         event_type: automation_reloaded
-    condition:
+    condition: []
+    action:
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
         state: "off"
       - condition: state
         entity_id: switch.kotel_rele_spinac
         state: "on"
-    action:
       - delay:
-          seconds: "{{ states('sensor.kotel_effective_off_delay_sec') | int(300) }}"
+          # Po zániku požadavku nenechávej hořák běžet proti zavírajícím TRV.
+          seconds: "{{ [[states('sensor.kotel_effective_off_delay_sec') | int(10), 0] | max, 30] | min }}"
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
         state: "off"
