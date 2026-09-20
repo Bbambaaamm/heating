@@ -179,14 +179,14 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any(step.get("result", {}).get("error") is True for step in trace),
                         "Rejected target must have an explicit error stop in its actual HA trace")
 
-    async def load_automations(self, automations):
+    async def load_automations(self, automations, *, startup=False):
         self.hass.config_entries = ConfigEntries(self.hass, {})
         device_registry.async_setup(self.hass)
         await device_registry.async_load(self.hass, load_empty=True)
         await entity_registry.async_load(self.hass, load_empty=True)
         await trigger.async_setup(self.hass)
         await condition.async_setup(self.hass)
-        self.hass.set_state(CoreState.running)
+        self.hass.set_state(CoreState.not_running if startup else CoreState.running)
         self.assertTrue(await async_setup_component(self.hass, "automation", {"automation": automations}))
         await self.hass.async_block_till_done()
         self.assertEqual(len(self.hass.states.async_all("automation")), len(automations))

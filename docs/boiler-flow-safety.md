@@ -69,6 +69,30 @@ dokud se nepotvrdí načtení balíčkové automatizace
 
 ## Kontrolovaný test
 
+### Servisní automatizace z nasazené konfigurace (PR #78)
+
+Servisní režim je v `automations.yaml`. Popisy jednotlivých akcí používají
+`alias`, které podporuje také HA 2026.5.1; klíč `note` tato verze odmítá.
+Původní stav hlavního povolení se ukládá jen při skutečném přechodu
+servisního přepínače z `off` na `on`, pokud je hlavní povolení dostupné.
+Obnova z `unknown`, `unavailable` nebo chybějící entity zachová již uložený
+stav, ale znovu vypne relé a otevře hlavice. Obnova vypnutého servisního
+přepínače sama nezapíná hlavní řízení. Při chybě průtoku se hlavní povolení
+vypne před zapnutím servisu, takže ukončení servisu kotel automaticky neuvolní.
+
+Konfigurace používá existující UI helpery `input_boolean.heating_service_mode`
+a `input_boolean.heating_service_restore_main_enable`; při obnově instalace
+musí být obnoveny také tyto helpery. Není zde přidána druhá YAML definice
+těchto entit. Rychlé pojistky z UI a z balíčku zůstávají aktivní.
+
+Testy načítají nové instanční automatizace skutečným HA enginem a ověřují,
+že nejsou `unavailable`, vypnutí relé před povely hlavicím, zachování stavu
+při obnově, souběh s pomalým Zigbee povelem a servisní zámek po chybě průtoku.
+Starší pětisouborový instalátor z PR #77 soubor `automations.yaml` nenasazuje;
+změna na GitHubu tedy sama neaktualizuje běžící Home Assistant.
+
+### Postup provozního ověření
+
 1. Ověřte tlak studené soustavy a ponechte všech 18 radiátorů otevřených.
 2. Vypněte servisní režim a zapněte Boost. Efektivní prodleva musí zůstat
    120 sekund; relé nesmí sepnout dříve.
