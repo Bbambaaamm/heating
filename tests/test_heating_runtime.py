@@ -441,7 +441,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_real_ha_loader_includes_nested_packages(self):
         c = read("configuration.yaml")
-        self.assertEqual(len(c["homeassistant"]["packages"]), 49)
+        self.assertEqual(len(c["homeassistant"]["packages"]), 50)
+        self.assertIn("heating_observer", c["homeassistant"]["packages"])
         self.assertIn("heating_analytics", c["homeassistant"]["packages"])
         self.assertIn("vrata_ui_template", c["homeassistant"]["packages"])
 

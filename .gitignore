@@ -49,3 +49,13 @@ analysis/*
 !requirements-test.txt
 !tests/
 !tests/*.py
+
+# Passive observer source only; runtime observations and checkpoints stay private.
+!custom_components/
+!custom_components/heating_observer/
+!custom_components/heating_observer/*.py
+!custom_components/heating_observer/manifest.json
+!docs/
+!docs/heating-observer.md
+!docs/heating-observer-card.yaml
+!scripts/replay_heating_observer.py

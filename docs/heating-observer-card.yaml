@@ -1,0 +1,40 @@
+# Add as ONE new manual card; do not replace the existing heating dashboard.
+type: vertical-stack
+cards:
+  - type: markdown
+    title: Pozorování kotle
+    content: >-
+      Modul pouze zaznamenává a vyhodnocuje provoz.
+      Ochranu kotle ani hlavice neovládá.
+  - type: entities
+    title: Záznam a vyhodnocování
+    show_header_toggle: false
+    entities:
+      - entity: sensor.heating_observer_status
+        name: Stav pozorování
+      - entity: sensor.heating_observer_learning
+        name: Vyhodnocené cykly
+      - type: attribute
+        entity: sensor.heating_observer_learning
+        attribute: fault_clusters_scored
+        name: Vyhodnocené skupiny poruch
+      - type: attribute
+        entity: sensor.heating_observer_learning
+        attribute: observed_no_fault_scored
+        name: Cykly bez zaznamenané chyby
+      - type: attribute
+        entity: sensor.heating_observer_learning
+        attribute: censored
+        name: Neúplné nebo ovlivněné cykly
+      - type: attribute
+        entity: sensor.heating_observer_learning
+        attribute: candidate_description
+        name: Návrh k dalšímu ověření
+      - type: attribute
+        entity: sensor.heating_observer_status
+        attribute: data_quality
+        name: Chybějící nebo staré údaje
+      - type: attribute
+        entity: sensor.heating_observer_status
+        attribute: storage_error
+        name: Chyba ukládání
