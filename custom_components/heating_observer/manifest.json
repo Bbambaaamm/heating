@@ -1,0 +1,11 @@
+{
+  "domain": "heating_observer",
+  "name": "Topení – pozorování a vyhodnocování",
+  "version": "0.1.0",
+  "documentation": "https://github.com/Bbambaaamm/heating/blob/main/docs/heating-observer.md",
+  "codeowners": [],
+  "dependencies": ["sensor"],
+  "iot_class": "local_push",
+  "integration_type": "service",
+  "requirements": []
+}

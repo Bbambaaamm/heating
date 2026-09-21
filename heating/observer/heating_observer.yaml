@@ -1,0 +1,10 @@
+# Passive observer: creates only diagnostic sensors and local files.
+# It has no service capable of changing a relay, TRV, schedule or boiler setting.
+heating_observer:
+  site_revision: hydraulika-20260921-neoverena
+  sample_seconds: 10
+  telemetry_gap_seconds: 45
+  # Comparison hypothesis only. This is NOT a validated valve-opening time.
+  comparison_lead_seconds: 60
+  # Each of samples.jsonl and episodes.jsonl retains current + 3 rotated files.
+  journal_mb: 16
