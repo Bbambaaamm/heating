@@ -1,0 +1,58 @@
+{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}
+{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}
+{% if reset %}
+  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}
+  {% set ns.p={} %}
+{% else %}
+  {% if ns.p and t-ns.p.get('t',0)>600 %}
+    {% if ns.p.get('a') is none or ns.p.get('p') is none %}
+      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}
+    {% endif %}
+    {% set ns.p={} %}
+  {% endif %}
+  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}
+    {% set v=r.get('requested',{}).get('temperature') %}
+    {% set rt=r.get('event_at',t)|float %}
+    {% if not is_number(v) %}
+      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}
+    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}
+      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}
+    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}
+      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}
+      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}
+    {% else %}
+      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}
+        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}
+      {% endif %}
+      {% set zone=r.get('zones',{}).get(z,{}) %}
+      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}
+      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}
+    {% endif %}
+  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}
+    {% set rt=r.get('event_at',t)|float %}
+    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}
+    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}
+      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}
+    {% elif new.get('state') not in ['heat','off'] %}
+      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}
+      {% set ns.p={} %}
+    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}
+      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}
+      {% set ns.p={} %}
+    {% else %}
+      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}
+      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}
+        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}
+        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}
+      {% endif %}
+      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}
+        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}
+        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}
+      {% endif %}
+      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}
+        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endif %}
+{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}

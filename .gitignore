@@ -59,3 +59,7 @@ analysis/*
 !docs/heating-observer.md
 !docs/heating-observer-card.yaml
 !scripts/replay_heating_observer.py
+!scripts/passive_diagnostics/
+!scripts/passive_diagnostics/*.py
+!scripts/passive_diagnostics/*.jinja
+!docs/heating-passive-diagnostics-v2.md
