@@ -23,6 +23,7 @@ def main() -> int:
         ("PyYAML hard dependency guard", [sys.executable, "scripts/check_pyyaml_hard_dependency.py"]),
         ("Debug guard kontroly", [sys.executable, "scripts/validate_debug_guards.py"]),
         ("Orchestrace smoke coverage guard", [sys.executable, "scripts/validate_smoke_coverage.py"]),
+        ("Heating Agent permission + safety invariant guard", [sys.executable, "scripts/validate_agent_permissions.py"]),
     ]
 
     failed = 0
