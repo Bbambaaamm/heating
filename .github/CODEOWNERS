@@ -1,0 +1,7 @@
+# Safety-sensitive heating paths always belong to the repository owner.
+/heating/control/ @Bbambaaamm
+/heating/safety/ @Bbambaaamm
+/automations.yaml @Bbambaaamm
+/scripts.yaml @Bbambaaamm
+/custom_components/heating_observer/agent_policy.json @Bbambaaamm
+/custom_components/heating_observer/safety_invariants.json @Bbambaaamm
