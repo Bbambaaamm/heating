@@ -223,7 +223,7 @@ class ObserverEngineTests(unittest.TestCase):
         for p in root.glob("*.py"):
             tree = ast.parse(p.read_text())
             self.assertFalse(any(isinstance(n, ast.Attribute) and n.attr in ("async_call", "call_service", "async_register") for n in ast.walk(tree)), p)
-        self.assertEqual(sorted(p.stem for p in root.glob("*.py")), ["__init__", "const", "engine", "sensor", "storage"])
+        self.assertEqual(sorted(p.stem for p in root.glob("*.py")), ["__init__", "agents", "const", "cycle", "database", "engine", "sensor", "storage"])
 
 
 class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
@@ -297,7 +297,7 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.runtime.queue.get_nowait()
             self.runtime.queue.task_done()
 
-    async def test_real_ha_loader_creates_only_two_diagnostic_sensors(self):
+    async def test_real_ha_loader_creates_read_only_agent_diagnostic_sensors(self):
         source = Path(__file__).resolve().parents[1] / "custom_components/heating_observer"
         target = Path(self.tmp.name) / "custom_components/heating_observer"
         shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
@@ -308,11 +308,21 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(await async_setup_component(self.hass, DOMAIN, {DOMAIN: self.cfg}))
         self.runtime = self.hass.data[DOMAIN]
         await self.drain()
-        for kind in ("status", "learning"):
-            entity = self.hass.states.get(f"sensor.heating_observer_{kind}")
-            self.assertIsNotNone(entity)
+        expected = {
+            "sensor.heating_observer_status": "shadow_only",
+            "sensor.heating_observer_learning": "shadow_only",
+            "sensor.heating_agent_platform": "read_only",
+            "sensor.heating_agent_diagnostic": None,
+            "sensor.heating_agent_knowledge": None,
+            "sensor.heating_agent_baseline": None,
+        }
+        for entity_id, mode in expected.items():
+            entity = self.hass.states.get(entity_id)
+            self.assertIsNotNone(entity, entity_id)
             self.assertNotEqual(entity.state, "unavailable")
-            self.assertEqual(entity.attributes["mode"], "shadow_only")
+            if mode is not None:
+                self.assertEqual(entity.attributes["mode"], mode)
+            self.assertFalse(entity.attributes.get("actuator_control", False))
         self.assertEqual(self.calls, [])
 
 
