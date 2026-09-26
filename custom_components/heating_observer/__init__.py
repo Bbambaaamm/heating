@@ -54,6 +54,7 @@ class Runtime:
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=256)
         self.worker = None
         self.unsubs = []
+        self.stop_unsub = None
         self.closing = False
         self.capture_gap = False
         self.dropped = 0
@@ -188,7 +189,7 @@ class Runtime:
         self.worker = self.hass.async_create_background_task(self._consume(), DOMAIN)
         self.unsubs.append(async_track_state_change_event(self.hass, CRITICAL, self._changed))
         self.unsubs.append(async_track_time_interval(self.hass, self._interval, timedelta(seconds=self.config["sample_seconds"])))
-        self.unsubs.append(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self.stop))
+        self.stop_unsub = self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self.stop)
         self.enqueue("startup")
 
     async def _consume(self):
@@ -273,6 +274,11 @@ class Runtime:
         for unsub in self.unsubs:
             unsub()
         self.unsubs.clear()
+        # async_listen_once removes itself before invoking this callback.
+        # Only unsubscribe it manually when stop() was called outside the HA stop event.
+        if event is None and self.stop_unsub is not None:
+            self.stop_unsub()
+        self.stop_unsub = None
         await self.queue.join()
         events = self.engine.stop()
         try:
