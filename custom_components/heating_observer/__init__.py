@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from copy import deepcopy
 from datetime import timedelta
+from functools import partial
 import logging
 from pathlib import Path
 
@@ -373,14 +374,16 @@ class Runtime:
                         )
                         if persist_analysis:
                             await self.hass.async_add_executor_job(
-                                self.database.write_analysis_bundle,
-                                created_at=float(sample["t"]),
-                                replay=replay_result,
-                                intelligence=intelligence_result,
-                                safety=self.cached_safety if (safety_changed or checkpoint) else None,
-                                permission_audit=self.permission_audit if not self.permission_audit_persisted else None,
-                                release_gate=self.cached_release_gate if checkpoint else None,
-                                watchdog=self.cached_watchdog if checkpoint else None,
+                                partial(
+                                    self.database.write_analysis_bundle,
+                                    created_at=float(sample["t"]),
+                                    replay=replay_result,
+                                    intelligence=intelligence_result,
+                                    safety=self.cached_safety if (safety_changed or checkpoint) else None,
+                                    permission_audit=self.permission_audit if not self.permission_audit_persisted else None,
+                                    release_gate=self.cached_release_gate if checkpoint else None,
+                                    watchdog=self.cached_watchdog if checkpoint else None,
+                                )
                             )
                             self.permission_audit_persisted = True
                         if checkpoint:
