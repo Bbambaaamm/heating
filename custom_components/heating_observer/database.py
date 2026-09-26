@@ -375,7 +375,7 @@ class AgentDatabase:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
                     """,
                     (
-                        incident_id, None, event.get("episode_id"), self.revision,
+                        incident_id, event.get("request_cycle_id"), event.get("episode_id"), self.revision,
                         "boiler_fault_code", "high", t, event_id,
                         _json(payload["observation"]), _json(payload["timeline"]),
                     ),
