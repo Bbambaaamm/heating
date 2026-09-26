@@ -12,9 +12,9 @@ from .permissions import PermissionManifest
 class SafetySentinel:
     name = "safety-sentinel-v1"
 
-    def __init__(self, permissions: PermissionManifest):
+    def __init__(self, permissions: PermissionManifest, invariants: dict[str, Any] | None = None):
         self.permissions = permissions
-        self.invariants = json.loads(
+        self.invariants = invariants if invariants is not None else json.loads(
             Path(__file__).with_name("safety_invariants.json").read_text(encoding="utf-8")
         )
         self._fault_relay_streak = 0
