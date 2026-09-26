@@ -384,9 +384,28 @@ class AgentDatabase:
             for diagnostic in diagnostics:
                 created_at = float((sample or {}).get("t") or 0)
                 incident_id = diagnostic.get("incident_id")
-                self._event(
+                diagnostic_event_id = self._event(
                     db, "diagnostic.completed.v1", created_at, diagnostic.get("agent", "diagnostic"),
                     diagnostic, correlation_id=incident_id, causation_id=snapshot_event_id,
+                )
+                diagnostic_run_id = str(uuid4())
+                db.execute(
+                    """
+                    INSERT INTO agent_runs
+                    (agent_run_id, agent, task_type, started_at, finished_at, status, input_refs, output_refs)
+                    VALUES (?, ?, 'diagnose_incident', ?, ?, 'completed', ?, ?)
+                    """,
+                    (
+                        diagnostic_run_id, diagnostic.get("agent", "diagnostic"), created_at, created_at,
+                        _json([incident_id] if incident_id else []),
+                        _json([diagnostic["diagnostic_id"]]),
+                    ),
+                )
+                self._event(
+                    db, "agent.run.completed.v1", created_at, diagnostic.get("agent", "diagnostic"),
+                    {"agent_run_id": diagnostic_run_id, "agent": diagnostic.get("agent", "diagnostic"),
+                     "status": "completed", "output_refs": [diagnostic["diagnostic_id"]]},
+                    correlation_id=incident_id, causation_id=diagnostic_event_id,
                 )
                 db.execute(
                     """
@@ -422,7 +441,9 @@ class AgentDatabase:
                         (incident_id,),
                     )
 
+            knowledge_ids = []
             for entry in knowledge_entries:
+                knowledge_ids.append(entry["knowledge_id"])
                 db.execute(
                     """
                     INSERT OR IGNORE INTO knowledge_entries
@@ -435,6 +456,28 @@ class AgentDatabase:
                         entry.get("source_incident_id"), entry["created_at"],
                         entry.get("confidence"), int(bool(entry.get("promoted", False))), _json(entry),
                     ),
+                )
+            if knowledge_ids:
+                created_at = float((sample or {}).get("t") or 0)
+                knowledge_run_id = str(uuid4())
+                incident_refs = sorted({
+                    entry.get("source_incident_id") for entry in knowledge_entries
+                    if entry.get("source_incident_id")
+                })
+                db.execute(
+                    """
+                    INSERT INTO agent_runs
+                    (agent_run_id, agent, task_type, started_at, finished_at, status, input_refs, output_refs)
+                    VALUES (?, 'knowledge-v1', 'update_knowledge', ?, ?, 'completed', ?, ?)
+                    """,
+                    (knowledge_run_id, created_at, created_at, _json(incident_refs), _json(knowledge_ids)),
+                )
+                self._event(
+                    db, "agent.run.completed.v1", created_at, "knowledge-v1",
+                    {"agent_run_id": knowledge_run_id, "agent": "knowledge-v1",
+                     "status": "completed", "output_refs": knowledge_ids},
+                    correlation_id=incident_refs[0] if len(incident_refs) == 1 else None,
+                    causation_id=snapshot_event_id,
                 )
             db.commit()
 
@@ -454,6 +497,7 @@ class AgentDatabase:
                 "incidents": count("incidents"),
                 "diagnostics": count("diagnostic_reports"),
                 "knowledge_entries": count("knowledge_entries"),
+                "agent_runs": count("agent_runs"),
             }
 
     def latest_diagnostic(self) -> dict[str, Any] | None:
