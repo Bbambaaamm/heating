@@ -50,9 +50,9 @@ class Runtime:
         config: dict,
         engine: Observer,
         journal: Journal,
+        permissions: PermissionManifest,
+        safety_invariants: dict,
         database: AgentDatabase | None = None,
-        permissions: PermissionManifest | None = None,
-        safety_invariants: dict | None = None,
     ):
         self.hass, self.config, self.engine, self.journal = hass, config, engine, journal
         self.database = database
@@ -61,7 +61,7 @@ class Runtime:
         )
         self.diagnostic_agent = DiagnosticAgent()
         self.knowledge_agent = KnowledgeAgent()
-        self.permissions = permissions or PermissionManifest.load_default()
+        self.permissions = permissions
         self.permission_audit = self.permissions.audit()
         self.replay_agent = ReplayValidationAgent(self.permissions)
         self.intelligence_agent = HeatingIntelligenceAgent(self.permissions)
@@ -474,9 +474,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         return False
 
     runtime = Runtime(
-        hass, cfg, engine, journal, database,
+        hass, cfg, engine, journal,
         permissions=permissions,
         safety_invariants=invariant_data,
+        database=database,
     )
     hass.data[DOMAIN] = runtime
     await runtime.start()
