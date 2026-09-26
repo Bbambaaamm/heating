@@ -20,6 +20,11 @@ EVENT_TYPES = frozenset({
     "diagnostic.completed.v1",
     "protection.replay.completed.v1",
     "agent.run.completed.v1",
+    "intelligence.candidate.created.v1",
+    "safety.evaluated.v1",
+    "permission.audit.completed.v1",
+    "release.gate.evaluated.v1",
+    "watchdog.evaluated.v1",
 })
 
 
