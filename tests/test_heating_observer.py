@@ -23,6 +23,11 @@ from custom_components.heating_observer import CONFIG_SCHEMA, Runtime
 from custom_components.heating_observer.const import DOMAIN, INPUTS, ZONES
 from custom_components.heating_observer.engine import Observer, number
 from custom_components.heating_observer.storage import Journal
+from custom_components.heating_observer.permissions import PermissionManifest
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+POLICY_DATA = json.loads((PROJECT_ROOT / "custom_components/heating_observer/agent_policy.json").read_text(encoding="utf-8"))
+INVARIANT_DATA = json.loads((PROJECT_ROOT / "custom_components/heating_observer/safety_invariants.json").read_text(encoding="utf-8"))
 
 BASE = 1_800_000_000
 
@@ -239,7 +244,11 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.cfg = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
         self.engine = Observer(self.cfg["site_revision"])
         self.journal = Journal(Path(self.tmp.name) / "observer", self.cfg["site_revision"])
-        self.runtime = Runtime(self.hass, self.cfg, self.engine, self.journal)
+        self.runtime = Runtime(
+            self.hass, self.cfg, self.engine, self.journal,
+            permissions=PermissionManifest(POLICY_DATA),
+            safety_invariants=INVARIANT_DATA,
+        )
         self.calls = []
         self.hass.bus.async_listen("call_service", lambda event: self.calls.append(event.data))
         for key, entity in INPUTS.items():
