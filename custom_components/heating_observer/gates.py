@@ -40,14 +40,17 @@ class ReleaseGate:
         self,
         *,
         code_plan: dict[str, Any],
-        ci_green: bool,
+        ci_green: bool | None,
         safety_status: str,
         replay: dict[str, Any] | None,
     ) -> dict[str, Any]:
         self.permissions.require(self.name, "release.evaluate")
         reasons = []
         decision = "MERGE_ELIGIBLE_DEPLOY_DISABLED"
-        if not ci_green:
+        if ci_green is None:
+            reasons.append("CI result not supplied to runtime gate")
+            decision = "AWAITING_CI"
+        elif not ci_green:
             reasons.append("CI is not green")
             decision = "BLOCKED"
         if safety_status == "VIOLATION":
@@ -72,7 +75,7 @@ class ReleaseGate:
             "decision": decision,
             "reasons": reasons,
             "runtime_deployment_enabled": False,
-            "human_approval_required": decision in {"HUMAN_REVIEW_REQUIRED", "BLOCKED"} or code_plan.get("highest_class") == "red",
+            "human_approval_required": decision in {"HUMAN_REVIEW_REQUIRED", "BLOCKED", "AWAITING_CI"} or code_plan.get("highest_class") == "red",
             "active_deployment_performed": False,
         }
 
