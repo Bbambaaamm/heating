@@ -8,6 +8,28 @@ Verze 0.1.0 je první pozorovací část návrhu prevence nedostatečného odbě
 Aktivní příprava odběrné větve a řízené dochlazení nejsou touto změnou zapnuty.
 Stávající regulace a poruchové ochrany dále řídí soustavu.
 
+
+## Verze 0.2.0 — Heating Agent Platform
+
+Verze 0.2.0 zachovává původní observer v režimu `shadow_only` a přidává
+oddělenou read-only agentní vrstvu:
+
+- request-cycle builder (souvislý požadavek relé, interní starty hořáku uvnitř);
+- SQLite/WAL evidence store `heating_observer_data/agent-platform.sqlite3`;
+- append-only `event_log` pro telemetry/cycle/incident/diagnostic eventy;
+- automatický Diagnostic Agent při novém fault incidentu;
+- Knowledge Agent, který odděluje `OBSERVATION`, `HYPOTHESIS` a `DECISION`;
+- diagnostické entity `sensor.heating_agent_platform`,
+  `sensor.heating_agent_diagnostic`, `sensor.heating_agent_knowledge` a
+  `sensor.heating_agent_baseline`.
+
+Agentní vrstva nemá service-call API ani platformu pro ovládání zařízení.
+Chyba agentní databáze nesmí vypnout nebo změnit regulaci topení a nezastaví
+ani původní JSONL observer. Hypotézy se automaticky nepropagují na fakta.
+SQLite je lokální runtime backend pro HA OS; logický datový kontrakt zůstává
+kompatibilní s návrhem PostgreSQL pro případný pozdější scale-out.
+
+
 ## Co se děje automaticky po instalaci
 
 1. Každých 10 sekund se při provozu pořídí snímek teplot, hořáku, čerpadla,

@@ -1,7 +1,7 @@
 """Project-specific input mapping. None of these entities is written to."""
 
 DOMAIN = "heating_observer"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 SIGNAL = "heating_observer_updated"
 ZONES = (
     "sklep_michal", "prizemi_michal", "prizemi_chodba_zachod", "1p_jidelna",

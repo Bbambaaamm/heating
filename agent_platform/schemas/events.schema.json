@@ -1,0 +1,784 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Bbambaaamm/heating/agent_platform/schemas/events.schema.json",
+  "title": "Heating Agent Platform event contract v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/telemetrySnapshotEvent"
+    },
+    {
+      "$ref": "#/$defs/cycleStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/cycleCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/incidentCreatedEvent"
+    },
+    {
+      "$ref": "#/$defs/diagnosticCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/replayCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/agentRunCompletedEvent"
+    }
+  ],
+  "$defs": {
+    "baseEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "recorded_at",
+        "site_revision",
+        "source",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "site_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlation_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "causation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    },
+    "zoneState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "hvac_state",
+        "current_temperature",
+        "target_temperature",
+        "pi_demand"
+      ],
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "hvac_state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "heat",
+            "off",
+            null
+          ]
+        },
+        "current_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "target_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pi_demand": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "snapshotData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp",
+        "site_revision",
+        "relay",
+        "gas",
+        "pump",
+        "master",
+        "service",
+        "mode",
+        "dhw",
+        "dhw_recharging",
+        "dhw_valve",
+        "boiler_block_temperature",
+        "flow_temperature",
+        "burner_power",
+        "service_code",
+        "zones",
+        "quality"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "number"
+        },
+        "site_revision": {
+          "type": "string"
+        },
+        "relay": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "gas": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pump": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "master": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "service": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dhw": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dhw_recharging": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dhw_valve": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "boiler_block_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "flow_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "burner_power": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "service_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "zones": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/zoneState"
+          }
+        },
+        "quality": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "cycleData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cycle_id",
+        "site_revision",
+        "started_at",
+        "ended_at",
+        "start_kind",
+        "incomplete",
+        "runtime_seconds",
+        "burner_starts",
+        "start_boiler_temperature",
+        "max_boiler_temperature",
+        "max_temperature_rise_c_per_min",
+        "min_requesting_zones",
+        "average_requesting_zones",
+        "fault_codes",
+        "service_seen",
+        "master_off_seen",
+        "dhw_seen",
+        "quality_flags",
+        "eligible_for_baseline"
+      ],
+      "properties": {
+        "cycle_id": {
+          "type": "string"
+        },
+        "site_revision": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "number"
+        },
+        "ended_at": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "start_kind": {
+          "type": "string",
+          "enum": [
+            "request_start",
+            "unknown_request_history"
+          ]
+        },
+        "incomplete": {
+          "type": "boolean"
+        },
+        "runtime_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "burner_starts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_boiler_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_boiler_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_temperature_rise_c_per_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_requesting_zones": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "average_requesting_zones": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "fault_codes": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "service_seen": {
+          "type": "boolean"
+        },
+        "master_off_seen": {
+          "type": "boolean"
+        },
+        "dhw_seen": {
+          "type": "boolean"
+        },
+        "quality_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "eligible_for_baseline": {
+          "type": "boolean"
+        }
+      }
+    },
+    "timelineRow": {
+      "type": "object",
+      "required": [
+        "t",
+        "relay",
+        "gas",
+        "master",
+        "service",
+        "boiler_block_temperature",
+        "flow_temperature",
+        "service_code",
+        "requesting_zones",
+        "quality",
+        "physical_flow_confirmed"
+      ],
+      "properties": {
+        "t": {
+          "type": "number"
+        },
+        "relay": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "gas": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "master": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "service": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "boiler_block_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "flow_temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "service_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "requesting_zones": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quality": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "physical_flow_confirmed": {
+          "const": false
+        }
+      }
+    },
+    "incidentData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incident_id",
+        "cycle_id",
+        "incident_type",
+        "severity",
+        "occurred_at",
+        "observation",
+        "timeline",
+        "diagnosis"
+      ],
+      "properties": {
+        "incident_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cycle_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "incident_type": {
+          "type": "string",
+          "enum": [
+            "boiler_fault_code",
+            "rapid_temperature_rise_low_demand_outlier"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "occurred_at": {
+          "type": "number"
+        },
+        "observation": {
+          "type": "object"
+        },
+        "timeline": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timelineRow"
+          }
+        },
+        "diagnosis": {
+          "type": "null"
+        }
+      }
+    },
+    "diagnosticData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnostic_id",
+        "incident_id",
+        "facts",
+        "hypotheses",
+        "next_measurement",
+        "safety_implication"
+      ],
+      "properties": {
+        "diagnostic_id": {
+          "type": "string"
+        },
+        "incident_id": {
+          "type": "string"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "evidence_for",
+              "evidence_against",
+              "confidence"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "evidence_for": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence_against": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "next_measurement": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "safety_implication": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "replayData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_id",
+        "incident_id",
+        "protection_version",
+        "would_trip",
+        "trip_at",
+        "lead_seconds",
+        "false_positive_candidate",
+        "dataset_role"
+      ],
+      "properties": {
+        "replay_id": {
+          "type": "string"
+        },
+        "incident_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protection_version": {
+          "type": "string"
+        },
+        "would_trip": {
+          "type": "boolean"
+        },
+        "trip_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lead_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "false_positive_candidate": {
+          "type": "boolean"
+        },
+        "dataset_role": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "validation",
+            "normal_control"
+          ]
+        }
+      }
+    },
+    "agentRunData": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "agent",
+        "status"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "failed",
+            "censored"
+          ]
+        }
+      }
+    },
+    "telemetrySnapshotEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "telemetry.snapshot.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/snapshotData"
+            }
+          }
+        }
+      ]
+    },
+    "cycleStartedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "heating.cycle.started.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/cycleData"
+            }
+          }
+        }
+      ]
+    },
+    "cycleCompletedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "heating.cycle.completed.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/cycleData"
+            }
+          }
+        }
+      ]
+    },
+    "incidentCreatedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "heating.incident.created.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/incidentData"
+            }
+          }
+        }
+      ]
+    },
+    "diagnosticCompletedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "diagnostic.completed.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/diagnosticData"
+            }
+          }
+        }
+      ]
+    },
+    "replayCompletedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "protection.replay.completed.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/replayData"
+            }
+          }
+        }
+      ]
+    },
+    "agentRunCompletedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "agent.run.completed.v1"
+            },
+            "data": {
+              "$ref": "#/$defs/agentRunData"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
