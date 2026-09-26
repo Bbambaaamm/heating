@@ -32,7 +32,12 @@
         "ha.read",
         "db.read",
         "db.write.analysis",
-        "audit.write"
+        "audit.write",
+        "replay.execute",
+        "candidate.propose",
+        "safety.evaluate",
+        "knowledge.write",
+        "watchdog.evaluate"
       ],
       "deny": [
         "ha.control",
