@@ -149,6 +149,9 @@ class Observer:
             and slope > rise_threshold
             and snapshot.requesting_zone_count() <= low_zone_threshold
             and not snapshot.quality
+            and snapshot.service is not True
+            and snapshot.master is True
+            and not any(value is True for value in (snapshot.dhw, snapshot.dhw_recharging, snapshot.dhw_valve))
             and anomaly_key not in self._incident_keys
         ):
             self._incident_keys.add(anomaly_key)
