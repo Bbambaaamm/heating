@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_setup as setup_loader
 from homeassistant.config_entries import ConfigEntries
@@ -253,6 +254,17 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def drain(self):
         await self.hass.async_block_till_done()
         await self.runtime.queue.join()
+
+    async def test_homeassistant_stop_event_does_not_double_unsubscribe(self):
+        await self.runtime.start()
+        await self.drain()
+        self.assertIsNotNone(self.runtime.stop_unsub)
+        self.hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+        await self.hass.async_block_till_done()
+        self.assertTrue(self.runtime.closing)
+        self.assertIsNone(self.runtime.stop_unsub)
+        self.assertTrue(self.runtime.worker.done())
+        self.assertEqual(self.calls, [])
 
     async def test_read_only_capture_persists_incident_and_reports_learning(self):
         await self.runtime.start()
