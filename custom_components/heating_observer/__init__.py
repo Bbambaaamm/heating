@@ -1,4 +1,4 @@
-"""Passive local recorder for this heating installation. No actuator services."""
+"""Passive local recorder and agent observation fabric. No actuator services."""
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +16,10 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from .agents import DiagnosticAgent, KnowledgeAgent
 from .const import CRITICAL, DOMAIN, INPUTS, SIGNAL, VERSION, ZONES
+from .cycle import RequestCycleBuilder
+from .database import AgentDatabase
 from .engine import Observer, number
 from .storage import Journal
 
@@ -33,8 +36,21 @@ CONFIG_SCHEMA = vol.Schema({
 
 
 class Runtime:
-    def __init__(self, hass: HomeAssistant, config: dict, engine: Observer, journal: Journal):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config: dict,
+        engine: Observer,
+        journal: Journal,
+        database: AgentDatabase | None = None,
+    ):
         self.hass, self.config, self.engine, self.journal = hass, config, engine, journal
+        self.database = database
+        self.request_cycles = RequestCycleBuilder(
+            config["site_revision"], telemetry_gap=config["telemetry_gap_seconds"]
+        )
+        self.diagnostic_agent = DiagnosticAgent()
+        self.knowledge_agent = KnowledgeAgent()
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=256)
         self.worker = None
         self.unsubs = []
@@ -42,11 +58,37 @@ class Runtime:
         self.capture_gap = False
         self.dropped = 0
         self.storage_error = None
+        self.agent_storage_error = None if database is not None else "DatabaseUnavailable"
         self.last_saved_at = 0.0
         self.last_idle_at = 0.0
         self.last_captured_at = None
         self.last_written_at = None
+        self.last_agent_written_at = None
         self.cached_report = engine.report()
+        self.cached_agent_stats = {
+            "backend": "unavailable",
+            "events": 0,
+            "samples": 0,
+            "cycles": 0,
+            "baseline_cycles": 0,
+            "incidents": 0,
+            "diagnostics": 0,
+            "knowledge_entries": 0,
+        }
+        self.cached_baseline = {
+            "cycles": 0,
+            "max_rise_mean_c_per_min": None,
+            "average_requesting_zones_mean": None,
+            "meaning": "observed baseline only; not an operating or safety limit",
+        }
+        self.last_diagnostic = None
+        self.cached_knowledge = {
+            "entries": 0,
+            "by_kind": {},
+            "latest": [],
+            "facts_promoted_from_hypotheses": 0,
+        }
+        self.cached_incidents = []
 
     def _read(self, entity_id):
         state = self.hass.states.get(entity_id)
@@ -73,7 +115,6 @@ class Runtime:
             reported = state.last_reported.timestamp() if state else None
             sample["reported_at"][key] = reported
             if key in ("block", "flow"):
-                # last_reported is receipt by HA, not a manufacturer's freshness guarantee.
                 sample["ages"][key] = now - reported if raw is not None and reported else None
                 if state and state.attributes.get("unit_of_measurement") not in ("°C", "C"):
                     sample[key] = None
@@ -107,7 +148,6 @@ class Runtime:
         if self.closing:
             return
         sample = self.snapshot(reason)
-        # Persist idle health less often; critical changes are always captured.
         if reason == "interval" and not (sample.get("gas") or sample.get("relay") or sample.get("pump") or self.engine.data["active"]):
             if sample["t"] - self.last_idle_at < 60:
                 self.capture_gap |= sample["gap"]
@@ -128,7 +168,23 @@ class Runtime:
     def _interval(self, now):
         self.enqueue()
 
+    async def _refresh_agent_cache(self):
+        if self.database is None:
+            return
+        self.cached_agent_stats = await self.hass.async_add_executor_job(self.database.stats)
+        self.cached_baseline = await self.hass.async_add_executor_job(self.database.baseline_summary)
+        self.last_diagnostic = await self.hass.async_add_executor_job(self.database.latest_diagnostic)
+        self.cached_knowledge = await self.hass.async_add_executor_job(self.database.knowledge_summary)
+        self.cached_incidents = await self.hass.async_add_executor_job(self.database.recent_incidents, 5)
+
     async def start(self):
+        if self.database is not None:
+            try:
+                await self._refresh_agent_cache()
+                self.agent_storage_error = None
+            except Exception as error:
+                self.agent_storage_error = type(error).__name__
+                _LOGGER.exception("Heating agent database cache cannot be loaded")
         self.worker = self.hass.async_create_background_task(self._consume(), DOMAIN)
         self.unsubs.append(async_track_state_change_event(self.hass, CRITICAL, self._changed))
         self.unsubs.append(async_track_time_interval(self.hass, self._interval, timedelta(seconds=self.config["sample_seconds"])))
@@ -139,33 +195,73 @@ class Runtime:
         while True:
             sample = await self.queue.get()
             events = []
+            cycles = []
+            diagnostics = []
+            knowledge_entries = []
             try:
                 if sample is None:
                     return
+
+                cycles = self.request_cycles.feed(sample)
+                cycle_context = self.request_cycles.active_cycle_id
+                if cycle_context is None:
+                    completed = [x for x in cycles if x["kind"] == "cycle_completed"]
+                    if completed:
+                        cycle_context = completed[-1]["cycle"]["cycle_id"]
+
                 events = self.engine.feed(sample)
-                checkpoint = bool(events) or sample["t"] - self.last_saved_at >= 60
+                for event in events:
+                    if event.get("kind") == "incident_open":
+                        event["request_cycle_id"] = cycle_context
+                        diagnostic = self.diagnostic_agent.analyze(event)
+                        diagnostics.append(diagnostic)
+                        knowledge_entries.extend(
+                            self.knowledge_agent.entries_for(diagnostic, created_at=float(event["t"]))
+                        )
+
+                checkpoint = bool(events or cycles or diagnostics) or sample["t"] - self.last_saved_at >= 60
                 if checkpoint:
                     self.cached_report = self.engine.report()
-                await self.hass.async_add_executor_job(
-                    self.journal.write, sample, events, deepcopy(self.engine.data),
-                    deepcopy(self.cached_report), checkpoint,
-                )
-                self.last_written_at = sample["t"]
-                if checkpoint:
-                    self.last_saved_at = sample["t"]
-                self.storage_error = None
-            except Exception as error:  # Diagnostic failure must not take down heating.
-                self.storage_error = type(error).__name__
+
+                try:
+                    await self.hass.async_add_executor_job(
+                        self.journal.write, sample, events, deepcopy(self.engine.data),
+                        deepcopy(self.cached_report), checkpoint,
+                    )
+                    self.last_written_at = sample["t"]
+                    if checkpoint:
+                        self.last_saved_at = sample["t"]
+                    self.storage_error = None
+                except Exception as error:
+                    self.storage_error = type(error).__name__
+                    self.capture_gap = True
+                    if self.engine.data["active"]:
+                        self.engine.data["active"]["bad_before_fault"] = True
+                    if events:
+                        for episode in self.engine.data["episodes"]:
+                            if any(e.get("id") == episode["id"] for e in events):
+                                episode["eligible"] = False
+                                episode["outcome"] = "censored_storage"
+                        self.cached_report = self.engine.report()
+                    _LOGGER.exception("Heating observer could not record an observation")
+
+                if self.database is not None:
+                    try:
+                        await self.hass.async_add_executor_job(
+                            self.database.write_batch,
+                            sample, cycles, events, diagnostics, knowledge_entries,
+                        )
+                        self.last_agent_written_at = sample["t"]
+                        self.agent_storage_error = None
+                        if checkpoint:
+                            await self._refresh_agent_cache()
+                    except Exception as error:
+                        self.agent_storage_error = type(error).__name__
+                        _LOGGER.exception("Heating agent database could not record an observation")
+            except Exception as error:
+                self.storage_error = self.storage_error or type(error).__name__
                 self.capture_gap = True
-                if self.engine.data["active"]:
-                    self.engine.data["active"]["bad_before_fault"] = True
-                if events:
-                    for episode in self.engine.data["episodes"]:
-                        if any(e.get("id") == episode["id"] for e in events):
-                            episode["eligible"] = False
-                            episode["outcome"] = "censored_storage"
-                    self.cached_report = self.engine.report()
-                _LOGGER.exception("Heating observer could not record an observation")
+                _LOGGER.exception("Heating observer processing failed")
             finally:
                 self.queue.task_done()
                 async_dispatcher_send(self.hass, SIGNAL)
@@ -185,6 +281,13 @@ class Runtime:
             )
         except Exception:
             _LOGGER.exception("Heating observer checkpoint at shutdown failed")
+        if self.database is not None:
+            try:
+                await self.hass.async_add_executor_job(
+                    self.database.write_batch, None, [], events, [], [],
+                )
+            except Exception:
+                _LOGGER.exception("Heating agent database checkpoint at shutdown failed")
         await self.queue.put(None)
         if self.worker:
             await self.worker
@@ -194,12 +297,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     if DOMAIN not in config:
         return True
     cfg = CONFIG_SCHEMA(config)[DOMAIN]
-    journal = Journal(Path(hass.config.path("heating_observer_data")), cfg["site_revision"],
-                      max_bytes=cfg["journal_mb"] * 1024 * 1024)
+    root = Path(hass.config.path("heating_observer_data"))
+    journal = Journal(root, cfg["site_revision"], max_bytes=cfg["journal_mb"] * 1024 * 1024)
     try:
         saved = await hass.async_add_executor_job(journal.load)
     except (OSError, ValueError):
-        # Preserve corrupt evidence; do not silently replace it with a fresh model.
         _LOGGER.exception("Heating observer checkpoint cannot be loaded; observer disabled")
         return False
     try:
@@ -208,7 +310,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except (ValueError, KeyError, TypeError):
         _LOGGER.exception("Heating observer model is incompatible; keep it and select a new site_revision")
         return False
-    runtime = Runtime(hass, cfg, engine, journal)
+
+    database = AgentDatabase(root / "agent-platform.sqlite3", cfg["site_revision"])
+    try:
+        await hass.async_add_executor_job(database.initialize)
+    except Exception:
+        _LOGGER.exception("Heating agent SQLite database unavailable; core observer will continue")
+        database = None
+
+    runtime = Runtime(hass, cfg, engine, journal, database)
     hass.data[DOMAIN] = runtime
     await runtime.start()
     await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
