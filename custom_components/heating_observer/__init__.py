@@ -21,7 +21,13 @@ from .const import CRITICAL, DOMAIN, INPUTS, SIGNAL, VERSION, ZONES
 from .cycle import RequestCycleBuilder
 from .database import AgentDatabase
 from .engine import Observer, number
+from .gates import CodeAgentPlanner, DeploymentPlanner, ReleaseGate
+from .intelligence import HeatingIntelligenceAgent
+from .permissions import PermissionManifest
+from .replay import ReplayValidationAgent
+from .safety import SafetySentinel
 from .storage import Journal
+from .watchdog import AgentWatchdog
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({
@@ -51,6 +57,15 @@ class Runtime:
         )
         self.diagnostic_agent = DiagnosticAgent()
         self.knowledge_agent = KnowledgeAgent()
+        self.permissions = PermissionManifest.load_default()
+        self.permission_audit = self.permissions.audit()
+        self.replay_agent = ReplayValidationAgent(self.permissions)
+        self.intelligence_agent = HeatingIntelligenceAgent(self.permissions)
+        self.safety_sentinel = SafetySentinel(self.permissions)
+        self.watchdog_agent = AgentWatchdog(self.permissions)
+        self.code_agent = CodeAgentPlanner(self.permissions)
+        self.release_gate_agent = ReleaseGate(self.permissions)
+        self.deployment_agent = DeploymentPlanner(self.permissions)
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=256)
         self.worker = None
         self.unsubs = []
@@ -90,6 +105,33 @@ class Runtime:
             "facts_promoted_from_hypotheses": 0,
         }
         self.cached_incidents = []
+        self.cached_replay = None
+        self.cached_intelligence = None
+        self.cached_safety = {
+            "agent": "safety-sentinel-v1",
+            "status": "UNKNOWN",
+            "violations": [],
+            "warnings": [],
+            "actuator_control": False,
+        }
+        self.cached_watchdog = {
+            "agent": "watchdog-v1",
+            "status": "DEGRADED",
+            "problems": ["awaiting first evaluation"],
+            "actuator_control": False,
+            "service_call_api": False,
+        }
+        self.cached_code_plan = self.code_agent.plan([])
+        self.cached_release_gate = self.release_gate_agent.evaluate(
+            code_plan=self.cached_code_plan,
+            ci_green=None,
+            safety_status="UNKNOWN",
+            replay=None,
+        )
+        self.cached_deployment_plan = self.deployment_agent.plan()
+        self.last_replay_generation = -1
+        self.last_safety_status = None
+        self.permission_audit_persisted = False
 
     def _read(self, entity_id):
         state = self.hass.states.get(entity_id)
@@ -177,6 +219,19 @@ class Runtime:
         self.last_diagnostic = await self.hass.async_add_executor_job(self.database.latest_diagnostic)
         self.cached_knowledge = await self.hass.async_add_executor_job(self.database.knowledge_summary)
         self.cached_incidents = await self.hass.async_add_executor_job(self.database.recent_incidents, 5)
+        analysis = await self.hass.async_add_executor_job(self.database.latest_analysis)
+        if analysis.get("replay"):
+            self.cached_replay = analysis["replay"]
+            self.last_replay_generation = int(self.cached_replay.get("generation", -1))
+        if analysis.get("intelligence"):
+            self.cached_intelligence = analysis["intelligence"]
+        if analysis.get("safety"):
+            self.cached_safety = analysis["safety"]
+            self.last_safety_status = self.cached_safety.get("status")
+        if analysis.get("release_gate"):
+            self.cached_release_gate = analysis["release_gate"]
+        if analysis.get("watchdog"):
+            self.cached_watchdog = analysis["watchdog"]
 
     async def start(self):
         if self.database is not None:
@@ -224,6 +279,61 @@ class Runtime:
                 if checkpoint:
                     self.cached_report = self.engine.report()
 
+                replay_result = None
+                intelligence_result = None
+                if self.engine.data["generation"] != self.last_replay_generation:
+                    replay_result = self.replay_agent.run(
+                        deepcopy(self.engine.data["episodes"]),
+                        revision=self.engine.revision,
+                        generation=self.engine.data["generation"],
+                        lead_budget=self.config["comparison_lead_seconds"],
+                    )
+                    intelligence_result = self.intelligence_agent.propose(replay_result)
+                    self.cached_replay = replay_result
+                    self.cached_intelligence = intelligence_result
+                    self.last_replay_generation = self.engine.data["generation"]
+
+                event_log_append_only = False
+                if self.database is not None:
+                    try:
+                        event_log_append_only = await self.hass.async_add_executor_job(
+                            self.database.event_log_is_append_only
+                        )
+                    except Exception:
+                        event_log_append_only = False
+
+                safety_result = self.safety_sentinel.evaluate(
+                    sample,
+                    runtime={
+                        "actuator_control": False,
+                        "service_call_api": False,
+                        "agent_storage_error": self.agent_storage_error,
+                        "event_log_append_only": event_log_append_only,
+                    },
+                    permission_audit=self.permission_audit,
+                    knowledge_summary=self.cached_knowledge,
+                    intelligence_candidate=self.cached_intelligence,
+                )
+                safety_changed = safety_result.get("status") != self.last_safety_status
+                self.cached_safety = safety_result
+                self.last_safety_status = safety_result.get("status")
+
+                self.cached_release_gate = self.release_gate_agent.evaluate(
+                    code_plan=self.cached_code_plan,
+                    ci_green=None,
+                    safety_status=self.cached_safety.get("status", "UNKNOWN"),
+                    replay=self.cached_replay,
+                )
+                self.cached_watchdog = self.watchdog_agent.evaluate(
+                    observer_storage_error=self.storage_error,
+                    agent_storage_error=self.agent_storage_error,
+                    permission_audit=self.permission_audit,
+                    safety=self.cached_safety,
+                    knowledge_summary=self.cached_knowledge,
+                    last_agent_written_at=self.last_agent_written_at,
+                    now=float(sample["t"]),
+                )
+
                 try:
                     await self.hass.async_add_executor_job(
                         self.journal.write, sample, events, deepcopy(self.engine.data),
@@ -254,6 +364,25 @@ class Runtime:
                         )
                         self.last_agent_written_at = sample["t"]
                         self.agent_storage_error = None
+                        persist_analysis = (
+                            replay_result is not None
+                            or intelligence_result is not None
+                            or safety_changed
+                            or checkpoint
+                            or not self.permission_audit_persisted
+                        )
+                        if persist_analysis:
+                            await self.hass.async_add_executor_job(
+                                self.database.write_analysis_bundle,
+                                created_at=float(sample["t"]),
+                                replay=replay_result,
+                                intelligence=intelligence_result,
+                                safety=self.cached_safety if (safety_changed or checkpoint) else None,
+                                permission_audit=self.permission_audit if not self.permission_audit_persisted else None,
+                                release_gate=self.cached_release_gate if checkpoint else None,
+                                watchdog=self.cached_watchdog if checkpoint else None,
+                            )
+                            self.permission_audit_persisted = True
                         if checkpoint:
                             await self._refresh_agent_cache()
                     except Exception as error:
