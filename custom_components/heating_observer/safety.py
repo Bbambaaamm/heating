@@ -1,8 +1,6 @@
 """Read-only Safety Sentinel for the heating platform."""
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 from .engine import FAULTS, number
@@ -12,11 +10,9 @@ from .permissions import PermissionManifest
 class SafetySentinel:
     name = "safety-sentinel-v1"
 
-    def __init__(self, permissions: PermissionManifest):
+    def __init__(self, permissions: PermissionManifest, invariants: dict[str, Any]):
         self.permissions = permissions
-        self.invariants = json.loads(
-            Path(__file__).with_name("safety_invariants.json").read_text(encoding="utf-8")
-        )
+        self.invariants = invariants
         self._fault_relay_streak = 0
 
     @staticmethod

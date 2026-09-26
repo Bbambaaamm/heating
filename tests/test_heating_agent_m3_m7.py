@@ -13,6 +13,11 @@ from custom_components.heating_observer.replay import ReplayValidationAgent
 from custom_components.heating_observer.safety import SafetySentinel
 from custom_components.heating_observer.watchdog import AgentWatchdog
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+INVARIANTS = __import__("json").loads(
+    (PROJECT_ROOT / "custom_components/heating_observer/safety_invariants.json").read_text(encoding="utf-8")
+)
+
 BASE = 2_000_000_000.0
 
 
@@ -129,7 +134,7 @@ class ReplayAndIntelligenceTests(unittest.TestCase):
 class SafetyTests(unittest.TestCase):
     def setUp(self):
         self.permissions = PermissionManifest.load_default()
-        self.sentinel = SafetySentinel(self.permissions)
+        self.sentinel = SafetySentinel(self.permissions, INVARIANTS)
         self.runtime = {
             "actuator_control": False,
             "service_call_api": False,
@@ -216,7 +221,7 @@ class DatabaseAnalysisTests(unittest.TestCase):
                 revision="test", generation=30, lead_budget=60,
             )
             intelligence = HeatingIntelligenceAgent(permissions).propose(replay)
-            safety = SafetySentinel(permissions).evaluate(
+            safety = SafetySentinel(permissions, INVARIANTS).evaluate(
                 safe_sample(),
                 runtime={"actuator_control": False, "service_call_api": False,
                          "agent_storage_error": None, "event_log_append_only": True},

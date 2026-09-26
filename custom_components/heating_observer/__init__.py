@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
+import json
 from datetime import timedelta
 from functools import partial
 import logging
@@ -49,6 +50,8 @@ class Runtime:
         config: dict,
         engine: Observer,
         journal: Journal,
+        permissions: PermissionManifest,
+        safety_invariants: dict,
         database: AgentDatabase | None = None,
     ):
         self.hass, self.config, self.engine, self.journal = hass, config, engine, journal
@@ -58,11 +61,11 @@ class Runtime:
         )
         self.diagnostic_agent = DiagnosticAgent()
         self.knowledge_agent = KnowledgeAgent()
-        self.permissions = PermissionManifest.load_default()
+        self.permissions = permissions
         self.permission_audit = self.permissions.audit()
         self.replay_agent = ReplayValidationAgent(self.permissions)
         self.intelligence_agent = HeatingIntelligenceAgent(self.permissions)
-        self.safety_sentinel = SafetySentinel(self.permissions)
+        self.safety_sentinel = SafetySentinel(self.permissions, safety_invariants)
         self.watchdog_agent = AgentWatchdog(self.permissions)
         self.code_agent = CodeAgentPlanner(self.permissions)
         self.release_gate_agent = ReleaseGate(self.permissions)
@@ -431,6 +434,13 @@ class Runtime:
             await self.worker
 
 
+def _load_agent_documents() -> tuple[dict, dict]:
+    root = Path(__file__).parent
+    policy = json.loads((root / "agent_policy.json").read_text(encoding="utf-8"))
+    invariants = json.loads((root / "safety_invariants.json").read_text(encoding="utf-8"))
+    return policy, invariants
+
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     if DOMAIN not in config:
         return True
@@ -456,7 +466,19 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         _LOGGER.exception("Heating agent SQLite database unavailable; core observer will continue")
         database = None
 
-    runtime = Runtime(hass, cfg, engine, journal, database)
+    try:
+        policy_data, invariant_data = await hass.async_add_executor_job(_load_agent_documents)
+        permissions = PermissionManifest(policy_data)
+    except (OSError, ValueError, TypeError):
+        _LOGGER.exception("Heating agent policy documents cannot be loaded; observer disabled")
+        return False
+
+    runtime = Runtime(
+        hass, cfg, engine, journal,
+        permissions=permissions,
+        safety_invariants=invariant_data,
+        database=database,
+    )
     hass.data[DOMAIN] = runtime
     await runtime.start()
     await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
