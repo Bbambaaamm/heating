@@ -1,0 +1,12 @@
+schema_version: 1
+consumer: heating
+herdr:
+  repository: Bbambaaamm/herdr
+  ref: v0.1.0-bootstrap
+  commit: 9c21526ef00aa9dbd01265bd19381927499d8d3e
+policy_profile: heating-safe-engineering
+hard_invariants:
+  - repository_changes_do_not_imply_runtime_actuation
+  - safety_relevant_production_changes_require_explicit_project_gate
+inheritance:
+  child_may_expand_parent_permissions: false
