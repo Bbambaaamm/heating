@@ -9,6 +9,22 @@ Aktivní příprava odběrné větve a řízené dochlazení nejsou touto změno
 Stávající regulace a poruchové ochrany dále řídí soustavu.
 
 
+## Verze 0.3.0 — Replay, Intelligence, Safety a permission gates
+
+Verze 0.3.0 přidává další read-only analytickou vrstvu bez rozšíření oprávnění
+k fyzickému řízení:
+
+- `replay-v1` s odděleným evidence/held-out validation datasetem;
+- `intelligence-v1`, který vytváří pouze candidate návrhy a nikdy je neaktivuje;
+- `safety-sentinel-v1` nad katalogem S01–S20;
+- `watchdog-v1` pro zdraví agentní vrstvy;
+- machine-enforced `agent_policy.json` v režimu default-deny;
+- planning-only Code/Release/Deployment gates bez Git/HA write capability.
+
+Žádný agent v runtime nemá `ha.control`, `git.write` ani
+`deployment.execute`. Safety Sentinel v této verzi nemá ani shutdown endpoint.
+Aktivní Home Assistant ochrany a regulace zůstávají beze změny.
+
 ## Verze 0.2.0 — Heating Agent Platform
 
 Verze 0.2.0 zachovává původní observer v režimu `shadow_only` a přidává
