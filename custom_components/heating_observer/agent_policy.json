@@ -1,0 +1,212 @@
+{
+  "version": "1.0",
+  "default_deny": true,
+  "principles": {
+    "ha_is_authoritative_control_layer": true,
+    "agent_runtime_may_control_devices": false,
+    "unknown_is_not_safe": true,
+    "hypotheses_never_auto_promote_to_fact": true,
+    "active_safety_changes_require_human": true
+  },
+  "capabilities": [
+    "ha.read",
+    "db.read",
+    "db.write.evidence",
+    "db.write.analysis",
+    "audit.write",
+    "replay.execute",
+    "candidate.propose",
+    "safety.evaluate",
+    "knowledge.write",
+    "artifact.plan",
+    "git.issue.plan",
+    "git.pr.plan",
+    "release.evaluate",
+    "deployment.plan",
+    "watchdog.evaluate"
+  ],
+  "agents": {
+    "analysis-root": {
+      "parent": null,
+      "allow": [
+        "ha.read",
+        "db.read",
+        "db.write.analysis",
+        "audit.write",
+        "replay.execute",
+        "candidate.propose",
+        "safety.evaluate",
+        "knowledge.write",
+        "watchdog.evaluate"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "observer": {
+      "parent": null,
+      "allow": [
+        "ha.read",
+        "db.write.evidence",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "diagnostic-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "knowledge-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "knowledge.write",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "replay-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "replay.execute",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "intelligence-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "candidate.propose",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "safety-sentinel-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "ha.read",
+        "db.read",
+        "db.write.analysis",
+        "safety.evaluate",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "watchdog-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "watchdog.evaluate",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "code-agent-v1": {
+      "parent": null,
+      "allow": [
+        "db.read",
+        "artifact.plan",
+        "git.issue.plan",
+        "git.pr.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.read",
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "release-gate-v1": {
+      "parent": null,
+      "allow": [
+        "db.read",
+        "release.evaluate",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "deployment-agent-v1": {
+      "parent": null,
+      "allow": [
+        "deployment.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.read",
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    }
+  },
+  "path_policy": {
+    "green": [
+      "docs/**",
+      "tests/**",
+      "agent_platform/**",
+      "scripts/replay/**",
+      "custom_components/heating_observer/**"
+    ],
+    "yellow": [
+      "heating/observer/**",
+      "dashboard/**"
+    ],
+    "red": [
+      "heating/control/**",
+      "heating/safety/**",
+      "automations.yaml",
+      "scripts.yaml"
+    ]
+  },
+  "deployment_runtime": {
+    "enabled": false,
+    "execute_capability": "deployment.execute",
+    "human_approval_required": true
+  }
+}

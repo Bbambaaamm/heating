@@ -1,0 +1,145 @@
+{
+  "version": "1.0",
+  "invariants": [
+    {
+      "id": "S01",
+      "severity": "critical",
+      "description": "Servisní režim nesmí mít sepnuté kotlové relé.",
+      "kind": "state",
+      "rule": "service_on_implies_relay_off"
+    },
+    {
+      "id": "S02",
+      "severity": "critical",
+      "description": "Vypnutý master nesmí mít sepnuté kotlové relé.",
+      "kind": "state",
+      "rule": "master_off_implies_relay_off"
+    },
+    {
+      "id": "S03",
+      "severity": "critical",
+      "description": "Režim Off nesmí mít sepnuté kotlové relé.",
+      "kind": "state",
+      "rule": "mode_off_implies_relay_off"
+    },
+    {
+      "id": "S04",
+      "severity": "high",
+      "description": "Aktivní fault 2964–2967 se sepnutým relé vyžaduje pozorování shutdown reakce.",
+      "kind": "stateful",
+      "rule": "fault_with_relay_requires_shutdown"
+    },
+    {
+      "id": "S05",
+      "severity": "high",
+      "description": "Neznámá kritická telemetrie při aktivním vytápění nesmí být označena za safe.",
+      "kind": "quality",
+      "rule": "unknown_active_is_not_safe"
+    },
+    {
+      "id": "S06",
+      "severity": "medium",
+      "description": "Hořák ON bez relay requestu a mimo TUV je unattributed heat.",
+      "kind": "state",
+      "rule": "gas_without_request_is_unattributed"
+    },
+    {
+      "id": "S07",
+      "severity": "medium",
+      "description": "TUV kontext vylučuje hydraulické závěry o prostorovém vytápění.",
+      "kind": "context",
+      "rule": "dhw_excludes_space_heat_inference"
+    },
+    {
+      "id": "S08",
+      "severity": "critical",
+      "description": "Agent runtime nesmí mít actuator_control.",
+      "kind": "permission",
+      "rule": "no_agent_actuator_control"
+    },
+    {
+      "id": "S09",
+      "severity": "critical",
+      "description": "Agent runtime nesmí mít obecné service-call API.",
+      "kind": "permission",
+      "rule": "no_agent_service_call_api"
+    },
+    {
+      "id": "S10",
+      "severity": "high",
+      "description": "Chyba evidence DB musí být viditelná a nesmí změnit řízení topení.",
+      "kind": "runtime",
+      "rule": "db_failure_is_fail_observable"
+    },
+    {
+      "id": "S11",
+      "severity": "high",
+      "description": "Safety violation nesmí být interpretována jako povolení pokračovat v topení.",
+      "kind": "policy",
+      "rule": "violation_never_grants_continue"
+    },
+    {
+      "id": "S12",
+      "severity": "medium",
+      "description": "PI požadavek TRV není potvrzení fyzického průtoku.",
+      "kind": "epistemic",
+      "rule": "pi_is_proxy_only"
+    },
+    {
+      "id": "S13",
+      "severity": "medium",
+      "description": "last_reported je čas příjmu HA, nikoli potvrzení nového fyzického měření.",
+      "kind": "epistemic",
+      "rule": "last_reported_is_receipt_only"
+    },
+    {
+      "id": "S14",
+      "severity": "high",
+      "description": "Incomplete/censored cyklus nesmí trénovat baseline.",
+      "kind": "data",
+      "rule": "censored_not_baseline"
+    },
+    {
+      "id": "S15",
+      "severity": "critical",
+      "description": "Intelligence candidate nesmí automaticky měnit aktivní ochranu.",
+      "kind": "permission",
+      "rule": "candidate_never_activates"
+    },
+    {
+      "id": "S16",
+      "severity": "critical",
+      "description": "RED path změna vyžaduje human safety review.",
+      "kind": "release",
+      "rule": "red_path_requires_human"
+    },
+    {
+      "id": "S17",
+      "severity": "critical",
+      "description": "Deployment execution je v agent runtime zakázán.",
+      "kind": "permission",
+      "rule": "runtime_deployment_disabled"
+    },
+    {
+      "id": "S18",
+      "severity": "high",
+      "description": "HYPOTHESIS se nesmí automaticky povýšit na FACT.",
+      "kind": "knowledge",
+      "rule": "no_auto_fact_promotion"
+    },
+    {
+      "id": "S19",
+      "severity": "high",
+      "description": "Raw event log je append-only.",
+      "kind": "data",
+      "rule": "event_log_append_only"
+    },
+    {
+      "id": "S20",
+      "severity": "critical",
+      "description": "Agent s parentem nesmí rozšířit capabilities nad parenta.",
+      "kind": "permission",
+      "rule": "child_capabilities_subset_parent"
+    }
+  ]
+}

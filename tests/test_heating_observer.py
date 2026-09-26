@@ -224,7 +224,11 @@ class ObserverEngineTests(unittest.TestCase):
         for p in root.glob("*.py"):
             tree = ast.parse(p.read_text())
             self.assertFalse(any(isinstance(n, ast.Attribute) and n.attr in ("async_call", "call_service", "async_register") for n in ast.walk(tree)), p)
-        self.assertEqual(sorted(p.stem for p in root.glob("*.py")), ["__init__", "agents", "const", "cycle", "database", "engine", "sensor", "storage"])
+        self.assertEqual(
+            sorted(p.stem for p in root.glob("*.py")),
+            ["__init__", "agents", "const", "cycle", "database", "engine", "gates",
+             "intelligence", "permissions", "replay", "safety", "sensor", "storage", "watchdog"],
+        )
 
 
 class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
@@ -327,6 +331,12 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "sensor.heating_agent_diagnostic": None,
             "sensor.heating_agent_knowledge": None,
             "sensor.heating_agent_baseline": None,
+            "sensor.heating_agent_replay": None,
+            "sensor.heating_agent_intelligence": None,
+            "sensor.heating_agent_safety": None,
+            "sensor.heating_agent_permissions": None,
+            "sensor.heating_agent_watchdog": None,
+            "sensor.heating_agent_release_gate": None,
         }
         for entity_id, mode in expected.items():
             entity = self.hass.states.get(entity_id)

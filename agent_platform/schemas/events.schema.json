@@ -23,6 +23,21 @@
     },
     {
       "$ref": "#/$defs/agentRunCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/intelligenceCandidateEvent"
+    },
+    {
+      "$ref": "#/$defs/safetyEvaluatedEvent"
+    },
+    {
+      "$ref": "#/$defs/permissionAuditEvent"
+    },
+    {
+      "$ref": "#/$defs/releaseGateEvent"
+    },
+    {
+      "$ref": "#/$defs/watchdogEvaluatedEvent"
     }
   ],
   "$defs": {
@@ -775,6 +790,96 @@
             },
             "data": {
               "$ref": "#/$defs/agentRunData"
+            }
+          }
+        }
+      ]
+    },
+    "intelligenceCandidateEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "intelligence.candidate.created.v1"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "safetyEvaluatedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "safety.evaluated.v1"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "permissionAuditEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "permission.audit.completed.v1"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "releaseGateEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "release.gate.evaluated.v1"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "watchdogEvaluatedEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "watchdog.evaluated.v1"
+            },
+            "data": {
+              "type": "object"
             }
           }
         }

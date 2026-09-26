@@ -10,7 +10,11 @@ from .const import DOMAIN, SIGNAL, VERSION
 from .engine import rule_description
 
 
-KINDS = ("status", "learning", "agent_platform", "agent_diagnostic", "agent_knowledge", "agent_baseline")
+KINDS = (
+    "status", "learning", "agent_platform", "agent_diagnostic", "agent_knowledge", "agent_baseline",
+    "agent_replay", "agent_intelligence", "agent_safety", "agent_permissions",
+    "agent_watchdog", "agent_release_gate",
+)
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -34,6 +38,12 @@ class ObserverSensor(SensorEntity):
             "agent_diagnostic": "Topení – diagnostický agent",
             "agent_knowledge": "Topení – knowledge agent",
             "agent_baseline": "Topení – request baseline",
+            "agent_replay": "Topení – Replay / Validation",
+            "agent_intelligence": "Topení – Heating Intelligence",
+            "agent_safety": "Topení – Safety Sentinel",
+            "agent_permissions": "Topení – agent permissions",
+            "agent_watchdog": "Topení – agent watchdog",
+            "agent_release_gate": "Topení – release gate",
         }[kind]
         self._attr_icon = {
             "status": "mdi:chart-timeline-variant",
@@ -42,6 +52,12 @@ class ObserverSensor(SensorEntity):
             "agent_diagnostic": "mdi:stethoscope",
             "agent_knowledge": "mdi:book-open-page-variant",
             "agent_baseline": "mdi:chart-bell-curve-cumulative",
+            "agent_replay": "mdi:replay",
+            "agent_intelligence": "mdi:lightbulb-on-outline",
+            "agent_safety": "mdi:shield-check-outline",
+            "agent_permissions": "mdi:shield-key-outline",
+            "agent_watchdog": "mdi:dog-service",
+            "agent_release_gate": "mdi:gate",
         }[kind]
 
     @property
@@ -62,6 +78,20 @@ class ObserverSensor(SensorEntity):
             return r.cached_knowledge.get("entries", 0)
         if self.kind == "agent_baseline":
             return r.cached_baseline.get("cycles", 0)
+        if self.kind == "agent_replay":
+            if not r.cached_replay:
+                return "Čeká"
+            return "Validation" if r.cached_replay.get("enough_for_candidate_review") else "Nedostatek dat"
+        if self.kind == "agent_intelligence":
+            return (r.cached_intelligence or {}).get("status", "Čeká")
+        if self.kind == "agent_safety":
+            return (r.cached_safety or {}).get("status", "UNKNOWN")
+        if self.kind == "agent_permissions":
+            return r.permission_audit.get("status", "UNKNOWN")
+        if self.kind == "agent_watchdog":
+            return (r.cached_watchdog or {}).get("status", "UNKNOWN")
+        if self.kind == "agent_release_gate":
+            return (r.cached_release_gate or {}).get("decision", "UNKNOWN")
         return None
 
     @property
@@ -119,6 +149,43 @@ class ObserverSensor(SensorEntity):
             return {
                 **r.cached_baseline,
                 "safety_limit": False,
+                "actuator_control": False,
+            }
+        if self.kind == "agent_replay":
+            return {
+                **(r.cached_replay or {"status": "awaiting replay"}),
+                "actuator_control": False,
+                "active_protection_changed": False,
+            }
+        if self.kind == "agent_intelligence":
+            return {
+                **(r.cached_intelligence or {"status": "awaiting replay"}),
+                "actuator_control": False,
+                "active_policy_changed": False,
+            }
+        if self.kind == "agent_safety":
+            return {
+                **r.cached_safety,
+                "actuator_control": False,
+                "shutdown_endpoint_enabled": False,
+            }
+        if self.kind == "agent_permissions":
+            return {
+                **r.permission_audit,
+                "default_deny": r.permissions.default_deny,
+                "runtime_deployment_enabled": bool(r.permissions.deployment_runtime.get("enabled")),
+                "actuator_control": False,
+            }
+        if self.kind == "agent_watchdog":
+            return {
+                **r.cached_watchdog,
+                "actuator_control": False,
+            }
+        if self.kind == "agent_release_gate":
+            return {
+                **r.cached_release_gate,
+                "deployment_plan": r.cached_deployment_plan,
+                "code_plan": r.cached_code_plan,
                 "actuator_control": False,
             }
         return {}

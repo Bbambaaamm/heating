@@ -6,6 +6,11 @@
 - M2 Diagnostic + Knowledge Agents: issue #87.
 - M3 Historical replay + protection evaluation: issue #88.
 - M4 PR-only Code Agent + gated release: issue #89.
+- M3 runtime replay/validation: #96.
+- M4 Heating Intelligence: #97.
+- M5 read-only Safety Sentinel: #98.
+- M6 machine-enforced permissions: #99.
+- M7 PR-only Code/Release/Deployment gates: #100.
 
 ## Q2: databázový model
 
@@ -59,3 +64,54 @@ agent.run.completed.v1
 : Audit trail běhu specializovaného agenta.
 
 Přesná strojová definice je v agent_platform/schemas/events.schema.json.
+
+
+## Runtime 0.3 — M3 až M7
+
+### Replay / Validation
+
+`replay-v1` znovu vyhodnocuje pevný katalog shadow hypotéz nad uloženými
+`eligible` epizodami. Fault clustery se započítávají nejvýše jednou podle
+`incident_id`. Fault i normal-control množiny se chronologicky rozdělí na
+evidence a held-out validation část. Výstup pouze měří detection/miss, předstih
+a warning v normálních oknech; nemění provozní ochranu.
+
+### Heating Intelligence
+
+`intelligence-v1` smí vytvořit pouze `CANDIDATE`. Dokud evidence neobsahuje
+alespoň 3 fault clustery + 20 normal controls a held-out validation alespoň
+1 fault + 10 normal controls, stav je `INSUFFICIENT_EVIDENCE`.
+Ani po splnění tohoto gate není kandidát aktivní pravidlo: vždy
+`active_policy_changed=false`, `deployment_allowed=false` a human review.
+
+### Safety Sentinel
+
+`safety-sentinel-v1` je read-only. Vyhodnocuje strojový katalog S01–S20
+v `custom_components/heating_observer/safety_invariants.json`. V0.3 nemá
+shutdown endpoint ani žádnou HA service-call capability.
+
+### Permission manifest
+
+Runtime manifest je `custom_components/heating_observer/agent_policy.json`.
+Je `default_deny`, runtime deployment je vypnutý a žádný agent nemá
+`ha.control`, `git.write` ani `deployment.execute`.
+
+CI kontrola `scripts/validate_agent_permissions.py` navíc odmítne:
+- child capability mimo parent;
+- zapnutý runtime deployment;
+- nekompletní S01–S20;
+- odstranění RED ochrany pro `heating/control/**`, `heating/safety/**`,
+  `automations.yaml` nebo `scripts.yaml`.
+
+### Code / Release / Deployment
+
+Runtime Code Agent je pouze planner: klasifikuje cesty GREEN/YELLOW/RED, ale
+neprovádí Git write. Release Gate pracuje pouze s dodanými důkazy CI/replay/safety.
+Neznámé CI = `AWAITING_CI`, nikoli schválení. Deployment Agent pouze sestaví
+plán; `execution_allowed=false`.
+
+### Watchdog
+
+`watchdog-v1` hlídá chyby observer/agent storage, permission audit, Safety
+Sentinel, automatické FACT promotion a čerstvost evidence writeru.
+Nemá control API.
