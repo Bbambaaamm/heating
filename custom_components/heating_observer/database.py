@@ -180,6 +180,53 @@ class AgentDatabase:
                 CREATE INDEX IF NOT EXISTS knowledge_kind_time_idx
                     ON knowledge_entries(kind, created_at DESC);
 
+                CREATE TABLE IF NOT EXISTS replay_reports (
+                    replay_id TEXT PRIMARY KEY,
+                    generation INTEGER NOT NULL,
+                    created_at REAL NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS replay_generation_idx
+                    ON replay_reports(generation DESC);
+
+                CREATE TABLE IF NOT EXISTS intelligence_candidates (
+                    candidate_id TEXT PRIMARY KEY,
+                    replay_id TEXT,
+                    created_at REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS safety_evaluations (
+                    evaluation_id TEXT PRIMARY KEY,
+                    created_at REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS safety_eval_time_idx
+                    ON safety_evaluations(created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS permission_audits (
+                    audit_id TEXT PRIMARY KEY,
+                    created_at REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS release_gate_evaluations (
+                    gate_id TEXT PRIMARY KEY,
+                    created_at REAL NOT NULL,
+                    decision TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS watchdog_evaluations (
+                    evaluation_id TEXT PRIMARY KEY,
+                    created_at REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS agent_runs (
                     agent_run_id TEXT PRIMARY KEY,
                     agent TEXT NOT NULL,
@@ -481,6 +528,140 @@ class AgentDatabase:
                 )
             db.commit()
 
+    def write_analysis_bundle(
+        self,
+        *,
+        created_at: float,
+        replay: dict[str, Any] | None = None,
+        intelligence: dict[str, Any] | None = None,
+        safety: dict[str, Any] | None = None,
+        permission_audit: dict[str, Any] | None = None,
+        release_gate: dict[str, Any] | None = None,
+        watchdog: dict[str, Any] | None = None,
+    ) -> None:
+        with closing(self._connect()) as db:
+            db.execute("BEGIN")
+
+            def record_agent_run(agent: str, task_type: str, output_ref: str):
+                run_id = str(uuid4())
+                db.execute(
+                    """
+                    INSERT INTO agent_runs
+                    (agent_run_id, agent, task_type, started_at, finished_at, status, input_refs, output_refs)
+                    VALUES (?, ?, ?, ?, ?, 'completed', '[]', ?)
+                    """,
+                    (run_id, agent, task_type, created_at, created_at, _json([output_ref])),
+                )
+                self._event(
+                    db, "agent.run.completed.v1", created_at, agent,
+                    {"agent_run_id": run_id, "agent": agent, "status": "completed", "output_refs": [output_ref]},
+                    correlation_id=output_ref,
+                )
+
+            if replay:
+                replay_id = replay["replay_id"]
+                db.execute(
+                    "INSERT OR REPLACE INTO replay_reports (replay_id, generation, created_at, payload) VALUES (?, ?, ?, ?)",
+                    (replay_id, int(replay.get("generation", 0)), created_at, _json(replay)),
+                )
+                self._event(
+                    db, "protection.replay.completed.v1", created_at, replay.get("agent", "replay-v1"),
+                    replay, correlation_id=replay_id,
+                )
+                record_agent_run(replay.get("agent", "replay-v1"), "historical_replay", replay_id)
+
+            if intelligence:
+                candidate_id = intelligence["candidate_id"]
+                db.execute(
+                    """
+                    INSERT OR REPLACE INTO intelligence_candidates
+                    (candidate_id, replay_id, created_at, status, payload)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        candidate_id, intelligence.get("source_replay_id"), created_at,
+                        intelligence.get("status", "UNKNOWN"), _json(intelligence),
+                    ),
+                )
+                self._event(
+                    db, "intelligence.candidate.created.v1", created_at,
+                    intelligence.get("agent", "intelligence-v1"), intelligence,
+                    correlation_id=candidate_id,
+                )
+                record_agent_run(intelligence.get("agent", "intelligence-v1"), "propose_candidate", candidate_id)
+
+            if safety:
+                evaluation_id = str(uuid4())
+                db.execute(
+                    "INSERT INTO safety_evaluations (evaluation_id, created_at, status, payload) VALUES (?, ?, ?, ?)",
+                    (evaluation_id, created_at, safety.get("status", "UNKNOWN"), _json(safety)),
+                )
+                self._event(
+                    db, "safety.evaluated.v1", created_at, safety.get("agent", "safety-sentinel-v1"),
+                    safety, correlation_id=evaluation_id,
+                )
+
+            if permission_audit:
+                audit_id = str(uuid4())
+                db.execute(
+                    "INSERT INTO permission_audits (audit_id, created_at, status, payload) VALUES (?, ?, ?, ?)",
+                    (audit_id, created_at, permission_audit.get("status", "UNKNOWN"), _json(permission_audit)),
+                )
+                self._event(
+                    db, "permission.audit.completed.v1", created_at, "permission-enforcer",
+                    permission_audit, correlation_id=audit_id,
+                )
+
+            if release_gate:
+                gate_id = release_gate.get("gate_id") or str(uuid4())
+                db.execute(
+                    "INSERT OR REPLACE INTO release_gate_evaluations (gate_id, created_at, decision, payload) VALUES (?, ?, ?, ?)",
+                    (gate_id, created_at, release_gate.get("decision", "UNKNOWN"), _json(release_gate)),
+                )
+                self._event(
+                    db, "release.gate.evaluated.v1", created_at,
+                    release_gate.get("agent", "release-gate-v1"), release_gate,
+                    correlation_id=gate_id,
+                )
+
+            if watchdog:
+                evaluation_id = str(uuid4())
+                db.execute(
+                    "INSERT INTO watchdog_evaluations (evaluation_id, created_at, status, payload) VALUES (?, ?, ?, ?)",
+                    (evaluation_id, created_at, watchdog.get("status", "UNKNOWN"), _json(watchdog)),
+                )
+                self._event(
+                    db, "watchdog.evaluated.v1", created_at,
+                    watchdog.get("agent", "watchdog-v1"), watchdog,
+                    correlation_id=evaluation_id,
+                )
+
+            db.commit()
+
+    def latest_analysis(self) -> dict[str, Any]:
+        with closing(self._connect()) as db:
+            def latest(table: str, order: str = "created_at"):
+                row = db.execute(
+                    f"SELECT payload FROM {table} ORDER BY {order} DESC, rowid DESC LIMIT 1"
+                ).fetchone()
+                return json.loads(row["payload"]) if row else None
+
+            return {
+                "replay": latest("replay_reports"),
+                "intelligence": latest("intelligence_candidates"),
+                "safety": latest("safety_evaluations"),
+                "permission_audit": latest("permission_audits"),
+                "release_gate": latest("release_gate_evaluations"),
+                "watchdog": latest("watchdog_evaluations"),
+            }
+
+    def event_log_is_append_only(self) -> bool:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND name IN ('event_log_no_update','event_log_no_delete')"
+            ).fetchall()
+            return {row["name"] for row in rows} == {"event_log_no_update", "event_log_no_delete"}
+
     def stats(self) -> dict[str, Any]:
         with closing(self._connect()) as db:
             def count(table: str, where: str = "", params: tuple = ()) -> int:
@@ -498,6 +679,12 @@ class AgentDatabase:
                 "diagnostics": count("diagnostic_reports"),
                 "knowledge_entries": count("knowledge_entries"),
                 "agent_runs": count("agent_runs"),
+                "replays": count("replay_reports"),
+                "intelligence_candidates": count("intelligence_candidates"),
+                "safety_evaluations": count("safety_evaluations"),
+                "permission_audits": count("permission_audits"),
+                "release_gate_evaluations": count("release_gate_evaluations"),
+                "watchdog_evaluations": count("watchdog_evaluations"),
             }
 
     def latest_diagnostic(self) -> dict[str, Any] | None:
