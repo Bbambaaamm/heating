@@ -190,6 +190,44 @@ class ObserverTests(unittest.TestCase):
         self.assertEqual(incidents[0].incident_type, "rapid_temperature_rise_low_demand_outlier")
         self.assertFalse(incidents[0].observation["physical_flow_confirmed"])
 
+    def test_statistical_outlier_is_suppressed_in_service_mode(self):
+        baseline = BaselineModel(minimum_cycles=1)
+        baseline.add(CycleSummary(
+            cycle_id="normal",
+            site_revision="test-revision",
+            started_at=BASE,
+            ended_at=BASE + 60,
+            start_kind="request_start",
+            incomplete=False,
+            runtime_seconds=60,
+            burner_starts=1,
+            start_boiler_temperature=45,
+            max_boiler_temperature=50,
+            max_temperature_rise_c_per_min=1.0,
+            min_requesting_zones=3,
+            average_requesting_zones=4.0,
+            fault_codes=(),
+            service_seen=False,
+            master_off_seen=False,
+            dhw_seen=False,
+            quality_flags=(),
+            eligible_for_baseline=True,
+        ))
+        observer = Observer(baseline=baseline)
+        collector = ReadOnlyCollector("test-revision")
+
+        first_states = make_states(BASE, relay=True, gas=True, block=50)
+        first_states[EntityMap().service]["state"] = "on"
+        first = collector.collect(first_states, captured_at=BASE)
+        observer.feed(first, cycle_id="cycle-service")
+
+        second_states = make_states(BASE + 10, relay=True, gas=True, block=53)
+        second_states[EntityMap().service]["state"] = "on"
+        for zone in EntityMap().zones[1:]:
+            second_states[f"climate.{zone}"]["attributes"]["pi_heating_demand"] = 0
+        second = collector.collect(second_states, captured_at=BASE + 10)
+        self.assertEqual(observer.feed(second, cycle_id="cycle-service"), [])
+
 
 class ContractTests(unittest.TestCase):
     def test_json_schema_is_versioned_and_contains_replay_contract(self):
