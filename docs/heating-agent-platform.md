@@ -115,3 +115,27 @@ plán; `execution_allowed=false`.
 `watchdog-v1` hlídá chyby observer/agent storage, permission audit, Safety
 Sentinel, automatické FACT promotion a čerstvost evidence writeru.
 Nemá control API.
+
+
+## Runtime 0.4 — Autonomous Improvement Loop
+
+0.4 rozšiřuje read-only agentní platformu o nepřetržité hledání zlepšení:
+
+- Energy Efficiency Agent: kWh plynu, venkovní teplota, cykly, návrhy úspor;
+- Comfort Agent: přetápění/nedotápění v comfort oknech;
+- Schedule Agent: překryv zón a možnosti zkrácení/posunu oken;
+- Hydraulics Agent: interní restarty, low-zone patterns a composite-rule vývoj;
+- Maintenance Agent: faults, TRV health a opakované safety warningy;
+- Data Quality Agent: chybějící kontext/senzory;
+- Opportunity Orchestrator: deduplikovaný backlog návrhů.
+
+Opportunity lifecycle je evidence-first. Každý návrh obsahuje category, confidence,
+risk class, evidence, shadow experiment, případné estimated saving a stabilní fingerprint.
+
+Autonomie:
+- GREEN + bez fyzické změny → `AUTO_PR_ELIGIBLE`;
+- YELLOW → `SHADOW_VALIDATE_THEN_REVIEW`;
+- RED → `HUMAN_SAFETY_REVIEW`.
+
+Ani 0.4 nemá `ha.control`, `git.write` ani `deployment.execute` v Home Assistant runtime.
+Úsporné změny komfortu/rozvrhu se proto nejdřív validují v shadow režimu.

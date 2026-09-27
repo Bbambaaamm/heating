@@ -26,6 +26,15 @@ from .engine import Observer, number
 from .gates import CodeAgentPlanner, DeploymentPlanner, ReleaseGate
 from .intelligence import HeatingIntelligenceAgent
 from .permissions import PermissionManifest
+from .optimization import (
+    ComfortAgent,
+    DataQualityAgent,
+    EnergyEfficiencyAgent,
+    HydraulicsOptimizationAgent,
+    MaintenanceAgent,
+    OpportunityOrchestrator,
+    ScheduleOptimizationAgent,
+)
 from .replay import ReplayValidationAgent
 from .safety import SafetySentinel
 from .storage import Journal
@@ -70,6 +79,13 @@ class Runtime:
         self.code_agent = CodeAgentPlanner(self.permissions)
         self.release_gate_agent = ReleaseGate(self.permissions)
         self.deployment_agent = DeploymentPlanner(self.permissions)
+        self.opportunity_orchestrator = OpportunityOrchestrator(self.permissions)
+        self.energy_agent = EnergyEfficiencyAgent(self.permissions)
+        self.comfort_agent = ComfortAgent(self.permissions)
+        self.schedule_agent = ScheduleOptimizationAgent(self.permissions)
+        self.hydraulics_agent = HydraulicsOptimizationAgent(self.permissions)
+        self.maintenance_agent = MaintenanceAgent(self.permissions)
+        self.data_quality_agent = DataQualityAgent(self.permissions)
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=256)
         self.worker = None
         self.unsubs = []
@@ -136,6 +152,21 @@ class Runtime:
         self.last_replay_generation = -1
         self.last_safety_status = None
         self.permission_audit_persisted = False
+        self.last_optimization_at = 0.0
+        self.cached_optimization = {
+            "window_seconds": 86400,
+            "samples": 0,
+            "gas_meter_available": False,
+            "zones": {},
+        }
+        self.cached_opportunities = {
+            "count": 0,
+            "by_status": {},
+            "by_category": {},
+            "items": [],
+            "auto_pr_eligible": 0,
+            "shadow_validate": 0,
+        }
 
     def _read(self, entity_id):
         state = self.hass.states.get(entity_id)
@@ -169,6 +200,24 @@ class Runtime:
                 sample["block_reported_at"] = reported
         windows = self.hass.states.get("sensor.heating_schedule_windows")
         active_helpers = windows.attributes.get("active_helpers", []) if windows and windows.state == "ready" else None
+        sample["schedule_active_count"] = len(active_helpers) if active_helpers is not None else None
+
+        weather = self.hass.states.get("weather.forecast_domov")
+        sample["outside_temperature"] = (
+            number(weather.attributes.get("temperature")) if weather is not None else None
+        )
+        sample["outside_humidity"] = (
+            number(weather.attributes.get("humidity")) if weather is not None else None
+        )
+        family = self.hass.states.get("person.rodina")
+        sample["family_home"] = (
+            True if family and family.state == "home"
+            else False if family and family.state == "not_home"
+            else None
+        )
+        gas_price_raw, _ = self._read("input_number.heating_gas_price_czk_kwh")
+        sample["gas_price_czk_kwh"] = number(gas_price_raw)
+
         for zone in ZONES:
             raw, state = self._read(f"climate.{zone}")
             attrs = state.attributes if state else {}
@@ -236,6 +285,12 @@ class Runtime:
             self.cached_release_gate = analysis["release_gate"]
         if analysis.get("watchdog"):
             self.cached_watchdog = analysis["watchdog"]
+        self.cached_optimization = await self.hass.async_add_executor_job(
+            self.database.optimization_summary
+        )
+        self.cached_opportunities = await self.hass.async_add_executor_job(
+            self.database.opportunity_summary
+        )
 
     async def start(self):
         if self.database is not None:
@@ -368,6 +423,38 @@ class Runtime:
                         )
                         self.last_agent_written_at = sample["t"]
                         self.agent_storage_error = None
+
+                        if float(sample["t"]) - self.last_optimization_at >= 900:
+                            optimization_summary = await self.hass.async_add_executor_job(
+                                self.database.optimization_summary
+                            )
+                            opportunities = []
+                            opportunities.extend(self.energy_agent.evaluate(optimization_summary))
+                            opportunities.extend(self.comfort_agent.evaluate(optimization_summary))
+                            opportunities.extend(self.schedule_agent.evaluate(optimization_summary))
+                            opportunities.extend(
+                                self.hydraulics_agent.evaluate(optimization_summary, self.cached_replay)
+                            )
+                            opportunities.extend(
+                                self.maintenance_agent.evaluate(optimization_summary, self.cached_safety)
+                            )
+                            opportunities.extend(
+                                self.data_quality_agent.evaluate(optimization_summary, sample)
+                            )
+                            opportunities = self.opportunity_orchestrator.consolidate(opportunities)
+                            await self.hass.async_add_executor_job(
+                                partial(
+                                    self.database.upsert_opportunities,
+                                    opportunities,
+                                    observed_at=float(sample["t"]),
+                                )
+                            )
+                            self.cached_optimization = optimization_summary
+                            self.cached_opportunities = await self.hass.async_add_executor_job(
+                                self.database.opportunity_summary
+                            )
+                            self.last_optimization_at = float(sample["t"])
+
                         persist_analysis = (
                             replay_result is not None
                             or intelligence_result is not None

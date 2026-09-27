@@ -227,6 +227,42 @@ class AgentDatabase:
                     payload TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS optimization_samples (
+                    sample_event_id TEXT PRIMARY KEY REFERENCES state_samples(event_id),
+                    captured_at REAL NOT NULL,
+                    gas_heat_total_kwh REAL,
+                    gas_heat_month_kwh REAL,
+                    heat_energy_month_kwh REAL,
+                    outside_temperature REAL,
+                    outside_humidity REAL,
+                    family_home INTEGER,
+                    schedule_active_count INTEGER,
+                    active_zones REAL,
+                    average_demand REAL,
+                    valves_unhealthy REAL,
+                    gas_price_czk_kwh REAL
+                );
+                CREATE INDEX IF NOT EXISTS optimization_samples_time_idx
+                    ON optimization_samples(captured_at DESC);
+
+                CREATE TABLE IF NOT EXISTS opportunities (
+                    opportunity_id TEXT PRIMARY KEY,
+                    fingerprint TEXT NOT NULL UNIQUE,
+                    category TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    risk_class TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    first_seen REAL NOT NULL,
+                    last_seen REAL NOT NULL,
+                    agent TEXT NOT NULL,
+                    estimated_saving_kwh_month REAL,
+                    evidence TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS opportunities_status_idx
+                    ON opportunities(status, risk_class, last_seen DESC);
+
                 CREATE TABLE IF NOT EXISTS agent_runs (
                     agent_run_id TEXT PRIMARY KEY,
                     agent TEXT NOT NULL,
@@ -350,6 +386,24 @@ class AgentDatabase:
                             zone.get("target"), zone.get("pi"), self._bool(zone.get("in_window")),
                         ),
                     )
+                db.execute(
+                    """
+                    INSERT INTO optimization_samples
+                    (sample_event_id, captured_at, gas_heat_total_kwh, gas_heat_month_kwh,
+                     heat_energy_month_kwh, outside_temperature, outside_humidity, family_home,
+                     schedule_active_count, active_zones, average_demand, valves_unhealthy,
+                     gas_price_czk_kwh)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        snapshot_event_id, t, sample.get("gas_heat_total_kwh"),
+                        sample.get("gas_heat_month_kwh"), sample.get("heat_energy_month_kwh"),
+                        sample.get("outside_temperature"), sample.get("outside_humidity"),
+                        self._bool(sample.get("family_home")), sample.get("schedule_active_count"),
+                        sample.get("active_zones"), sample.get("average_demand"),
+                        sample.get("valves_unhealthy"), sample.get("gas_price_czk_kwh"),
+                    ),
+                )
 
             for transition in cycles:
                 cycle = transition["cycle"]
@@ -655,6 +709,206 @@ class AgentDatabase:
                 "watchdog": latest("watchdog_evaluations"),
             }
 
+    def optimization_summary(self, *, window_seconds: float = 86400.0) -> dict[str, Any]:
+        with closing(self._connect()) as db:
+            latest = db.execute("SELECT MAX(captured_at) AS t FROM optimization_samples").fetchone()["t"]
+            if latest is None:
+                return {
+                    "window_seconds": window_seconds,
+                    "samples": 0,
+                    "gas_meter_available": False,
+                    "zones": {},
+                }
+            cutoff = float(latest) - float(window_seconds)
+            rows = db.execute(
+                """
+                SELECT o.*, s.relay, s.gas
+                FROM optimization_samples o
+                JOIN state_samples s ON s.event_id=o.sample_event_id
+                WHERE o.captured_at >= ?
+                ORDER BY o.captured_at ASC
+                """,
+                (cutoff,),
+            ).fetchall()
+            if not rows:
+                return {"window_seconds": window_seconds, "samples": 0, "gas_meter_available": False, "zones": {}}
+
+            gas_values = [r["gas_heat_total_kwh"] for r in rows if r["gas_heat_total_kwh"] is not None]
+            outside_values = [r["outside_temperature"] for r in rows if r["outside_temperature"] is not None]
+            price_values = [r["gas_price_czk_kwh"] for r in rows if r["gas_price_czk_kwh"] is not None]
+            relay_on = [r for r in rows if r["relay"] == 1]
+            single_schedule = [r for r in relay_on if r["schedule_active_count"] == 1]
+            valves = [r["valves_unhealthy"] for r in rows if r["valves_unhealthy"] is not None]
+
+            zone_rows = db.execute(
+                """
+                SELECT z.zone_id, z.current_temperature, z.target_temperature, z.pi_demand,
+                       z.in_window, s.captured_at
+                FROM zone_samples z
+                JOIN state_samples s ON s.event_id=z.sample_event_id
+                WHERE s.captured_at >= ?
+                ORDER BY s.captured_at ASC
+                """,
+                (cutoff,),
+            ).fetchall()
+            zones: dict[str, dict[str, Any]] = {}
+            for row in zone_rows:
+                zone = zones.setdefault(row["zone_id"], {
+                    "samples": 0, "comfort_samples": 0, "overshoot": 0, "undershoot": 0,
+                    "active_no_demand": 0, "demanding": 0,
+                })
+                zone["samples"] += 1
+                room = row["current_temperature"]
+                target = row["target_temperature"]
+                pi = row["pi_demand"]
+                if row["in_window"] == 1 and room is not None and target is not None:
+                    zone["comfort_samples"] += 1
+                    delta = float(room) - float(target)
+                    if delta > 1.0:
+                        zone["overshoot"] += 1
+                    if delta < -1.0:
+                        zone["undershoot"] += 1
+                    if pi is not None and float(pi) < 10:
+                        zone["active_no_demand"] += 1
+                if pi is not None and float(pi) >= 10:
+                    zone["demanding"] += 1
+            for zone in zones.values():
+                n = zone["comfort_samples"]
+                zone["overshoot_rate"] = zone["overshoot"] / n if n else 0.0
+                zone["undershoot_rate"] = zone["undershoot"] / n if n else 0.0
+                zone["active_no_demand_rate"] = zone["active_no_demand"] / n if n else 0.0
+
+            cycles = db.execute(
+                """
+                SELECT burner_starts, runtime_seconds
+                FROM heating_cycles
+                WHERE started_at >= ?
+                """,
+                (cutoff,),
+            ).fetchall()
+            starts = [float(r["burner_starts"]) for r in cycles if r["burner_starts"] is not None]
+            short = [r for r in cycles if r["runtime_seconds"] is not None and float(r["runtime_seconds"]) < 300]
+
+            return {
+                "window_seconds": window_seconds,
+                "samples": len(rows),
+                "gas_meter_available": bool(gas_values),
+                "gas_heat_24h_kwh": (
+                    max(0.0, float(gas_values[-1]) - float(gas_values[0]))
+                    if len(gas_values) >= 2 else None
+                ),
+                "gas_heat_month_kwh": next((float(r["gas_heat_month_kwh"]) for r in reversed(rows) if r["gas_heat_month_kwh"] is not None), None),
+                "heat_energy_month_kwh": next((float(r["heat_energy_month_kwh"]) for r in reversed(rows) if r["heat_energy_month_kwh"] is not None), None),
+                "outside_temperature_mean": sum(map(float, outside_values)) / len(outside_values) if outside_values else None,
+                "gas_price_czk_kwh": price_values[-1] if price_values else None,
+                "relay_on_samples": len(relay_on),
+                "relay_on_fraction": len(relay_on) / len(rows) if rows else None,
+                "relay_on_single_schedule_fraction": len(single_schedule) / len(relay_on) if relay_on else None,
+                "valves_unhealthy": max(map(float, valves)) if valves else None,
+                "cycle_count": len(cycles),
+                "cycle_avg_burner_starts": sum(starts) / len(starts) if starts else None,
+                "short_cycle_count": len(short),
+                "zones": zones,
+            }
+
+    def upsert_opportunities(self, opportunities: list[dict[str, Any]], *, observed_at: float) -> None:
+        with closing(self._connect()) as db:
+            db.execute("BEGIN")
+            output_refs = []
+            for row in opportunities:
+                existing = db.execute(
+                    "SELECT opportunity_id, status, first_seen FROM opportunities WHERE fingerprint=?",
+                    (row["fingerprint"],),
+                ).fetchone()
+                if existing is None:
+                    opportunity_id = str(uuid4())
+                    status = row.get("status", "NEW")
+                    first_seen = observed_at
+                    db.execute(
+                        """
+                        INSERT INTO opportunities
+                        (opportunity_id, fingerprint, category, title, status, risk_class,
+                         confidence, first_seen, last_seen, agent, estimated_saving_kwh_month,
+                         evidence, payload)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            opportunity_id, row["fingerprint"], row["category"], row["title"],
+                            status, row["risk_class"], float(row["confidence"]), first_seen,
+                            observed_at, row["agent"], row.get("estimated_saving_kwh_month"),
+                            _json(row.get("evidence", {})), _json(row),
+                        ),
+                    )
+                else:
+                    status = existing["status"]
+                    db.execute(
+                        """
+                        UPDATE opportunities
+                        SET category=?, title=?, risk_class=?, confidence=?, last_seen=?,
+                            agent=?, estimated_saving_kwh_month=?, evidence=?, payload=?
+                        WHERE fingerprint=?
+                        """,
+                        (
+                            row["category"], row["title"], row["risk_class"], float(row["confidence"]),
+                            observed_at, row["agent"], row.get("estimated_saving_kwh_month"),
+                            _json(row.get("evidence", {})), _json({**row, "status": status}),
+                            row["fingerprint"],
+                        ),
+                    )
+                    opportunity_id = existing["opportunity_id"]
+
+                output_refs.append(opportunity_id)
+                self._event(
+                    db, "optimization.opportunity.observed.v1", observed_at,
+                    row.get("agent", "opportunity-orchestrator-v1"), row,
+                    correlation_id=opportunity_id,
+                )
+
+            if opportunities:
+                run_id = str(uuid4())
+                db.execute(
+                    """
+                    INSERT INTO agent_runs
+                    (agent_run_id, agent, task_type, started_at, finished_at, status, input_refs, output_refs)
+                    VALUES (?, 'opportunity-orchestrator-v1', 'optimization_review', ?, ?, 'completed', '[]', ?)
+                    """,
+                    (run_id, observed_at, observed_at, _json(output_refs)),
+                )
+                self._event(
+                    db, "agent.run.completed.v1", observed_at, "opportunity-orchestrator-v1",
+                    {"agent_run_id": run_id, "agent": "opportunity-orchestrator-v1",
+                     "status": "completed", "output_refs": output_refs},
+                    correlation_id=run_id,
+                )
+            db.commit()
+
+    def opportunity_summary(self) -> dict[str, Any]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """
+                SELECT opportunity_id, fingerprint, category, title, status, risk_class,
+                       confidence, first_seen, last_seen, agent, estimated_saving_kwh_month, payload
+                FROM opportunities
+                ORDER BY
+                    CASE risk_class WHEN 'red' THEN 3 WHEN 'yellow' THEN 2 ELSE 1 END DESC,
+                    confidence DESC, last_seen DESC
+                """
+            ).fetchall()
+            items = []
+            for row in rows[:20]:
+                payload = json.loads(row["payload"])
+                items.append({**{k: row[k] for k in row.keys() if k != "payload"}, **payload})
+            by_status = Counter(row["status"] for row in rows)
+            by_category = Counter(row["category"] for row in rows)
+            return {
+                "count": len(rows),
+                "by_status": dict(by_status),
+                "by_category": dict(by_category),
+                "items": items,
+                "auto_pr_eligible": sum(1 for row in items if row.get("next_action") == "AUTO_PR_ELIGIBLE"),
+                "shadow_validate": sum(1 for row in items if row.get("next_action") == "SHADOW_VALIDATE_THEN_REVIEW"),
+            }
+
     def event_log_is_append_only(self) -> bool:
         with closing(self._connect()) as db:
             rows = db.execute(
@@ -685,6 +939,8 @@ class AgentDatabase:
                 "permission_audits": count("permission_audits"),
                 "release_gate_evaluations": count("release_gate_evaluations"),
                 "watchdog_evaluations": count("watchdog_evaluations"),
+                "optimization_samples": count("optimization_samples"),
+                "opportunities": count("opportunities"),
             }
 
     def latest_diagnostic(self) -> dict[str, Any] | None:

@@ -232,7 +232,8 @@ class ObserverEngineTests(unittest.TestCase):
         self.assertEqual(
             sorted(p.stem for p in root.glob("*.py")),
             ["__init__", "agents", "const", "cycle", "database", "engine", "gates",
-             "intelligence", "permissions", "replay", "safety", "sensor", "storage", "watchdog"],
+             "intelligence", "optimization", "permissions", "replay", "safety", "sensor",
+             "storage", "watchdog"],
         )
 
 
@@ -346,6 +347,8 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "sensor.heating_agent_permissions": None,
             "sensor.heating_agent_watchdog": None,
             "sensor.heating_agent_release_gate": None,
+            "sensor.heating_agent_opportunities": None,
+            "sensor.heating_agent_efficiency": None,
         }
         for entity_id, mode in expected.items():
             entity = self.hass.states.get(entity_id)

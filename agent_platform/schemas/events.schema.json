@@ -38,6 +38,9 @@
     },
     {
       "$ref": "#/$defs/watchdogEvaluatedEvent"
+    },
+    {
+      "$ref": "#/$defs/optimizationOpportunityEvent"
     }
   ],
   "$defs": {
@@ -877,6 +880,24 @@
           "properties": {
             "event_type": {
               "const": "watchdog.evaluated.v1"
+            },
+            "data": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "optimizationOpportunityEvent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEvent"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "optimization.opportunity.observed.v1"
             },
             "data": {
               "type": "object"
