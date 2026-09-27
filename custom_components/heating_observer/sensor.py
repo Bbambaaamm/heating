@@ -13,7 +13,7 @@ from .engine import rule_description
 KINDS = (
     "status", "learning", "agent_platform", "agent_diagnostic", "agent_knowledge", "agent_baseline",
     "agent_replay", "agent_intelligence", "agent_safety", "agent_permissions",
-    "agent_watchdog", "agent_release_gate",
+    "agent_watchdog", "agent_release_gate", "agent_opportunities", "agent_efficiency",
 )
 
 
@@ -44,6 +44,8 @@ class ObserverSensor(SensorEntity):
             "agent_permissions": "Topení – agent permissions",
             "agent_watchdog": "Topení – agent watchdog",
             "agent_release_gate": "Topení – release gate",
+            "agent_opportunities": "Topení – improvement opportunities",
+            "agent_efficiency": "Topení – efficiency analysis",
         }[kind]
         self._attr_icon = {
             "status": "mdi:chart-timeline-variant",
@@ -58,6 +60,8 @@ class ObserverSensor(SensorEntity):
             "agent_permissions": "mdi:shield-key-outline",
             "agent_watchdog": "mdi:dog-service",
             "agent_release_gate": "mdi:gate",
+            "agent_opportunities": "mdi:lightbulb-multiple-outline",
+            "agent_efficiency": "mdi:leaf-circle-outline",
         }[kind]
 
     @property
@@ -92,6 +96,11 @@ class ObserverSensor(SensorEntity):
             return (r.cached_watchdog or {}).get("status", "UNKNOWN")
         if self.kind == "agent_release_gate":
             return (r.cached_release_gate or {}).get("decision", "UNKNOWN")
+        if self.kind == "agent_opportunities":
+            return r.cached_opportunities.get("count", 0)
+        if self.kind == "agent_efficiency":
+            gas = r.cached_optimization.get("gas_heat_24h_kwh")
+            return round(float(gas), 2) if gas is not None else "Sběr dat"
         return None
 
     @property
@@ -186,6 +195,22 @@ class ObserverSensor(SensorEntity):
                 **r.cached_release_gate,
                 "deployment_plan": r.cached_deployment_plan,
                 "code_plan": r.cached_code_plan,
+                "actuator_control": False,
+            }
+        if self.kind == "agent_opportunities":
+            return {
+                **r.cached_opportunities,
+                "autonomy_policy": {
+                    "green": "AUTO_PR_ELIGIBLE",
+                    "yellow": "SHADOW_VALIDATE_THEN_REVIEW",
+                    "red": "HUMAN_SAFETY_REVIEW",
+                },
+                "actuator_control": False,
+            }
+        if self.kind == "agent_efficiency":
+            return {
+                **r.cached_optimization,
+                "unit_of_measurement": "kWh/24h when available",
                 "actuator_control": False,
             }
         return {}
