@@ -1,7 +1,7 @@
 """Project-specific input mapping. None of these entities is written to."""
 
 DOMAIN = "heating_observer"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 SIGNAL = "heating_observer_updated"
 ZONES = (
     "sklep_michal", "prizemi_michal", "prizemi_chodba_zachod", "1p_jidelna",
@@ -28,6 +28,10 @@ INPUTS = {
     "minimum_demand": "sensor.kotel_effective_min_avg_demand_pct",
     "eco": "input_number.eco_temp_default",
     "boost": "binary_sensor.kotel_boost_active",
+    "gas_heat_total_kwh": "sensor.boiler_gasmeterheat",
+    "gas_heat_month_kwh": "sensor.heating_gas_monthly",
+    "heat_energy_month_kwh": "sensor.heating_energy_monthly",
+    "valves_unhealthy": "sensor.heating_valves_unhealthy_count",
 }
 CRITICAL = tuple(INPUTS[key] for key in ("block", "flow", "code", "gas", "pump", "relay", "master", "service", "mode", "dhw", "dhw_recharging", "dhw_valve"))
 FAULTS = {2964, 2965, 2966, 2967}
