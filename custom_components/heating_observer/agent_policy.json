@@ -23,7 +23,13 @@
     "git.pr.plan",
     "release.evaluate",
     "deployment.plan",
-    "watchdog.evaluate"
+    "watchdog.evaluate",
+    "optimization.evaluate",
+    "opportunity.propose",
+    "opportunity.manage",
+    "experiment.plan",
+    "maintenance.evaluate",
+    "data_quality.evaluate"
   ],
   "agents": {
     "analysis-root": {
@@ -37,7 +43,13 @@
         "candidate.propose",
         "safety.evaluate",
         "knowledge.write",
-        "watchdog.evaluate"
+        "watchdog.evaluate",
+        "optimization.evaluate",
+        "opportunity.propose",
+        "opportunity.manage",
+        "experiment.plan",
+        "maintenance.evaluate",
+        "data_quality.evaluate"
       ],
       "deny": [
         "ha.control",
@@ -179,6 +191,114 @@
       ],
       "deny": [
         "ha.read",
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "opportunity-orchestrator-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "opportunity.manage",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "energy-efficiency-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "optimization.evaluate",
+        "opportunity.propose",
+        "experiment.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "comfort-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "optimization.evaluate",
+        "opportunity.propose",
+        "experiment.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "schedule-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "optimization.evaluate",
+        "opportunity.propose",
+        "experiment.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "hydraulics-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "optimization.evaluate",
+        "opportunity.propose",
+        "experiment.plan",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "maintenance-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "maintenance.evaluate",
+        "opportunity.propose",
+        "audit.write"
+      ],
+      "deny": [
+        "ha.control",
+        "git.write",
+        "deployment.execute"
+      ]
+    },
+    "data-quality-v1": {
+      "parent": "analysis-root",
+      "allow": [
+        "db.read",
+        "db.write.analysis",
+        "data_quality.evaluate",
+        "opportunity.propose",
+        "audit.write"
+      ],
+      "deny": [
         "ha.control",
         "git.write",
         "deployment.execute"
