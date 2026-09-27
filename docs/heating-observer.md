@@ -9,6 +9,17 @@ Aktivní příprava odběrné větve a řízené dochlazení nejsou touto změno
 Stávající regulace a poruchové ochrany dále řídí soustavu.
 
 
+## Verze 0.4.1 — Composite Flow-Risk shadow replay
+
+Verze 0.4.1 přidává pouze read-only sběr kvantovaných shadow features a
+held-out Composite Flow-Risk replay z PR #117. Kandidát se vybírá výhradně z
+evidence splitu a validační část se vyhodnotí až po výběru. Výstup zůstává
+`active_protection_changed=false` a `deployment_allowed=false`.
+
+Součástí release je externí fail-closed GO/NO-GO guard pro deployment. Guard
+pouze vyhodnocuje snapshoty a CI důkaz; neumí ovládat HA, restartovat Core ani
+provádět deployment/rollback. Postup je v `docs/heating-release-0.4.1.md`.
+
 ## Verze 0.4.0 — Autonomous Improvement Loop
 
 Observer/Agent Platform nyní průběžně vytváří Opportunity Backlog pro úspory,
