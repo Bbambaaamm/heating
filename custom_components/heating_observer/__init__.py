@@ -184,6 +184,8 @@ class Runtime:
             else False if family and family.state == "not_home"
             else None
         )
+        gas_price_raw, _ = self._read("input_number.heating_gas_price_czk_kwh")
+        sample["gas_price_czk_kwh"] = number(gas_price_raw)
 
         for zone in ZONES:
             raw, state = self._read(f"climate.{zone}")
