@@ -1,7 +1,7 @@
 {
   "domain": "heating_observer",
   "name": "Topení – pozorování a vyhodnocování",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "documentation": "https://github.com/Bbambaaamm/heating/blob/main/docs/heating-observer.md",
   "codeowners": [],
   "dependencies": [
