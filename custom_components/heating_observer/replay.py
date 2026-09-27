@@ -201,9 +201,10 @@ class ReplayValidationAgent:
         )
 
         rows = []
+        specs_by_rule = {}
         for spec in cls._composite_specs():
             evidence = cls._composite_score(spec, datasets["evidence"], lead_budget)
-            validation = cls._composite_score(spec, datasets["validation"], lead_budget)
+            specs_by_rule[spec["rule"]] = spec
             rows.append({
                 "rule": spec["rule"],
                 "definition": {
@@ -213,12 +214,11 @@ class ReplayValidationAgent:
                     "request_age_min": spec["request_age_min"],
                 },
                 "evidence": evidence,
-                "validation": validation,
                 "operating_policy_changed": False,
             })
 
-        # Rank exclusively on evidence. Held-out validation is reported afterwards,
-        # never used to select or order candidates.
+        # Rank exclusively on evidence. The held-out split is not even scored
+        # until one evidence-only candidate has been selected.
         ranked = sorted(
             rows,
             key=lambda row: (
@@ -229,7 +229,18 @@ class ReplayValidationAgent:
                 row["rule"],
             ),
         )
-        candidate = ranked[0] if enough and ranked and ranked[0]["evidence"]["detected"] else None
+        candidate = None
+        if enough and ranked and ranked[0]["evidence"]["detected"]:
+            selected = ranked[0]
+            candidate = {
+                **selected,
+                "validation": cls._composite_score(
+                    specs_by_rule[selected["rule"]],
+                    datasets["validation"],
+                    lead_budget,
+                ),
+            }
+
         status = "INSUFFICIENT_FEATURE_EVIDENCE"
         if candidate is not None:
             validation = candidate["validation"]
@@ -262,6 +273,7 @@ class ReplayValidationAgent:
             },
             "selection_basis": "evidence_only",
             "validation_used_for_ranking": False,
+            "validation_evaluated_after_selection": True,
             "candidate_rule": candidate["rule"] if candidate else None,
             "candidate": candidate,
             "top_rules": ranked[:12],
