@@ -22,6 +22,11 @@ REQUIRED_CI = (
 MIN_IDLE_CONFIRMATION_SECONDS = 120.0
 MAX_IDLE_CONFIRMATION_SECONDS = 600.0
 MAX_WRITER_STALENESS_SECONDS = 300.0
+MAX_LEASE_VERIFICATION_AGE_SECONDS = 60.0
+MAX_LEASE_VERIFICATION_FUTURE_SKEW_SECONDS = 30.0
+MIN_LEASE_REMAINING_SECONDS = 30.0
+MAX_HERDR_LEASE_TTL_SECONDS = 1800.0
+HERDR_DEPLOYMENT_TASK_PREFIX = "heating-deploy-"
 PERSISTENT_COUNTERS = (
     "events",
     "samples",
@@ -215,6 +220,135 @@ def _state_health_checks(
     return checks
 
 
+def _deployment_lease_checks(
+    release: dict[str, Any],
+    *,
+    observed_at: float | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Validate a fresh Herdr lease/fencing proof for deployment ownership.
+
+    The proof is supplied by an external executor after reading authoritative
+    Herdr scheduler state. This guard never acquires or renews a lease itself.
+    """
+    checks: list[dict[str, Any]] = []
+    proof = release.get("deployment_lease")
+    _check(
+        checks,
+        "herdr_lease_present",
+        isinstance(proof, dict),
+        "release.deployment_lease must be an authoritative Herdr lease proof",
+    )
+    if not isinstance(proof, dict):
+        return checks, None
+
+    task_id = proof.get("task_id")
+    agent_id = proof.get("agent_id")
+    holder = proof.get("holder")
+    fencing_token = proof.get("fencing_token")
+    lease_until = _finite(proof.get("lease_until"))
+    verification = proof.get("verification") or {}
+    verified_at = _finite(verification.get("verified_at"))
+    current_token = verification.get("current_fencing_token")
+
+    _check(
+        checks,
+        "herdr_deployment_task",
+        isinstance(task_id, str)
+        and task_id.startswith(HERDR_DEPLOYMENT_TASK_PREFIX)
+        and len(task_id) <= 256,
+        f"task_id={task_id!r}",
+    )
+    _check(
+        checks,
+        "herdr_agent_id",
+        isinstance(agent_id, str) and bool(agent_id.strip()) and len(agent_id) <= 128,
+        f"agent_id={agent_id!r}",
+    )
+    _check(
+        checks,
+        "herdr_holder",
+        isinstance(holder, str) and bool(holder.strip()) and len(holder) <= 128,
+        f"holder={holder!r}",
+    )
+    token_valid = (
+        isinstance(fencing_token, int)
+        and not isinstance(fencing_token, bool)
+        and fencing_token > 0
+    )
+    _check(
+        checks,
+        "herdr_fencing_token_valid",
+        token_valid,
+        f"fencing_token={fencing_token!r}",
+    )
+    _check(
+        checks,
+        "herdr_verification_current",
+        verification.get("status") == "current",
+        f"status={verification.get('status')!r}",
+    )
+    _check(
+        checks,
+        "herdr_fence_matches_current",
+        token_valid
+        and isinstance(current_token, int)
+        and not isinstance(current_token, bool)
+        and current_token == fencing_token,
+        f"lease_token={fencing_token!r}, current_token={current_token!r}",
+    )
+
+    verification_age = (
+        None
+        if observed_at is None or verified_at is None
+        else observed_at - verified_at
+    )
+    _check(
+        checks,
+        "herdr_verification_fresh",
+        verification_age is not None
+        and -MAX_LEASE_VERIFICATION_FUTURE_SKEW_SECONDS
+        <= verification_age
+        <= MAX_LEASE_VERIFICATION_AGE_SECONDS,
+        f"observed_at={observed_at!r}, verified_at={verified_at!r}, age={verification_age!r}",
+    )
+
+    remaining = (
+        None
+        if observed_at is None or lease_until is None
+        else lease_until - observed_at
+    )
+    ttl_from_verification = (
+        None
+        if verified_at is None or lease_until is None
+        else lease_until - verified_at
+    )
+    _check(
+        checks,
+        "herdr_lease_not_expiring",
+        remaining is not None and remaining >= MIN_LEASE_REMAINING_SECONDS,
+        f"lease_until={lease_until!r}, observed_at={observed_at!r}, remaining={remaining!r}",
+    )
+    _check(
+        checks,
+        "herdr_lease_ttl_bounded",
+        ttl_from_verification is not None
+        and 0 < ttl_from_verification <= MAX_HERDR_LEASE_TTL_SECONDS,
+        f"lease_until={lease_until!r}, verified_at={verified_at!r}, ttl={ttl_from_verification!r}",
+    )
+
+    accepted = None
+    if all(check["passed"] for check in checks):
+        accepted = {
+            "task_id": task_id,
+            "agent_id": agent_id,
+            "holder": holder,
+            "fencing_token": fencing_token,
+            "lease_until": lease_until,
+            "verified_at": verified_at,
+        }
+    return checks, accepted
+
+
 def _release_checks(release: dict[str, Any]) -> list[dict[str, Any]]:
     checks: list[dict[str, Any]] = []
     from_version = release.get("from_version")
@@ -309,6 +443,7 @@ def evaluate_pre_deploy(payload: dict[str, Any]) -> dict[str, Any]:
         ):
             checks.append({**check, "name": f"snapshot_{index}:{check['name']}"})
 
+    second_at = None
     if len(selected) == 2:
         first_at = _finite(selected[0].get("observed_at"))
         second_at = _finite(selected[1].get("observed_at"))
@@ -331,17 +466,26 @@ def evaluate_pre_deploy(payload: dict[str, Any]) -> dict[str, Any]:
             f"first={first_revision!r}, second={second_revision!r}",
         )
 
+    lease_checks, accepted_fence = _deployment_lease_checks(
+        release,
+        observed_at=second_at,
+    )
+    checks.extend(lease_checks)
+
     passed = all(check["passed"] for check in checks)
     return {
         "phase": "pre_deploy",
         "decision": "GO" if passed else "NO_GO",
         "safe_to_restart": passed,
         "checks": checks,
+        "deployment_fence": accepted_fence,
+        "fence_recheck_required_before_mutation": True,
         "physical_control_change": False,
         "deployment_executed": False,
         "note": (
             "GO authorizes only the separately controlled source copy/config-check/Core-restart step. "
-            "This guard never performs deployment or Home Assistant control."
+            "Before every mutating deployment step, the external executor must re-read Herdr and reject "
+            "an expired or superseded fencing token. This guard never performs deployment or Home Assistant control."
         ),
     }
 

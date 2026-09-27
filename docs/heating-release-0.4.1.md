@@ -25,6 +25,32 @@ tag resolving to that SHA) **after merge**, together with CI proofs produced for
 that exact SHA. A pre-merge PR head is review evidence, not the deployment
 artifact identity.
 
+## Herdr deployment ownership hardening
+
+For deployments prepared after issue #124, PRE additionally requires a fresh
+lease/fencing proof from the authoritative Herdr scheduler pinned by this
+consumer. Heating does **not** implement a second lock.
+
+The external executor supplies:
+
+- canonical Herdr `task_id`, `agent_id`, `holder`, `fencing_token` and
+  `lease_until`;
+- a fresh verification record whose status is `current`, timestamp is no more
+  than 60 seconds old (30 seconds future skew tolerated), and
+  `current_fencing_token` exactly matches the lease token.
+
+The deployment task ID must start with `heating-deploy-`. At PRE evaluation
+the lease must retain at least 30 seconds and its verified TTL may not exceed
+Herdr's 1800-second consumer cap. Missing, expired, superseded or stale proof is
+`NO_GO`.
+
+A successful PRE result returns the accepted fencing identity and
+`fence_recheck_required_before_mutation=true`. The external deployment
+executor must re-read authoritative Herdr scheduler state before **each**
+mutating step (source copy and Core restart) and reject a changed/expired
+fencing token. The HA runtime still receives no `deployment.execute`,
+`git.write` or physical-control capability.
+
 ## Automatic PRE decision
 
 Run:
