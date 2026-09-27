@@ -6,12 +6,16 @@ restart Home Assistant, call services, control heating or perform rollback.
 
 ## Preconditions
 
-The release artifact must be tied to one exact 40-character Git SHA. The same
-SHA must have successful:
+The release artifact must be tied to one exact 40-character Git SHA. Each CI
+proof in the guard input carries both `status=success` and that exact same
+`sha`. Required proofs are:
 
 - protective checks;
 - runtime regressions on Home Assistant 2026.5.1;
 - runtime regressions on Home Assistant 2026.9.2.
+
+PRE also requires an explicit `from_version` and `target_version`; they must
+differ, and both idle snapshots must report the expected `from_version`.
 
 Every changed path must classify GREEN under
 `agent_platform/policies/agent-policy.json`. Unknown paths fail closed as RED.
