@@ -48,8 +48,8 @@ Each snapshot must explicitly prove:
 - `actuator_control=false`;
 - `service_call_api=false`;
 - no agent storage error;
-- Safety Sentinel `OK`, no violations;
-- Permissions `PASS`, no violations;
+- Safety Sentinel `OK`, no violations, actuator control disabled and shutdown endpoint disabled;
+- Permissions `PASS`, no violations and `default_deny=true`;
 - runtime deployment disabled;
 - Watchdog `HEALTHY`, no problems;
 - agent evidence writer fresh within 300 seconds;
@@ -88,8 +88,8 @@ POST requires:
 - same site revision as PRE;
 - Agent Platform running in read-only mode;
 - no actuator/service-call capability;
-- Safety `OK`;
-- Permissions `PASS` with runtime deployment disabled;
+- Safety `OK` with actuator control and shutdown endpoint disabled;
+- Permissions `PASS`, `default_deny=true` and runtime deployment disabled;
 - Watchdog `HEALTHY`;
 - fresh agent writer;
 - known heating telemetry;
