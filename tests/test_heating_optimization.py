@@ -157,6 +157,28 @@ class OpportunityDatabaseTests(unittest.TestCase):
             self.assertGreaterEqual(backlog["auto_pr_eligible"], 1)
             self.assertGreaterEqual(db.stats()["opportunities"], 1)
 
+    def test_absent_opportunity_resolves_and_recurrence_reopens(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = AgentDatabase(Path(tmp) / "agent.sqlite3", "test")
+            db.initialize()
+            rows = EnergyEfficiencyAgent(PermissionManifest.load_default()).evaluate({
+                "gas_heat_24h_kwh": 0,
+                "outside_temperature_mean": 12,
+                "gas_price_czk_kwh": None,
+                "gas_meter_available": True,
+                "zones": {},
+            })
+            rows = OpportunityOrchestrator(PermissionManifest.load_default()).consolidate(rows)
+            self.assertEqual(len(rows), 1)
+            db.upsert_opportunities(rows, observed_at=BASE)
+            self.assertEqual(db.opportunity_summary()["items"][0]["status"], "NEW")
+
+            db.upsert_opportunities([], observed_at=BASE + 900)
+            self.assertEqual(db.opportunity_summary()["items"][0]["status"], "RESOLVED")
+
+            db.upsert_opportunities(rows, observed_at=BASE + 1800)
+            self.assertEqual(db.opportunity_summary()["items"][0]["status"], "NEW")
+
 
 if __name__ == "__main__":
     unittest.main()
