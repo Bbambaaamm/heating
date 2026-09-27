@@ -2,8 +2,8 @@ schema_version: 1
 consumer: heating
 herdr:
   repository: Bbambaaamm/herdr
-  ref: v0.3.0-rc.3
-  commit: fcbec5f428f2fedf34e8466339cb804d79283c93
+  ref: v0.3.0-rc.5
+  commit: 1c6092396b48f0ba4e7ff36c3de0c5200a56ee26
 policy_profile: heating-safe-engineering
 hard_invariants:
   - repository_changes_do_not_imply_runtime_actuation
