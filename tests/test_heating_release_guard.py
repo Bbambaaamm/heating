@@ -27,6 +27,7 @@ def release(**overrides):
             "tests/test_heating_release_guard.py",
             "docs/heating-release-0.4.1.md",
             "docs/heating-composite-flow-risk-dashboard.md",
+            "docs/heating-observer.md",
         ],
     }
     value.update(overrides)
