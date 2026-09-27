@@ -8,6 +8,25 @@ from agent_platform.release_guard import classify_path, evaluate_post_deploy, ev
 
 SHA = "9" * 40
 REVISION = "hydraulika-20260921-neoverena"
+LEASE_VERIFIED_AT = 2_000_000_170.0
+LEASE_UNTIL = 2_000_001_000.0
+
+
+def deployment_lease(**overrides):
+    value = {
+        "task_id": "heating-deploy-agent-platform-0-4-2",
+        "agent_id": "heating-release-agent",
+        "holder": "herdr-heating",
+        "fencing_token": 17,
+        "lease_until": LEASE_UNTIL,
+        "verification": {
+            "status": "current",
+            "verified_at": LEASE_VERIFIED_AT,
+            "current_fencing_token": 17,
+        },
+    }
+    value.update(overrides)
+    return value
 
 
 def release(**overrides):
@@ -20,6 +39,7 @@ def release(**overrides):
             "runtime_ha_2026_5_1": {"status": "success", "sha": SHA},
             "runtime_ha_2026_9_2": {"status": "success", "sha": SHA},
         },
+        "deployment_lease": deployment_lease(),
         "changed_paths": [
             "custom_components/heating_observer/const.py",
             "custom_components/heating_observer/manifest.json",
@@ -155,6 +175,83 @@ class ReleaseGuardTests(unittest.TestCase):
             evaluate_pre_deploy({"release": release(), "snapshots": [first, second]})["decision"],
             "NO_GO",
         )
+
+    def test_pre_deploy_requires_current_herdr_fencing_lease(self):
+        first = snapshot()
+        second = snapshot(first["observed_at"] + 180)
+
+        missing = release()
+        missing.pop("deployment_lease")
+        result = evaluate_pre_deploy({"release": missing, "snapshots": [first, second]})
+        self.assertEqual(result["decision"], "NO_GO")
+
+        invalid_token = release(deployment_lease=deployment_lease(fencing_token=0))
+        result = evaluate_pre_deploy({"release": invalid_token, "snapshots": [first, second]})
+        self.assertEqual(result["decision"], "NO_GO")
+
+        stale = deployment_lease()
+        stale["verification"] = {**stale["verification"], "status": "stale"}
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=stale),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
+        superseded = deployment_lease()
+        superseded["verification"] = {
+            **superseded["verification"],
+            "current_fencing_token": superseded["fencing_token"] + 1,
+        }
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=superseded),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
+    def test_pre_deploy_rejects_expired_or_stale_lease_verification(self):
+        first = snapshot()
+        second = snapshot(first["observed_at"] + 180)
+
+        expired = deployment_lease(lease_until=second["observed_at"] + 5)
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=expired),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
+        old_verification = deployment_lease()
+        old_verification["verification"] = {
+            **old_verification["verification"],
+            "verified_at": second["observed_at"] - 61,
+        }
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=old_verification),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
+        future_verification = deployment_lease()
+        future_verification["verification"] = {
+            **future_verification["verification"],
+            "verified_at": second["observed_at"] + 31,
+        }
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=future_verification),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
+    def test_pre_deploy_returns_accepted_fencing_identity(self):
+        first = snapshot()
+        second = snapshot(first["observed_at"] + 180)
+        result = evaluate_pre_deploy({"release": release(), "snapshots": [first, second]})
+        self.assertEqual(result["decision"], "GO")
+        self.assertEqual(result["deployment_fence"]["fencing_token"], 17)
+        self.assertEqual(
+            result["deployment_fence"]["task_id"],
+            "heating-deploy-agent-platform-0-4-2",
+        )
+        self.assertTrue(result["fence_recheck_required_before_mutation"])
 
     def test_pre_deploy_requires_stable_idle_window(self):
         first = snapshot()
