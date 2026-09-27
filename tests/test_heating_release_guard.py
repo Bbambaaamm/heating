@@ -16,9 +16,9 @@ def release(**overrides):
         "target_version": "0.4.1",
         "expected_sha": SHA,
         "ci": {
-            "protective_checks": "success",
-            "runtime_ha_2026_5_1": "success",
-            "runtime_ha_2026_9_2": "success",
+            "protective_checks": {"status": "success", "sha": SHA},
+            "runtime_ha_2026_5_1": {"status": "success", "sha": SHA},
+            "runtime_ha_2026_9_2": {"status": "success", "sha": SHA},
         },
         "changed_paths": [
             "custom_components/heating_observer/const.py",
@@ -95,7 +95,7 @@ class ReleaseGuardTests(unittest.TestCase):
         first = snapshot()
         second = snapshot(first["observed_at"] + 180)
         bad_ci = release()
-        bad_ci["ci"]["runtime_ha_2026_9_2"] = "failure"
+        bad_ci["ci"]["runtime_ha_2026_9_2"]["status"] = "failure"
         self.assertEqual(
             evaluate_pre_deploy({"release": bad_ci, "snapshots": [first, second]})["decision"],
             "NO_GO",
@@ -106,6 +106,24 @@ class ReleaseGuardTests(unittest.TestCase):
         self.assertEqual(result["decision"], "NO_GO")
         self.assertEqual(classify_path("automations.yaml"), "red")
         self.assertEqual(classify_path("unclassified/new.txt"), "red")
+
+    def test_pre_deploy_rejects_ci_from_different_sha_or_missing_from_version(self):
+        first = snapshot()
+        second = snapshot(first["observed_at"] + 180)
+
+        wrong_sha = release()
+        wrong_sha["ci"]["protective_checks"]["sha"] = "8" * 40
+        self.assertEqual(
+            evaluate_pre_deploy({"release": wrong_sha, "snapshots": [first, second]})["decision"],
+            "NO_GO",
+        )
+
+        missing_from = release()
+        missing_from.pop("from_version")
+        self.assertEqual(
+            evaluate_pre_deploy({"release": missing_from, "snapshots": [first, second]})["decision"],
+            "NO_GO",
+        )
 
     def test_pre_deploy_requires_stable_idle_window(self):
         first = snapshot()
