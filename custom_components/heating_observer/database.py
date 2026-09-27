@@ -841,6 +841,8 @@ class AgentDatabase:
                     )
                 else:
                     status = existing["status"]
+                    if status == "RESOLVED":
+                        status = "NEW"
                     db.execute(
                         """
                         UPDATE opportunities
@@ -862,6 +864,28 @@ class AgentDatabase:
                     db, "optimization.opportunity.observed.v1", observed_at,
                     row.get("agent", "opportunity-orchestrator-v1"), row,
                     correlation_id=opportunity_id,
+                )
+
+            active_fingerprints = [row["fingerprint"] for row in opportunities]
+            if active_fingerprints:
+                placeholders = ",".join("?" for _ in active_fingerprints)
+                db.execute(
+                    f"""
+                    UPDATE opportunities
+                    SET status='RESOLVED', last_seen=?
+                    WHERE status IN ('NEW','VALIDATING','READY')
+                      AND fingerprint NOT IN ({placeholders})
+                    """,
+                    (observed_at, *active_fingerprints),
+                )
+            else:
+                db.execute(
+                    """
+                    UPDATE opportunities
+                    SET status='RESOLVED', last_seen=?
+                    WHERE status IN ('NEW','VALIDATING','READY')
+                    """,
+                    (observed_at,),
                 )
 
             if opportunities:
