@@ -147,6 +147,18 @@ def _state_health_checks(
         safety.get("violations") == [],
         f"violations={safety.get('violations')!r}",
     )
+    _check(
+        checks,
+        "safety_actuator_control_disabled",
+        safety.get("actuator_control") is False,
+        f"actuator_control={safety.get('actuator_control')!r}",
+    )
+    _check(
+        checks,
+        "safety_shutdown_endpoint_disabled",
+        safety.get("shutdown_endpoint_enabled") is False,
+        f"shutdown_endpoint_enabled={safety.get('shutdown_endpoint_enabled')!r}",
+    )
 
     permissions = snapshot.get("permissions") or {}
     _check(
@@ -166,6 +178,12 @@ def _state_health_checks(
         "runtime_deployment_disabled",
         permissions.get("runtime_deployment_enabled") is False,
         f"runtime_deployment_enabled={permissions.get('runtime_deployment_enabled')!r}",
+    )
+    _check(
+        checks,
+        "permissions_default_deny",
+        permissions.get("default_deny") is True,
+        f"default_deny={permissions.get('default_deny')!r}",
     )
 
     watchdog = snapshot.get("watchdog") or {}
