@@ -9,6 +9,17 @@ Aktivní příprava odběrné větve a řízené dochlazení nejsou touto změno
 Stávající regulace a poruchové ochrany dále řídí soustavu.
 
 
+## Verze 0.4.0 — Autonomous Improvement Loop
+
+Observer/Agent Platform nyní průběžně vytváří Opportunity Backlog pro úspory,
+komfort, rozvrhy, hydrauliku, maintenance a datovou kvalitu. Context zahrnuje
+měřenou spotřebu plynu pro vytápění, měsíční kWh, venkovní teplotu, stav
+rozvrhů, family presence a TRV health.
+
+Návrhy, které by měnily comfort teploty, rozvrhy nebo fyzické řízení, zůstávají
+shadow-only do validace. GREEN analytické/testovací návrhy jsou označené jako
+AUTO_PR_ELIGIBLE, ale HA runtime nadále nemá Git write ani deployment execution.
+
 ## Verze 0.3.0 — Replay, Intelligence, Safety a permission gates
 
 Verze 0.3.0 přidává další read-only analytickou vrstvu bez rozšíření oprávnění
