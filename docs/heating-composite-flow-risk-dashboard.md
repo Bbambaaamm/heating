@@ -4,6 +4,18 @@ The panel is a diagnostic view of a shadow experiment. It must never look like
 a boiler controller and must never expose an action button for relay/TRV/safety
 control.
 
+## Placement in the current Home Assistant dashboard
+
+Current target is the existing storage dashboard `heating-panel`, view
+`agents` / **Agenti**, section index 4. That section already contains the
+Replay, Intelligence, Safety, Permissions, Watchdog and Release Gate tiles plus
+one combined markdown evidence card.
+
+For a future YELLOW dashboard-only change, keep those six status tiles and
+replace/extend only the existing full-width evidence card below them. Do not
+create another top-level agent view and do not add any control card. The
+current card path is `views[1].sections[4].cards[7]`.
+
 ## Visual hierarchy
 
 ```text
