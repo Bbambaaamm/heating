@@ -59,11 +59,17 @@ def snapshot(t=2_000_000_000.0, *, version="0.4.0", written_offset=30.0):
                 "opportunities": 3,
             },
         },
-        "safety": {"state": "OK", "violations": []},
+        "safety": {
+            "state": "OK",
+            "violations": [],
+            "actuator_control": False,
+            "shutdown_endpoint_enabled": False,
+        },
         "permissions": {
             "state": "PASS",
             "violations": [],
             "runtime_deployment_enabled": False,
+            "default_deny": True,
         },
         "watchdog": {"state": "HEALTHY", "problems": []},
     }
@@ -123,6 +129,30 @@ class ReleaseGuardTests(unittest.TestCase):
         missing_from.pop("from_version")
         self.assertEqual(
             evaluate_pre_deploy({"release": missing_from, "snapshots": [first, second]})["decision"],
+            "NO_GO",
+        )
+
+    def test_pre_deploy_rejects_weakened_safety_or_permission_model(self):
+        first = snapshot()
+        second = snapshot(first["observed_at"] + 180)
+
+        second["permissions"]["default_deny"] = False
+        self.assertEqual(
+            evaluate_pre_deploy({"release": release(), "snapshots": [first, second]})["decision"],
+            "NO_GO",
+        )
+
+        second = snapshot(first["observed_at"] + 180)
+        second["safety"]["shutdown_endpoint_enabled"] = True
+        self.assertEqual(
+            evaluate_pre_deploy({"release": release(), "snapshots": [first, second]})["decision"],
+            "NO_GO",
+        )
+
+        second = snapshot(first["observed_at"] + 180)
+        second["safety"]["actuator_control"] = True
+        self.assertEqual(
+            evaluate_pre_deploy({"release": release(), "snapshots": [first, second]})["decision"],
             "NO_GO",
         )
 
