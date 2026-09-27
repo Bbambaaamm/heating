@@ -161,6 +161,7 @@ class ReplayAndIntelligenceTests(unittest.TestCase):
         )
         self.assertEqual(composite["selection_basis"], "evidence_only")
         self.assertFalse(composite["validation_used_for_ranking"])
+        self.assertTrue(composite["validation_evaluated_after_selection"])
         self.assertIsNotNone(composite["candidate_rule"])
         self.assertEqual(composite["status"], "PROMISING_SHADOW_CANDIDATE")
         self.assertFalse(composite["active_protection_changed"])
