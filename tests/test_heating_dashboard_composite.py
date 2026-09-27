@@ -61,7 +61,7 @@ class CompositeFlowRiskDashboardCardTests(unittest.TestCase):
             self.assertNotIn(token, lower, token)
 
         entities = set(re.findall(
-            r"\\b(?:sensor|binary_sensor|switch|climate|input_boolean|input_number|script|automation)\\.[a-z0-9_]+\\b",
+            r"\b(?:sensor|binary_sensor|switch|climate|input_boolean|input_number|script|automation)\.[a-z0-9_]+\b",
             self.raw,
         ))
         self.assertTrue(entities)
