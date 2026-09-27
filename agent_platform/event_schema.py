@@ -25,6 +25,7 @@ EVENT_TYPES = frozenset({
     "permission.audit.completed.v1",
     "release.gate.evaluated.v1",
     "watchdog.evaluated.v1",
+    "optimization.opportunity.observed.v1",
 })
 
 
