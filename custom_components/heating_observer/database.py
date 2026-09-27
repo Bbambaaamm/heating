@@ -841,15 +841,17 @@ class AgentDatabase:
                     )
                 else:
                     status = existing["status"]
+                    if status == "RESOLVED":
+                        status = "NEW"
                     db.execute(
                         """
                         UPDATE opportunities
-                        SET category=?, title=?, risk_class=?, confidence=?, last_seen=?,
+                        SET category=?, title=?, status=?, risk_class=?, confidence=?, last_seen=?,
                             agent=?, estimated_saving_kwh_month=?, evidence=?, payload=?
                         WHERE fingerprint=?
                         """,
                         (
-                            row["category"], row["title"], row["risk_class"], float(row["confidence"]),
+                            row["category"], row["title"], status, row["risk_class"], float(row["confidence"]),
                             observed_at, row["agent"], row.get("estimated_saving_kwh_month"),
                             _json(row.get("evidence", {})), _json({**row, "status": status}),
                             row["fingerprint"],
@@ -862,6 +864,28 @@ class AgentDatabase:
                     db, "optimization.opportunity.observed.v1", observed_at,
                     row.get("agent", "opportunity-orchestrator-v1"), row,
                     correlation_id=opportunity_id,
+                )
+
+            active_fingerprints = [row["fingerprint"] for row in opportunities]
+            if active_fingerprints:
+                placeholders = ",".join("?" for _ in active_fingerprints)
+                db.execute(
+                    f"""
+                    UPDATE opportunities
+                    SET status='RESOLVED', last_seen=?
+                    WHERE status IN ('NEW','VALIDATING','READY')
+                      AND fingerprint NOT IN ({placeholders})
+                    """,
+                    (observed_at, *active_fingerprints),
+                )
+            else:
+                db.execute(
+                    """
+                    UPDATE opportunities
+                    SET status='RESOLVED', last_seen=?
+                    WHERE status IN ('NEW','VALIDATING','READY')
+                    """,
+                    (observed_at,),
                 )
 
             if opportunities:
@@ -897,7 +921,9 @@ class AgentDatabase:
             items = []
             for row in rows[:20]:
                 payload = json.loads(row["payload"])
-                items.append({**{k: row[k] for k in row.keys() if k != "payload"}, **payload})
+                # Lifecycle columns in the normalized table are authoritative.
+                # Payload is historical/proposal detail and must not resurrect stale status.
+                items.append({**payload, **{k: row[k] for k in row.keys() if k != "payload"}})
             by_status = Counter(row["status"] for row in rows)
             by_category = Counter(row["category"] for row in rows)
             return {
@@ -905,8 +931,16 @@ class AgentDatabase:
                 "by_status": dict(by_status),
                 "by_category": dict(by_category),
                 "items": items,
-                "auto_pr_eligible": sum(1 for row in items if row.get("next_action") == "AUTO_PR_ELIGIBLE"),
-                "shadow_validate": sum(1 for row in items if row.get("next_action") == "SHADOW_VALIDATE_THEN_REVIEW"),
+                "auto_pr_eligible": sum(
+                    1 for row in items
+                    if row.get("status") in {"NEW", "VALIDATING", "READY"}
+                    and row.get("next_action") == "AUTO_PR_ELIGIBLE"
+                ),
+                "shadow_validate": sum(
+                    1 for row in items
+                    if row.get("status") in {"NEW", "VALIDATING", "READY"}
+                    and row.get("next_action") == "SHADOW_VALIDATE_THEN_REVIEW"
+                ),
             }
 
     def event_log_is_append_only(self) -> bool:
