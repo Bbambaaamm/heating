@@ -1,4 +1,4 @@
 repository=https://github.com/Bbambaaamm/herdr
-ref=v0.1.0-bootstrap
-commit=9c21526ef00aa9dbd01265bd19381927499d8d3e
+ref=v0.3.0-rc.3
+commit=fcbec5f428f2fedf34e8466339cb804d79283c93
 config_schema=1
