@@ -814,6 +814,7 @@ class AgentDatabase:
     def upsert_opportunities(self, opportunities: list[dict[str, Any]], *, observed_at: float) -> None:
         with closing(self._connect()) as db:
             db.execute("BEGIN")
+            output_refs = []
             for row in opportunities:
                 existing = db.execute(
                     "SELECT opportunity_id, status, first_seen FROM opportunities WHERE fingerprint=?",
@@ -854,6 +855,31 @@ class AgentDatabase:
                             row["fingerprint"],
                         ),
                     )
+                    opportunity_id = existing["opportunity_id"]
+
+                output_refs.append(opportunity_id)
+                self._event(
+                    db, "optimization.opportunity.observed.v1", observed_at,
+                    row.get("agent", "opportunity-orchestrator-v1"), row,
+                    correlation_id=opportunity_id,
+                )
+
+            if opportunities:
+                run_id = str(uuid4())
+                db.execute(
+                    """
+                    INSERT INTO agent_runs
+                    (agent_run_id, agent, task_type, started_at, finished_at, status, input_refs, output_refs)
+                    VALUES (?, 'opportunity-orchestrator-v1', 'optimization_review', ?, ?, 'completed', '[]', ?)
+                    """,
+                    (run_id, observed_at, observed_at, _json(output_refs)),
+                )
+                self._event(
+                    db, "agent.run.completed.v1", observed_at, "opportunity-orchestrator-v1",
+                    {"agent_run_id": run_id, "agent": "opportunity-orchestrator-v1",
+                     "status": "completed", "output_refs": output_refs},
+                    correlation_id=run_id,
+                )
             db.commit()
 
     def opportunity_summary(self) -> dict[str, Any]:
