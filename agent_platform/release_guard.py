@@ -199,29 +199,52 @@ def _state_health_checks(
 
 def _release_checks(release: dict[str, Any]) -> list[dict[str, Any]]:
     checks: list[dict[str, Any]] = []
+    from_version = release.get("from_version")
     target_version = release.get("target_version")
+    _check(
+        checks,
+        "from_version_present",
+        isinstance(from_version, str) and bool(from_version.strip()),
+        f"from_version={from_version!r}",
+    )
     _check(
         checks,
         "target_version_present",
         isinstance(target_version, str) and bool(target_version.strip()),
         f"target_version={target_version!r}",
     )
+    _check(
+        checks,
+        "version_changes",
+        isinstance(from_version, str)
+        and isinstance(target_version, str)
+        and from_version != target_version,
+        f"from={from_version!r}, target={target_version!r}",
+    )
 
     expected_sha = release.get("expected_sha")
+    sha_valid = isinstance(expected_sha, str) and bool(_SHA40.fullmatch(expected_sha))
     _check(
         checks,
         "release_sha_valid",
-        isinstance(expected_sha, str) and bool(_SHA40.fullmatch(expected_sha)),
+        sha_valid,
         f"expected_sha={expected_sha!r}",
     )
 
     ci = release.get("ci") or {}
     for name in REQUIRED_CI:
+        proof = ci.get(name)
+        passed = (
+            isinstance(proof, dict)
+            and proof.get("status") == "success"
+            and sha_valid
+            and proof.get("sha") == expected_sha
+        )
         _check(
             checks,
             f"ci_{name}",
-            ci.get(name) == "success",
-            f"{name}={ci.get(name)!r}",
+            passed,
+            f"{name}={proof!r}, expected_sha={expected_sha!r}",
         )
 
     changed_paths = release.get("changed_paths")
@@ -234,12 +257,13 @@ def _release_checks(release: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(changed_paths, list):
         policy = load_path_policy()
         for path in changed_paths:
-            level = classify_path(str(path), policy)
+            valid_path = isinstance(path, str) and bool(path.strip())
+            level = classify_path(path, policy) if valid_path else "red"
             _check(
                 checks,
                 f"path_green:{path}",
-                level == "green",
-                f"{path} classified {level}",
+                valid_path and level == "green",
+                f"{path!r} classified {level}",
             )
     return checks
 
