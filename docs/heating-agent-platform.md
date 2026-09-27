@@ -139,3 +139,27 @@ Autonomie:
 
 Ani 0.4 nemá `ha.control`, `git.write` ani `deployment.execute` v Home Assistant runtime.
 Úsporné změny komfortu/rozvrhu se proto nejdřív validují v shadow režimu.
+
+
+## Composite flow-risk shadow replay
+
+GREEN experiment `composite-flow-risk-v1` extends replay analytics only. It does
+not call Home Assistant services, change operating policy, change safety
+thresholds, or claim that TRV PI confirms physical water flow.
+
+For each eligible heating episode the observer stores only bounded, quantized
+shadow features needed for the experiment: number of zones with PI >= 10 %,
+block-temperature rise band, burner/request phase and request-age band. Fault
+episodes freeze the feature intervals observed before the fault; normal episodes
+store only unique feature signatures. Raw control actions are not generated.
+
+Candidate conjunctions are ranked from the evidence split only. Held-out
+validation is evaluated only after a candidate has been selected and therefore
+cannot improve its rank. A candidate is not surfaced until feature-traced data
+contains at least 3 evidence faults, 20 evidence normal controls, 1 validation
+fault and 10 validation normal controls.
+
+The output always keeps `active_protection_changed=false` and
+`deployment_allowed=false`. Even a `PROMISING_SHADOW_CANDIDATE` remains an
+offline hypothesis requiring separate safety review before any future RED-path
+or physical-control proposal.

@@ -220,7 +220,7 @@ class HydraulicsOptimizationAgent:
                 experiment={"type": "shadow_zone_overlap_vs_restarts"},
                 physical_control_change=True,
             ))
-        if replay:
+        if replay and replay.get("composite_flow_risk") is None:
             rules = {r.get("rule"): r for r in replay.get("rules", [])}
             low_zone = rules.get("pi10_count_lt3")
             if low_zone:

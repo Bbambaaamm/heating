@@ -115,6 +115,23 @@ class OptimizationAgentTests(unittest.TestCase):
         self.assertEqual(rows[0]["risk_class"], "green")
         self.assertFalse(rows[0]["physical_control_change"])
 
+    def test_hydraulics_agent_resolves_research_once_composite_replay_exists(self):
+        replay = {
+            "composite_flow_risk": {
+                "status": "INSUFFICIENT_FEATURE_EVIDENCE",
+                "active_protection_changed": False,
+                "deployment_allowed": False,
+            },
+            "rules": [{
+                "rule": "pi10_count_lt3",
+                "evidence": {"detected": 1, "lead_median_s": 170, "warned_normal_rate": 0.6},
+            }],
+        }
+        rows = HydraulicsOptimizationAgent(self.permissions).evaluate(
+            {"cycle_count": 0, "cycle_avg_burner_starts": None}, replay
+        )
+        self.assertEqual(rows, [])
+
     def test_orchestrator_assigns_autonomy_by_risk(self):
         green = {
             "fingerprint": "g", "agent": "x", "category": "engineering", "title": "g",

@@ -33,6 +33,32 @@ def episode(idx, *, fault=False, rule="pi10_count_lt3", lead=90.0, warned=True):
     }
 
 
+def shadow_feature(t, *, pi10_count=2, rise="ge_0_1", phase="burning", age="ge_60"):
+    return {
+        "start": t,
+        "end": t + 30,
+        "pi10_count": pi10_count,
+        "block_rise_band": rise,
+        "phase": phase,
+        "request_age_band": age,
+    }
+
+
+def composite_episode(idx, *, fault=False, matching=True):
+    row = episode(idx, fault=fault, warned=False)
+    base_t = row["start"]
+    feature = shadow_feature(
+        base_t + 50,
+        pi10_count=2 if matching else 8,
+    )
+    row["shadow_seen"] = [feature]
+    row["shadow_fault_window"] = []
+    if fault:
+        row["fault_at"] = base_t + 200
+        row["shadow_fault_window"] = [feature]
+    return row
+
+
 def safe_sample(**overrides):
     sample = {
         "t": BASE,
@@ -105,6 +131,49 @@ class ReplayAndIntelligenceTests(unittest.TestCase):
         # 8 validation normals is intentionally below the conservative review gate.
         self.assertFalse(replay["enough_for_candidate_review"])
         self.assertFalse(replay["active_protection_changed"])
+        self.assertEqual(
+            replay["composite_flow_risk"]["status"],
+            "INSUFFICIENT_FEATURE_EVIDENCE",
+        )
+        self.assertFalse(replay["composite_flow_risk"]["validation_used_for_ranking"])
+        self.assertFalse(
+            replay["composite_flow_risk"]["validation_evaluated_after_selection"]
+        )
+
+    def test_composite_flow_risk_uses_evidence_only_for_selection(self):
+        episodes = [
+            composite_episode(i, fault=True, matching=True)
+            for i in range(4)
+        ]
+        episodes.extend(
+            composite_episode(i, fault=False, matching=i in (4, 12))
+            for i in range(4, 44)
+        )
+        replay = ReplayValidationAgent(self.permissions).run(
+            episodes, revision="test", generation=44, lead_budget=60
+        )
+        composite = replay["composite_flow_risk"]
+        self.assertEqual(
+            composite["dataset"],
+            {
+                "evidence_faults": 3,
+                "evidence_normal_controls": 30,
+                "validation_faults": 1,
+                "validation_normal_controls": 10,
+            },
+        )
+        self.assertEqual(composite["selection_basis"], "evidence_only")
+        self.assertFalse(composite["validation_used_for_ranking"])
+        self.assertTrue(composite["validation_evaluated_after_selection"])
+        self.assertIsNotNone(composite["candidate_rule"])
+        self.assertEqual(composite["status"], "PROMISING_SHADOW_CANDIDATE")
+        self.assertFalse(composite["active_protection_changed"])
+        self.assertFalse(composite["deployment_allowed"])
+        self.assertEqual(composite["candidate"]["validation"]["missed"], 0)
+        self.assertLessEqual(
+            composite["candidate"]["validation"]["warned_normal_rate"],
+            0.25,
+        )
 
     def test_intelligence_never_activates_candidate(self):
         replay = {

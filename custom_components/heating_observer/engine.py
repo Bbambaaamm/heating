@@ -18,6 +18,32 @@ RULES = tuple(f"pi{p}_count_lt{n}" for p in (10, 20, 30, 50) for n in (1, 2, 3))
     "block_rise_0_2", "block_rise_0_5", "block_above_75",
 )
 
+SHADOW_WINDOW_SECONDS = 180.0
+
+
+def _shadow_rise_band(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    if value >= 0.2:
+        return "ge_0_2"
+    if value >= 0.1:
+        return "ge_0_1"
+    if value >= 0.05:
+        return "ge_0_05"
+    return "lt_0_05"
+
+
+def _shadow_age_band(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    if value >= 120:
+        return "ge_120"
+    if value >= 60:
+        return "ge_60"
+    if value >= 30:
+        return "ge_30"
+    return "lt_30"
+
 
 def rule_description(rule: str) -> str:
     if rule.startswith("pi"):
@@ -136,6 +162,54 @@ class Observer:
             result.append("block_above_75")
         return result
 
+    def _shadow_feature(self, s: dict) -> dict[str, Any] | None:
+        # Shadow-only analytics. These proxies never confirm physical flow.
+        if self.current_quality or s.get("service") or s.get("master") is not True:
+            return None
+        if not (s.get("relay") or s.get("gas")):
+            return None
+        demands = [
+            number(z.get("pi")) if z.get("state") == "heat" else 0
+            for z in s.get("zones", {}).values()
+        ]
+        if len(demands) != 8 or any(value is None for value in demands):
+            return None
+        t = float(s["t"])
+        request_age = (
+            max(0.0, t - self.request_started_at)
+            if self.request_started_at is not None and t >= self.request_started_at
+            else None
+        )
+        return {
+            "start": t,
+            "end": t,
+            "pi10_count": sum(value >= 10 for value in demands),
+            "block_rise_band": _shadow_rise_band(self.slope),
+            "phase": "burning" if s.get("gas") is True else "request_preburn",
+            "request_age_band": _shadow_age_band(request_age),
+        }
+
+    @staticmethod
+    def _append_shadow_feature(episode: dict[str, Any], feature: dict[str, Any] | None) -> None:
+        if feature is None:
+            return
+        signature_keys = ("pi10_count", "block_rise_band", "phase", "request_age_band")
+        signature = {key: feature[key] for key in signature_keys}
+
+        seen = episode.setdefault("shadow_seen", [])
+        if not any(all(row.get(key) == signature[key] for key in signature_keys) for row in seen):
+            seen.append(signature)
+
+        recent = episode.setdefault("shadow_recent", [])
+        if recent and all(recent[-1].get(key) == signature[key] for key in signature_keys):
+            recent[-1]["end"] = feature["end"]
+        else:
+            recent.append(dict(feature))
+        cutoff = float(feature["end"]) - SHADOW_WINDOW_SECONDS
+        episode["shadow_recent"] = [
+            row for row in recent if float(row.get("end", row.get("start", 0))) >= cutoff
+        ]
+
     def _start(self, s: dict, incomplete: bool):
         self.data["sequence"] += 1
         self.data["active"] = {
@@ -154,6 +228,7 @@ class Observer:
             "block_at_gas_off": None, "off_baseline_reported_at": None,
             "peak_block": number(s.get("block")),
             "postburn_peak": None, "fault_trace": [],
+            "shadow_seen": [], "shadow_recent": [], "shadow_fault_window": [],
         }
 
     def _finish(self, reason: str):
@@ -229,6 +304,9 @@ class Observer:
                         self.data["active"]["warnings"][rule].append(old["t"])
                         if rule not in self.data["active"]["warned"]:
                             self.data["active"]["warned"].append(rule)
+                    self._append_shadow_feature(
+                        self.data["active"], old.get("shadow_feature")
+                    )
         if fault and self.data["active"] is None and (not previous or number(previous.get("code")) != code):
             self._start(s, incomplete=True)
         active = self.data["active"]
@@ -254,6 +332,7 @@ class Observer:
             if active["block_at_gas_off"] is not None and temperature is not None:
                 active["postburn_peak"] = max(active["postburn_peak"] or temperature, temperature)
             if not fault and active["fault_at"] is None:
+                self._append_shadow_feature(active, self._shadow_feature(s))
                 for rule in self.current_warnings:
                     active["warnings"][rule].append(t)
                     if rule not in active["warned"]:
@@ -273,6 +352,7 @@ class Observer:
                 if active["fault_at"] is None:
                     active["fault_at"] = t
                     active["incident_id"] = self.data["incident_id"]
+                    active["shadow_fault_window"] = deepcopy(active.get("shadow_recent", []))
                     active["fault_leads"] = {}
                     for rule, times in active["warnings"].items():
                         recent = [x for x in times if t - 180 <= x < t]
@@ -291,7 +371,11 @@ class Observer:
         self.status = ("fault_observed" if fault else "data_incomplete" if self.current_quality
                        else "service" if s.get("service") else "observing")
         if not self.ring or t - self.ring[-1]["t"] >= 5:
-            self.ring.append({**s, "warnings": self.current_warnings.copy()})
+            self.ring.append({
+                **s,
+                "warnings": self.current_warnings.copy(),
+                "shadow_feature": None if fault else self._shadow_feature(s),
+            })
         self.previous = s
         result, self.pending = self.pending, []
         return result

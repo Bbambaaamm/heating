@@ -91,6 +91,24 @@ class ObserverEngineTests(unittest.TestCase):
         o.feed(sample(110, code=2964, demand=0))
         self.assertEqual(o.data["active"]["fault_leads"]["pi20_count_lt2"], 100)
 
+    def test_fault_free_shadow_features_are_frozen_before_fault(self):
+        o = Observer("test")
+        o.feed(sample(0, relay=False, demand=0))
+        for t in range(10, 101, 10):
+            o.feed(sample(t, gas=True, demand=0, block=40 + t / 100))
+        o.feed(sample(110, code=2964, demand=0, block=42))
+        active = o.data["active"]
+        self.assertTrue(active["shadow_seen"])
+        self.assertTrue(active["shadow_fault_window"])
+        self.assertEqual(active["shadow_fault_window"], active["shadow_recent"])
+        feature = active["shadow_fault_window"][0]
+        self.assertIn("pi10_count", feature)
+        self.assertIn("block_rise_band", feature)
+        self.assertIn("phase", feature)
+        self.assertIn("request_age_band", feature)
+        self.assertNotIn("block", feature)
+        self.assertNotIn("flow", feature)
+
     def test_postburn_temperature_growth_is_measured_without_claiming_cause(self):
         o = Observer("test")
         o.feed(sample(0, relay=False))
