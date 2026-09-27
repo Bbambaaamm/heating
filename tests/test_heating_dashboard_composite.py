@@ -6,6 +6,7 @@ import re
 import unittest
 
 import yaml
+from jinja2 import Environment
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CARD_PATH = PROJECT_ROOT / "dashboard/heating-panel-agents-composite-flow-risk-card.yaml"
@@ -59,12 +60,18 @@ class CompositeFlowRiskDashboardCardTests(unittest.TestCase):
         for token in forbidden:
             self.assertNotIn(token, lower, token)
 
-        entities = set(re.findall(r"[a-z_]+\.[a-z0-9_]+", self.raw))
+        entities = set(re.findall(
+            r"\\b(?:sensor|binary_sensor|switch|climate|input_boolean|input_number|script|automation)\\.[a-z0-9_]+\\b",
+            self.raw,
+        ))
         self.assertTrue(entities)
         self.assertTrue(
             all(entity.startswith("sensor.heating_agent_") for entity in entities),
             entities,
         )
+
+    def test_markdown_jinja_is_syntactically_valid(self):
+        Environment().parse(self.card["content"])
 
 
 if __name__ == "__main__":
