@@ -273,7 +273,7 @@ class ReplayValidationAgent:
             },
             "selection_basis": "evidence_only",
             "validation_used_for_ranking": False,
-            "validation_evaluated_after_selection": True,
+            "validation_evaluated_after_selection": candidate is not None,
             "candidate_rule": candidate["rule"] if candidate else None,
             "candidate": candidate,
             "top_rules": ranked[:12],
