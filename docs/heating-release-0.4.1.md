@@ -20,6 +20,11 @@ differ, and both idle snapshots must report the expected `from_version`.
 Every changed path must classify GREEN under
 `agent_platform/policies/agent-policy.json`. Unknown paths fail closed as RED.
 
+For an actual deployment, use the final immutable SHA from `main` (or a release
+tag resolving to that SHA) **after merge**, together with CI proofs produced for
+that exact SHA. A pre-merge PR head is review evidence, not the deployment
+artifact identity.
+
 ## Automatic PRE decision
 
 Run:
