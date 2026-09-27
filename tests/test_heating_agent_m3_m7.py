@@ -136,6 +136,9 @@ class ReplayAndIntelligenceTests(unittest.TestCase):
             "INSUFFICIENT_FEATURE_EVIDENCE",
         )
         self.assertFalse(replay["composite_flow_risk"]["validation_used_for_ranking"])
+        self.assertFalse(
+            replay["composite_flow_risk"]["validation_evaluated_after_selection"]
+        )
 
     def test_composite_flow_risk_uses_evidence_only_for_selection(self):
         episodes = [
