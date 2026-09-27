@@ -169,6 +169,22 @@ class Runtime:
                 sample["block_reported_at"] = reported
         windows = self.hass.states.get("sensor.heating_schedule_windows")
         active_helpers = windows.attributes.get("active_helpers", []) if windows and windows.state == "ready" else None
+        sample["schedule_active_count"] = len(active_helpers) if active_helpers is not None else None
+
+        weather = self.hass.states.get("weather.forecast_domov")
+        sample["outside_temperature"] = (
+            number(weather.attributes.get("temperature")) if weather is not None else None
+        )
+        sample["outside_humidity"] = (
+            number(weather.attributes.get("humidity")) if weather is not None else None
+        )
+        family = self.hass.states.get("person.rodina")
+        sample["family_home"] = (
+            True if family and family.state == "home"
+            else False if family and family.state == "not_home"
+            else None
+        )
+
         for zone in ZONES:
             raw, state = self._read(f"climate.{zone}")
             attrs = state.attributes if state else {}
