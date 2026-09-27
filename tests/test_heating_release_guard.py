@@ -241,6 +241,13 @@ class ReleaseGuardTests(unittest.TestCase):
         })
         self.assertEqual(result["decision"], "NO_GO")
 
+        excessive_ttl = deployment_lease(lease_until=LEASE_VERIFIED_AT + 1801)
+        result = evaluate_pre_deploy({
+            "release": release(deployment_lease=excessive_ttl),
+            "snapshots": [first, second],
+        })
+        self.assertEqual(result["decision"], "NO_GO")
+
     def test_pre_deploy_returns_accepted_fencing_identity(self):
         first = snapshot()
         second = snapshot(first["observed_at"] + 180)
