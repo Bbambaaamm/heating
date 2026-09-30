@@ -292,6 +292,14 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.assert_target_rejected()
         self.assertEqual(len(self.writes("persistent_notification", "create")), 1)
 
+    async def test_transport_failure_reports_target_notification(self):
+        self.fail_entity = "climate.1p_chodba"
+        await self.assert_target_rejected()
+        self.assertEqual(len(self.writes()), 1, "Transport failure must not blind-retry")
+        notices = self.writes("persistent_notification", "create")
+        self.assertEqual(len(notices), 1)
+        self.assertEqual(notices[0][2]["notification_id"], "heating_target_1p_chodba")
+
     async def test_unacknowledged_hvac_mode_is_not_success_when_target_matches(self):
         self.set("climate.1p_chodba", "off", temperature=21, min_temp=5, max_temp=30)
         async def ignored_mode(call):
