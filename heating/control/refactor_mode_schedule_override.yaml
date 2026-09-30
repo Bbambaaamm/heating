@@ -143,6 +143,7 @@ script:
                         value_template: "{{ climate_state != 'heat' }}"
                     sequence:
                       - action: climate.set_hvac_mode
+                        continue_on_error: true
                         target:
                           entity_id: "{{ climate_entity }}"
                         data:
@@ -161,12 +162,14 @@ script:
                           - (target | float(0))) | abs > 0.1 }}
                 then:
                   - action: climate.set_temperature
+                    continue_on_error: true
                     target:
                       entity_id: "{{ climate_entity }}"
                     data:
                       temperature: "{{ target | round(1) }}"
               # Check current state too: a report can arrive before the wait starts.
-              # One bounded wait, no blind retries. A newer intent cancels verification.
+              # First use a short confirmation window. If the Zigbee write was only
+              # transiently lost, perform exactly one guarded, idempotent retry.
               - wait_template: >-
                   {{ not is_state('input_boolean.topny_system_enable', 'on')
                      or (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] != decision_inputs
@@ -175,8 +178,63 @@ script:
                          and is_number(state_attr(climate_entity, 'temperature'))
                          and ((state_attr(climate_entity, 'temperature') | float(0))
                               - (target | round(1))) | abs <= 0.1) }}
-                timeout: "00:00:30"
+                timeout: "00:00:05"
                 continue_on_timeout: true
+              - condition: state
+                entity_id: input_boolean.topny_system_enable
+                state: "on"
+              - condition: template
+                value_template: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}"
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ has_value(climate_entity)
+                         and not (is_state(climate_entity, 'heat')
+                                  and is_number(state_attr(climate_entity, 'temperature'))
+                                  and ((state_attr(climate_entity, 'temperature') | float(0))
+                                       - (target | round(1))) | abs <= 0.1) }}
+                then:
+                  - delay: "00:00:02"
+                  # Never retry a stale decision after the backoff.
+                  - condition: state
+                    entity_id: input_boolean.topny_system_enable
+                    state: "on"
+                  - condition: template
+                    value_template: "{{ (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] == decision_inputs }}"
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ not is_state(climate_entity, 'heat') }}"
+                        sequence:
+                          - action: climate.set_hvac_mode
+                            continue_on_error: true
+                            target:
+                              entity_id: "{{ climate_entity }}"
+                            data:
+                              hvac_mode: heat
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ not is_number(state_attr(climate_entity, 'temperature'))
+                             or ((state_attr(climate_entity, 'temperature') | float(target))
+                              - (target | float(0))) | abs > 0.1 }}
+                    then:
+                      - action: climate.set_temperature
+                        continue_on_error: true
+                        target:
+                          entity_id: "{{ climate_entity }}"
+                        data:
+                          temperature: "{{ target | round(1) }}"
+                  - wait_template: >-
+                      {{ not is_state('input_boolean.topny_system_enable', 'on')
+                         or (decision_entities | map('states') | list) + [schedule_helper in (state_attr('sensor.heating_schedule_windows', 'active_helpers') or [])] != decision_inputs
+                         or not has_value(climate_entity)
+                         or (is_state(climate_entity, 'heat')
+                             and is_number(state_attr(climate_entity, 'temperature'))
+                             and ((state_attr(climate_entity, 'temperature') | float(0))
+                                  - (target | round(1))) | abs <= 0.1) }}
+                    timeout: "00:00:15"
+                    continue_on_timeout: true
               - condition: state
                 entity_id: input_boolean.topny_system_enable
                 state: "on"
@@ -200,7 +258,7 @@ script:
                         {{ target | round(1) }} °C ({{ reason }}).
                         Stav: {{ states(climate_entity) }},
                         hlášený cíl: {{ state_attr(climate_entity, 'temperature') }} °C.
-                        Automatické opakování nebylo provedeno. Zkontrolujte hlavici a spojení.
+                        Proběhl jeden bezpečný retry; další opakování nebylo provedeno. Zkontrolujte hlavici a spojení.
                   - stop: "Hlavice nehlásí požadovaný režim nebo cílovou teplotu."
                     error: true
               - action: persistent_notification.dismiss
