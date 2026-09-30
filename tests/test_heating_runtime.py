@@ -53,6 +53,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         dt_util.set_default_time_zone(dt_util.get_time_zone("Europe/Prague"))
         self.calls = []
         self.fail_entity = None
+        self.fail_once_entity = None
+        self.fail_once_remaining = 0
         self.ignore_temperature_entity = None
         self.scripts = []
         self.set("input_select.topny_rezim", "Auto")
@@ -114,6 +116,10 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             entity = entity[0]
         if call.domain == "climate" and entity == self.fail_entity:
             raise HomeAssistantError("Injected device communication failure")
+        if (call.domain == "climate" and call.service == "set_temperature"
+                and entity == self.fail_once_entity and self.fail_once_remaining > 0):
+            self.fail_once_remaining -= 1
+            raise HomeAssistantError("Injected transient device communication failure")
         if call.service == "set_temperature" and entity == self.ignore_temperature_entity:
             return  # Service accepted, but the device did not report the target.
         if not entity:
@@ -163,6 +169,8 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             if isinstance(obj, dict):
                 if "wait_template" in obj and "timeout" in obj:
                     obj["timeout"] = {"milliseconds": 150}
+                if "delay" in obj:
+                    obj["delay"] = {"milliseconds": 20}
                 for value in obj.values():
                     scale_confirmation(value)
             elif isinstance(obj, list):
@@ -250,15 +258,23 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.apply()
         self.assertEqual(len(self.writes()), 1)
 
-    async def test_unacknowledged_target_reports_failure_without_debug(self):
+    async def test_unacknowledged_target_retries_once_then_reports_failure(self):
         self.ignore_temperature_entity = "climate.1p_chodba"
         await self.assert_target_rejected()
-        self.assertEqual(len(self.writes()), 1, "No blind retry of an old target")
+        self.assertEqual(len(self.writes()), 2, "Exactly one guarded retry is allowed")
         notices = self.writes("persistent_notification", "create")
         self.assertEqual(len(notices), 1)
         self.assertEqual(notices[0][2]["notification_id"], "heating_target_1p_chodba")
         self.assertFalse(any("potvrzen" in c[2].get("message", "").lower()
                              for c in self.writes("logbook", "log")))
+
+    async def test_transient_delivery_failure_retries_once_and_recovers(self):
+        self.fail_once_entity = "climate.1p_chodba"
+        self.fail_once_remaining = 1
+        await self.apply()
+        self.assertEqual(len(self.writes()), 2)
+        self.assertEqual(self.hass.states.get("climate.1p_chodba").attributes["temperature"], 21)
+        self.assertEqual(self.writes("persistent_notification", "create"), [])
 
     async def test_delayed_target_report_is_confirmed(self):
         self.ignore_temperature_entity = "climate.1p_chodba"
