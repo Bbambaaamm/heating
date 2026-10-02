@@ -821,6 +821,39 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
                                   "this": {"entity_id": "automation.test"}})
         self.assertEqual(self.hass.states.get("input_boolean.prizemi_michal_manual_override").state, "on")
 
+    async def test_parentless_hydraulic_support_report_is_not_manual_override(self):
+        instance = next(a for a in read("automations.yaml")
+                        if a.get("use_blueprint", {}).get("input", {}).get("climate_entity")
+                        == "climate.1p_chodba")
+        a = self.expanded_blueprint("smart_zone_schedule", instance["use_blueprint"]["input"])
+        self.set("input_select.topeni_hydraulicka_podpurna_zona", "climate.1p_chodba")
+        self.set("sensor.heating_schedule_windows", "ready", active_helpers=[])
+        before = self.hass.states.get("climate.1p_chodba")
+        self.hass.states.async_set(
+            "climate.1p_chodba",
+            "heat",
+            dict(before.attributes, temperature=29),
+            context=Context(),
+        )
+        after = self.hass.states.get("climate.1p_chodba")
+        await self.run_automation(
+            a,
+            {
+                "trigger": {
+                    "platform": "state",
+                    "entity_id": "climate.1p_chodba",
+                    "from_state": before,
+                    "to_state": after,
+                },
+                "this": {"entity_id": "automation.test"},
+            },
+        )
+        self.assertEqual(
+            self.hass.states.get("input_boolean.1p_chodba_manual_override").state,
+            "off",
+        )
+        self.assertEqual(self.hass.states.get("input_number.1p_chodba_last_comfort").state, "21")
+
     async def test_low_flow_fault_stops_relay_before_opening_all_valves(self):
         self.set("switch.kotel_rele_spinac", "on")
         self.set("input_boolean.boost_now", "on")
