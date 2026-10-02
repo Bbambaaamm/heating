@@ -260,6 +260,11 @@ variables:
        and mode in ['Auto', 'Eco', 'Boost']
        and ((new_set | float(0)) - (expected_target | float(0))) | abs <= 0.1 }}
 
+  is_hydraulic_support_report: >-
+    {{ is_climate_trigger
+       and states('input_select.topeni_hydraulicka_podpurna_zona') == climate_entity
+       and ((new_set | float(0)) - 29.0) | abs <= 0.1 }}
+
   is_internal_climate_change: >
     {{ is_climate_trigger
        and trigger is defined
@@ -267,7 +272,8 @@ variables:
        and trigger.to_state.context is defined
        and trigger.to_state.context.user_id is none
        and (trigger.to_state.context.parent_id is not none
-            or is_expected_policy_report) }}
+            or is_expected_policy_report
+            or is_hydraulic_support_report) }}
 
   # -----------------------------------------------------------------
   # 🧠 Ruční zásah uživatele (UI / fyzická hlavice)
@@ -287,6 +293,7 @@ variables:
            trigger.to_state.context.user_id is none
            and trigger.to_state.context.parent_id is none
            and not is_expected_policy_report
+           and not is_hydraulic_support_report
          )
        ) }}
 
