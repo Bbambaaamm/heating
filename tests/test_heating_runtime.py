@@ -206,6 +206,9 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "sensor.kotel_effective_on_delay_sec": "120",
             "sensor.kotel_effective_off_delay_sec": "300",
             "switch.kotel_rele_spinac": relay,
+            "binary_sensor.boiler_ww3wayvalve": "off",
+            "binary_sensor.boiler_wwcharging": "off",
+            "binary_sensor.boiler_tapwateractive": "off",
         }.items():
             self.set(entity, value)
 
@@ -512,6 +515,31 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         off_delay = next(step["delay"]["seconds"] for step in turn_off["action"] if "delay" in step)
         self.assertEqual(self.render(on_delay), 120)
         self.assertEqual(self.render(off_delay), 30)
+
+    async def test_boiler_cannot_start_while_tuv_path_is_active(self):
+        self.boiler_inputs(requested=True)
+        self.set("binary_sensor.boiler_ww3wayvalve", "on")
+        await self.run_automation(self.fast_boiler("kotel_turn_on_by_policy"))
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+
+    async def test_tuv_interlock_immediately_drops_heating_relay(self):
+        self.boiler_inputs(requested=True, relay="on")
+        await self.load_automations([automation("heating/control/kotel_control.yaml",
+                                                "kotel_tuv_relay_interlock")])
+        self.set("binary_sensor.boiler_ww3wayvalve", "on")
+        await asyncio.sleep(0.03)
+        self.assertEqual(self.hass.states.get("switch.kotel_rele_spinac").state, "off")
+        self.assertEqual(len(self.writes("switch", "turn_off")), 1)
+
+    async def test_tuv_end_restarts_full_boiler_start_delay(self):
+        self.boiler_inputs(requested=True)
+        self.set("binary_sensor.boiler_ww3wayvalve", "on")
+        await self.load_automations([self.fast_boiler("kotel_turn_on_by_policy")])
+        self.set("binary_sensor.boiler_ww3wayvalve", "off")
+        await asyncio.sleep(0.04)
+        self.assertEqual(self.writes("switch", "turn_on"), [])
+        await asyncio.sleep(0.06)
+        self.assertEqual(len(self.writes("switch", "turn_on")), 1)
 
     async def test_boiler_on_delay_survives_boost_attribute_reports(self):
         self.boiler_inputs(requested=False)
