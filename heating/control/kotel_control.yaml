@@ -13,6 +13,9 @@ automation:
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
           - binary_sensor.kotel_mode_off_block
+          - binary_sensor.boiler_ww3wayvalve
+          - binary_sensor.boiler_wwcharging
+          - binary_sensor.boiler_tapwateractive
         to: null
       - trigger: state
         entity_id: sensor.kotel_effective_on_delay_sec
@@ -41,6 +44,15 @@ automation:
       - condition: state
         entity_id: binary_sensor.kotel_mode_off_block
         state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_ww3wayvalve
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_wwcharging
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_tapwateractive
+        state: "off"
       - delay:
           # Druhá nezávislá pojistka: ani vadný efektivní senzor nesmí
           # spustit kotel dříve, než se termostatické ventily otevřou.
@@ -53,6 +65,15 @@ automation:
         state: ["Auto", "Eco", "Boost"]
       - condition: state
         entity_id: binary_sensor.kotel_mode_off_block
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_ww3wayvalve
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_wwcharging
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_tapwateractive
         state: "off"
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
@@ -101,3 +122,48 @@ automation:
       - action: switch.turn_off
         target:
           entity_id: switch.kotel_rele_spinac
+
+
+  - alias: "Kotel: TUV interlock relé"
+    id: kotel_tuv_relay_interlock
+    description: >-
+      TUV má hydraulickou prioritu. Jakmile je aktivní třícestný ventil,
+      nabíjení TUV nebo přímý TUV požadavek, topné relé musí okamžitě
+      odpadnout a nesmí se znovu sepnout, dokud TUV cesta nezmizí.
+    mode: restart
+    trigger:
+      - trigger: state
+        entity_id:
+          - binary_sensor.boiler_ww3wayvalve
+          - binary_sensor.boiler_wwcharging
+          - binary_sensor.boiler_tapwateractive
+        to: "on"
+      - trigger: state
+        entity_id: switch.kotel_rele_spinac
+        to: "on"
+    condition:
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: binary_sensor.boiler_ww3wayvalve
+            state: "on"
+          - condition: state
+            entity_id: binary_sensor.boiler_wwcharging
+            state: "on"
+          - condition: state
+            entity_id: binary_sensor.boiler_tapwateractive
+            state: "on"
+      - condition: state
+        entity_id: switch.kotel_rele_spinac
+        state: "on"
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+      - action: logbook.log
+        data:
+          name: "Topení – TUV interlock"
+          entity_id: switch.kotel_rele_spinac
+          message: >-
+            Topné relé bylo vypnuto, protože kotel je v TUV hydraulické cestě.
+            Nový topný start dostane po skončení TUV znovu plnou 120s prodlevu.
