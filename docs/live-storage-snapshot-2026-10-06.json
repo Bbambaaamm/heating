@@ -1,0 +1,1921 @@
+{
+  "generated_at": "2026-10-06",
+  "purpose": "Documentation-only snapshot of critical storage-managed heating objects. Do not load this file as Home Assistant configuration.",
+  "migration_rules": [
+    "Do not duplicate these storage-managed objects in YAML while the live objects exist.",
+    "Migrate storage-managed objects to config-as-code atomically.",
+    "Remove automation.topeni_tuv_interlock_rele_live atomically when versioned kotel_tuv_relay_interlock is deployed."
+  ],
+  "objects": {
+    "automation.topeni_hydraulicka_podpora_jedine_zadajici_zony": {
+      "config_hash": "f6e608e6dbed2506",
+      "config": {
+        "id": "heating_hydraulic_support_start",
+        "alias": "Topení – hydraulická podpora jediné žádající zóny",
+        "description": "Když pouze jedna zóna skutečně žádá teplo, otevře jednu zdravou pomocnou TRV zónu. Tvrdé minimum dvou aktivních zón zůstává zachováno. Cooldown se spouští jen při skutečném timeoutu podpůrné hlavice; zrušení podpory reconcilerem nebo změnou systémového stavu se za poruchu nepovažuje.",
+        "triggers": [
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "above": 0,
+            "below": 2,
+            "id": "single_zone"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_threshold_ok_avg_demand",
+            "to": "on",
+            "id": "demand_ok"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "periodic"
+          },
+          {
+            "trigger": "event",
+            "event_type": "heating_hydraulic_support_retry",
+            "id": "retry"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topny_rezim",
+            "state": [
+              "Auto",
+              "Eco",
+              "Boost"
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_mode_off_block",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_threshold_ok_avg_demand",
+            "state": "on"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "above": 0,
+            "below": 2
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topeni_hydraulicka_podpurna_zona",
+            "state": "none"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_central_dispatch_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_dispatch_inputs_available",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_startup_reconcile_guard",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "timer.topeni_hydraulicka_podpora_cooldown",
+            "state": "idle"
+          }
+        ],
+        "actions": [
+          {
+            "variables": {
+              "support_zone": "{% if is_state('binary_sensor.heating_valve_1p_chodba_alive','on')\n   and is_state('binary_sensor.zona_1p_chodba_okno_otevrene','off')\n   and is_state('input_boolean.schedule_enable_1p_chodba','on')\n   and is_state('input_boolean.1p_chodba_manual_override','off')\n   and (states('sensor.zona_1p_chodba_demand') | float(0)) < (states('input_number.kotel_min_zone_demand_pct') | float(70))\n   and states('climate.1p_chodba') not in ['unknown','unavailable',''] %}\nclimate.1p_chodba\n{% elif is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive','on')\n   and is_state('binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene','off')\n   and is_state('input_boolean.schedule_enable_prizemi_chodba_zachod','on')\n   and is_state('input_boolean.prizemi_chodba_zachod_manual_override','off')\n   and (states('sensor.zona_prizemi_chodba_zachod_demand') | float(0)) < (states('input_number.kotel_min_zone_demand_pct') | float(70))\n   and states('climate.prizemi_chodba_zachod') not in ['unknown','unavailable',''] %}\nclimate.prizemi_chodba_zachod\n{% else %}none{% endif %}"
+            }
+          },
+          {
+            "condition": "template",
+            "value_template": "{{ support_zone | trim != 'none' }}"
+          },
+          {
+            "action": "input_select.select_option",
+            "target": {
+              "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+            },
+            "data": {
+              "option": "{{ support_zone | trim }}"
+            }
+          },
+          {
+            "action": "script.heating_apply_zone_target",
+            "continue_on_error": true,
+            "data": {
+              "climate_entity": "{{ support_zone | trim }}",
+              "requested_temp": 29,
+              "reason": "hydraulic_support_single_requester"
+            }
+          },
+          {
+            "wait_template": "{% set z = support_zone | trim %}\n{{ (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >= 2\n   or not is_state('input_boolean.topny_system_enable','on')\n   or is_state('input_boolean.heating_service_mode','on')\n   or states('input_select.topeni_hydraulicka_podpurna_zona') != z }}",
+            "timeout": "00:05:00",
+            "continue_on_timeout": true
+          },
+          {
+            "variables": {
+              "support_zone_now": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') }}",
+              "support_id": "{{ states('input_select.topeni_hydraulicka_podpurna_zona').split('.')[1] if '.' in states('input_select.topeni_hydraulicka_podpurna_zona') else '' }}",
+              "support_confirmed": "{% set z = states('input_select.topeni_hydraulicka_podpurna_zona') %}\n{% set zid = z.split('.')[1] if '.' in z else '' %}\n{{ z in ['climate.1p_chodba','climate.prizemi_chodba_zachod']\n   and is_state('input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah','on')\n   and (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >= 2\n   and is_state('binary_sensor.' ~ zid ~ '_potrebne_teplo','on')\n   and is_number(state_attr(z,'temperature'))\n   and ((state_attr(z,'temperature') | float(0)) - 29) | abs <= 0.1 }}"
+            }
+          },
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Hydraulická podpora potvrzena: {{ support_zone_now }} je otevřená, původní hard-floor zůstává 2 zóny a agregace nyní bezpečně vidí alespoň dvě zóny.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_zone_now != (support_zone | trim) or not is_state('input_boolean.topny_system_enable','on') or is_state('input_boolean.heating_service_mode','on') }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_start",
+                      "reason": "support_aborted_without_cooldown"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora byla zrušena změnou systému nebo reconcilerem. Nejde o selhání TRV; cooldown se nespouští.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Podpora byla korektně zrušena bez penalizačního cooldownu."
+                  }
+                ]
+              }
+            ],
+            "default": [
+              {
+                "if": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                    "state": "on"
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "input_number.set_value",
+                    "target": {
+                      "entity_id": "input_number.kotel_min_zone_demand_pct"
+                    },
+                    "data": {
+                      "value": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}"
+                    }
+                  },
+                  {
+                    "action": "input_boolean.turn_off",
+                    "target": {
+                      "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                    }
+                  }
+                ]
+              },
+              {
+                "action": "input_select.select_option",
+                "target": {
+                  "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                },
+                "data": {
+                  "option": "none"
+                }
+              },
+              {
+                "event": "heating_reconcile_requested",
+                "event_data": {
+                  "source": "heating_hydraulic_support_start",
+                  "reason": "support_not_confirmed"
+                }
+              },
+              {
+                "action": "timer.start",
+                "target": {
+                  "entity_id": "timer.topeni_hydraulicka_podpora_cooldown"
+                },
+                "data": {
+                  "duration": "00:15:00"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_hydraulic_support_failed",
+                  "title": "Topení – hydraulická podpora nepotvrzena",
+                  "message": "Pomocná TRV zóna se do 5 minut nepotvrdila jako bezpečná hydraulická podpora a agregace nedosáhla dvou započítaných zón. Původní práh byl obnoven a kotel zůstal blokovaný."
+                }
+              }
+            ]
+          }
+        ],
+        "mode": "single",
+        "max_exceeded": "silent"
+      }
+    },
+    "automation.topeni_hlidani_a_navrat_hydraulicke_podpory": {
+      "config_hash": "8a67d02bee709b57",
+      "config": {
+        "id": "heating_hydraulic_support_guard",
+        "alias": "Topení – hlídání a návrat hydraulické podpory",
+        "description": "Drží pomocnou TRV na 29 °C pro jednu skutečně žádající zónu. Po potvrzení Danfoss Potřebné teplo dočasně sníží kotlový min. demand zóny jen na PI pomocné zóny. Po výběru podpory toleruje 30 s přechod real_high_count=0, během kterého práh nesnižuje; tím se odfiltruje PI settling po obnově/dispatchi. Tvrdé minimum dvou průtokových cest zůstává zachováno.",
+        "triggers": [
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "startup"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.topeni_hydraulicka_podpurna_zona",
+            "to": null,
+            "id": "support_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "to": null,
+            "id": "count_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "sensor.zona_sklep_michal_demand",
+              "sensor.zona_prizemi_michal_demand",
+              "sensor.zona_prizemi_chodba_zachod_demand",
+              "sensor.zona_1p_jidelna_demand",
+              "sensor.zona_1p_kuchyn_demand",
+              "sensor.zona_1p_koupelna_demand",
+              "sensor.zona_1p_chodba_demand",
+              "sensor.zona_2p_mama_demand"
+            ],
+            "to": null,
+            "id": "zone_demand_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "input_boolean.topny_system_enable",
+              "input_boolean.heating_service_mode",
+              "input_select.topny_rezim"
+            ],
+            "to": null,
+            "id": "system_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.heating_valve_1p_chodba_alive",
+              "binary_sensor.heating_valve_prizemi_chodba_zachod_alive",
+              "binary_sensor.zona_1p_chodba_okno_otevrene",
+              "binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene",
+              "input_boolean.schedule_enable_1p_chodba",
+              "input_boolean.schedule_enable_prizemi_chodba_zachod",
+              "input_boolean.1p_chodba_manual_override",
+              "input_boolean.prizemi_chodba_zachod_manual_override"
+            ],
+            "to": null,
+            "id": "support_eligibility"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.1p_chodba_potrebne_teplo",
+              "binary_sensor.prizemi_chodba_zachod_potrebne_teplo",
+              "sensor.1p_chodba_pozadavek_na_vytapeni_pi",
+              "sensor.prizemi_chodba_zachod_pozadavek_na_vytapeni_pi"
+            ],
+            "to": null,
+            "id": "support_feedback"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "climate.1p_chodba",
+              "climate.prizemi_chodba_zachod"
+            ],
+            "attribute": "temperature",
+            "to": null,
+            "id": "target_changed"
+          },
+          {
+            "trigger": "event",
+            "event_type": "heating_reconcile_requested",
+            "id": "reconcile"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "periodic"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "delay": "00:00:02"
+          },
+          {
+            "variables": {
+              "support_zone": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') }}",
+              "support_id": "{{ states('input_select.topeni_hydraulicka_podpurna_zona').split('.')[1] if '.' in states('input_select.topeni_hydraulicka_podpurna_zona') else '' }}",
+              "support_selected": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') in ['climate.1p_chodba','climate.prizemi_chodba_zachod'] }}"
+            }
+          },
+          {
+            "variables": {
+              "threshold_lowered": "{{ is_state('input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah','on') }}",
+              "saved_threshold": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}",
+              "current_threshold": "{{ states('input_number.kotel_min_zone_demand_pct') | float(70) }}",
+              "support_pi": "{{ states('sensor.' ~ support_id ~ '_pozadavek_na_vytapeni_pi') | float(0) if support_selected else 0 }}",
+              "support_needed_heat": "{{ support_selected and is_state('binary_sensor.' ~ support_id ~ '_potrebne_teplo','on') }}",
+              "candidate_healthy": "{{ support_selected and states(support_zone) not in ['unknown','unavailable',''] and is_state('binary_sensor.heating_valve_' ~ support_id ~ '_alive','on') and is_state('binary_sensor.zona_' ~ support_id ~ '_okno_otevrene','off') and is_state('input_boolean.schedule_enable_' ~ support_id,'on') and is_state('input_boolean.' ~ support_id ~ '_manual_override','off') }}",
+              "target_is_support": "{{ support_selected and is_number(state_attr(support_zone,'temperature')) and ((state_attr(support_zone,'temperature') | float(0)) - 29) | abs <= 0.1 }}",
+              "support_age_sec": "{{ (as_timestamp(now()) - as_timestamp(states.input_select.topeni_hydraulicka_podpurna_zona.last_changed)) | int(0) }}",
+              "original_threshold": "{{ (states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70)) if is_state('input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah','on') else (states('input_number.kotel_min_zone_demand_pct') | float(70)) }}"
+            }
+          },
+          {
+            "variables": {
+              "real_high_count": "{% set ns = namespace(n=0) %}\n{% for z in ['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_jidelna','1p_kuchyn','1p_koupelna','1p_chodba','2p_mama'] %}\n  {% if ('climate.' ~ z) != support_zone\n        and is_state('binary_sensor.zona_' ~ z ~ '_aktivni','on')\n        and (states('sensor.zona_' ~ z ~ '_demand') | float(0)) >= (original_threshold | float(70)) %}\n    {% set ns.n = ns.n + 1 %}\n  {% endif %}\n{% endfor %}\n{{ ns.n }}",
+              "support_confirmed": "{{ support_selected and candidate_healthy and target_is_support and support_needed_heat and (support_pi | float(0)) >= 5 }}",
+              "desired_bridge_threshold": "{{ [[[support_pi | float(0), 5] | max, original_threshold | float(70)] | min, 0] | max }}"
+            }
+          },
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not support_selected }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "stop": "Hydraulická podpora není vybraná."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not is_state('input_boolean.topny_system_enable','on') or is_state('input_boolean.heating_service_mode','on') or states('input_select.topny_rezim') == 'Off' or not candidate_healthy }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "support_ineligible"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora ukončena: zóna není způsobilá nebo systém/režim ji nedovoluje.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Podpora ukončena – neplatné bezpečnostní podmínky."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ (real_high_count | int(0)) == 0 and (support_age_sec | int(0)) < 30 }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "PI settling: po výběru podpory dočasně není silně žádající zóna. Po dobu max. 30 s ponechávám podpůrnou TRV otevřenou, ale nesnižuji kotlový práh.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "30s stabilizační okno PI – podpora zůstává otevřená, práh zůstává bezpečný."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ real_high_count | int(0) != 1 }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "real_requester_count_changed"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora ukončena; skutečných silně žádajících zón={{ real_high_count }}.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Počet skutečných žádajících zón už není 1."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not target_is_support }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "script.heating_apply_zone_target",
+                    "continue_on_error": true,
+                    "data": {
+                      "climate_entity": "{{ support_zone }}",
+                      "requested_temp": 29,
+                      "reason": "hydraulic_support_maintain"
+                    }
+                  },
+                  {
+                    "stop": "Centrální dispatch přepsal podporu – znovu otevírám, práh zůstává bezpečný."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ (not support_confirmed) and (support_age_sec | int(0) >= 300) }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "support_confirmation_timeout"
+                    }
+                  },
+                  {
+                    "action": "timer.start",
+                    "target": {
+                      "entity_id": "timer.topeni_hydraulicka_podpora_cooldown"
+                    },
+                    "data": {
+                      "duration": "00:15:00"
+                    }
+                  },
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_hydraulic_support_timeout",
+                      "title": "Topení – hydraulická podpora nepotvrzena",
+                      "message": "Pomocná hlavice do 5 minut nepotvrdila Potřebné teplo + PI ≥ 5 %. Práh kotle nebyl ponechán snížený a podpora byla ukončena."
+                    }
+                  },
+                  {
+                    "stop": "Timeout potvrzení hydraulické podpory."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "stop": "Čekám na potvrzení Potřebné teplo + PI pomocné zóny."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "choose": [
+                      {
+                        "conditions": [
+                          {
+                            "condition": "template",
+                            "value_template": "{{ (desired_bridge_threshold | float(0)) < (original_threshold | float(70)) }}"
+                          }
+                        ],
+                        "sequence": [
+                          {
+                            "if": [
+                              {
+                                "condition": "state",
+                                "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                                "state": "off"
+                              }
+                            ],
+                            "then": [
+                              {
+                                "action": "input_number.set_value",
+                                "target": {
+                                  "entity_id": "input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony"
+                                },
+                                "data": {
+                                  "value": "{{ current_threshold }}"
+                                }
+                              },
+                              {
+                                "action": "input_boolean.turn_on",
+                                "target": {
+                                  "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "action": "input_number.set_value",
+                            "target": {
+                              "entity_id": "input_number.kotel_min_zone_demand_pct"
+                            },
+                            "data": {
+                              "value": "{{ desired_bridge_threshold }}"
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "default": [
+                      {
+                        "if": [
+                          {
+                            "condition": "state",
+                            "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                            "state": "on"
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "input_number.set_value",
+                            "target": {
+                              "entity_id": "input_number.kotel_min_zone_demand_pct"
+                            },
+                            "data": {
+                              "value": "{{ saved_threshold }}"
+                            }
+                          },
+                          {
+                            "action": "input_boolean.turn_off",
+                            "target": {
+                              "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora potvrzena: {{ support_zone }}, Potřebné teplo=ON, PI={{ support_pi }} %. Efektivní práh={{ desired_bridge_threshold }} %, původní={{ original_threshold }} %.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    "script.heating_restore_schedule_after_service": {
+      "config_hash": "02212692343f8635",
+      "config": {
+        "alias": "Topení – obnova rozvrhů po servisu",
+        "description": "Obnoví cíle všech 8 zón podle aktuálního Auto/ECO/Comfort stavu a explicitně potvrdí heating_restore_verified až PO posledním bezpečnostním vypnutí masteru a relé. Tím recovery reconciler nemůže být následně přepsán pozdním turn_off z restore skriptu.",
+        "mode": "single",
+        "max_exceeded": "silent",
+        "sequence": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_restore_verified"
+            }
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_service_restore_main_enable"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "binary_sensor.boiler_burngas",
+                    "state": "off"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "binary_sensor.boiler_burngas",
+                    "to": "off"
+                  }
+                ],
+                "timeout": "00:05:00",
+                "continue_on_timeout": false
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "binary_sensor.boiler_heatingpump",
+                    "state": "off"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "binary_sensor.boiler_heatingpump",
+                    "to": "off"
+                  }
+                ],
+                "timeout": "00:05:00",
+                "continue_on_timeout": false
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "automation.topeni_fail_safe_nedostatecny_prutok_kotlem",
+                    "attribute": "current",
+                    "state": 0
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "automation.topeni_fail_safe_nedostatecny_prutok_kotlem",
+                    "attribute": "current",
+                    "to": 0
+                  }
+                ],
+                "timeout": "00:02:00",
+                "continue_on_timeout": false
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "variables": {
+              "targets": "{% set ns = namespace(values={}) %}\n{% set eco = states('input_number.eco_temp_default') | float(default=none) %}\n{% set mode = states('input_select.topny_rezim') %}\n{% set active = state_attr('sensor.heating_schedule_windows', 'active_helpers') or [] %}\n{% for z in [\"sklep_michal\",\"prizemi_michal\",\"prizemi_chodba_zachod\",\"1p_jidelna\",\"1p_kuchyn\",\"1p_koupelna\",\"1p_chodba\",\"2p_mama\"] %}\n{% set comfort = states('input_number.' ~ z ~ '_last_comfort') | float(default=none) %}\n{% set enabled = is_state('input_boolean.schedule_enable_' ~ z, 'on') %}\n{% set manual = is_state('input_boolean.' ~ z ~ '_manual_override', 'on') and (is_state('input_select.' ~ z ~ '_manual_override_type', 'Do další změny rozvrhu') or (is_state('input_select.' ~ z ~ '_manual_override_type', 'Časovač') and is_state('timer.' ~ z ~ '_manual_override', 'active'))) %}\n{% set in_window = 'input_boolean.' ~ z ~ '_schedule_active' in active %}\n{% set boost = is_state('binary_sensor.kotel_boost_active', 'on') %}\n{% set value = eco if not enabled else comfort if manual else comfort + (states('input_number.boost_comfort_offset_c') | float(0)) if boost and comfort is not none else eco if mode in ['Eco', 'Vypnuto', 'Off'] else comfort if in_window else eco %}\n{% set low = state_attr('climate.' ~ z, 'min_temp') | float(5) %}\n{% set high = state_attr('climate.' ~ z, 'max_temp') | float(29) %}\n{% set ns.values = dict(ns.values, **{z: ([[value, low] | max, high] | min if value is not none else none)}) %}\n{% endfor %}\n{{ ns.values }}"
+            }
+          },
+          {
+            "parallel": [
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['sklep_michal'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.sklep_michal', 'temperature') is number and targets['sklep_michal'] is number and ((state_attr('climate.sklep_michal', 'temperature') | float) - (targets['sklep_michal'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.sklep_michal"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['sklep_michal'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.sklep_michal', 'temperature') is number and targets['sklep_michal'] is number and ((state_attr('climate.sklep_michal', 'temperature') | float) - (targets['sklep_michal'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_sklep_michal",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice sklep_michal nepotvrdila požadovaný cíl {{ targets['sklep_michal'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_sklep_michal",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro sklep_michal chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['prizemi_michal'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.prizemi_michal', 'temperature') is number and targets['prizemi_michal'] is number and ((state_attr('climate.prizemi_michal', 'temperature') | float) - (targets['prizemi_michal'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.prizemi_michal"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['prizemi_michal'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.prizemi_michal', 'temperature') is number and targets['prizemi_michal'] is number and ((state_attr('climate.prizemi_michal', 'temperature') | float) - (targets['prizemi_michal'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_prizemi_michal",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice prizemi_michal nepotvrdila požadovaný cíl {{ targets['prizemi_michal'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_prizemi_michal",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro prizemi_michal chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['prizemi_chodba_zachod'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.prizemi_chodba_zachod', 'temperature') is number and targets['prizemi_chodba_zachod'] is number and ((state_attr('climate.prizemi_chodba_zachod', 'temperature') | float) - (targets['prizemi_chodba_zachod'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.prizemi_chodba_zachod"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['prizemi_chodba_zachod'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.prizemi_chodba_zachod', 'temperature') is number and targets['prizemi_chodba_zachod'] is number and ((state_attr('climate.prizemi_chodba_zachod', 'temperature') | float) - (targets['prizemi_chodba_zachod'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_prizemi_chodba_zachod",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice prizemi_chodba_zachod nepotvrdila požadovaný cíl {{ targets['prizemi_chodba_zachod'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_prizemi_chodba_zachod",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro prizemi_chodba_zachod chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['1p_jidelna'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.1p_jidelna', 'temperature') is number and targets['1p_jidelna'] is number and ((state_attr('climate.1p_jidelna', 'temperature') | float) - (targets['1p_jidelna'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.1p_jidelna"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['1p_jidelna'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.1p_jidelna', 'temperature') is number and targets['1p_jidelna'] is number and ((state_attr('climate.1p_jidelna', 'temperature') | float) - (targets['1p_jidelna'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_1p_jidelna",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice 1p_jidelna nepotvrdila požadovaný cíl {{ targets['1p_jidelna'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_1p_jidelna",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro 1p_jidelna chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['1p_kuchyn'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.1p_kuchyn', 'temperature') is number and targets['1p_kuchyn'] is number and ((state_attr('climate.1p_kuchyn', 'temperature') | float) - (targets['1p_kuchyn'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.1p_kuchyn"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['1p_kuchyn'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.1p_kuchyn', 'temperature') is number and targets['1p_kuchyn'] is number and ((state_attr('climate.1p_kuchyn', 'temperature') | float) - (targets['1p_kuchyn'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_1p_kuchyn",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice 1p_kuchyn nepotvrdila požadovaný cíl {{ targets['1p_kuchyn'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_1p_kuchyn",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro 1p_kuchyn chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['1p_koupelna'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.1p_koupelna', 'temperature') is number and targets['1p_koupelna'] is number and ((state_attr('climate.1p_koupelna', 'temperature') | float) - (targets['1p_koupelna'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.1p_koupelna"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['1p_koupelna'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.1p_koupelna', 'temperature') is number and targets['1p_koupelna'] is number and ((state_attr('climate.1p_koupelna', 'temperature') | float) - (targets['1p_koupelna'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_1p_koupelna",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice 1p_koupelna nepotvrdila požadovaný cíl {{ targets['1p_koupelna'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_1p_koupelna",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro 1p_koupelna chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['1p_chodba'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.1p_chodba', 'temperature') is number and targets['1p_chodba'] is number and ((state_attr('climate.1p_chodba', 'temperature') | float) - (targets['1p_chodba'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.1p_chodba"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['1p_chodba'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.1p_chodba', 'temperature') is number and targets['1p_chodba'] is number and ((state_attr('climate.1p_chodba', 'temperature') | float) - (targets['1p_chodba'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_1p_chodba",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice 1p_chodba nepotvrdila požadovaný cíl {{ targets['1p_chodba'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_1p_chodba",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro 1p_chodba chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "off"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ targets['2p_mama'] is number }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "repeat": {
+                          "count": 3,
+                          "sequence": [
+                            {
+                              "condition": "state",
+                              "entity_id": "input_boolean.heating_service_mode",
+                              "state": "off"
+                            },
+                            {
+                              "if": [
+                                {
+                                  "condition": "not",
+                                  "conditions": [
+                                    {
+                                      "condition": "template",
+                                      "value_template": "{{ state_attr('climate.2p_mama', 'temperature') is number and targets['2p_mama'] is number and ((state_attr('climate.2p_mama', 'temperature') | float) - (targets['2p_mama'] | float)) | abs < 0.1 }}"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "then": [
+                                {
+                                  "action": "climate.set_temperature",
+                                  "target": {
+                                    "entity_id": "climate.2p_mama"
+                                  },
+                                  "data": {
+                                    "temperature": "{{ targets['2p_mama'] }}"
+                                  },
+                                  "continue_on_error": true
+                                },
+                                {
+                                  "delay": {
+                                    "seconds": 2
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "if": [
+                          {
+                            "condition": "not",
+                            "conditions": [
+                              {
+                                "condition": "template",
+                                "value_template": "{{ state_attr('climate.2p_mama', 'temperature') is number and targets['2p_mama'] is number and ((state_attr('climate.2p_mama', 'temperature') | float) - (targets['2p_mama'] | float)) | abs < 0.1 }}"
+                              }
+                            ]
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "persistent_notification.create",
+                            "data": {
+                              "notification_id": "heating_restore_failed_2p_mama",
+                              "title": "Topení – hlavice nepotvrdila obnovu",
+                              "message": "Hlavice 2p_mama nepotvrdila požadovaný cíl {{ targets['2p_mama'] }} °C. Kotel zůstává nepovolený."
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "persistent_notification.create",
+                        "data": {
+                          "notification_id": "heating_restore_failed_2p_mama",
+                          "title": "Topení – chybí cílová teplota",
+                          "message": "Pro 2p_mama chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            },
+            "continue_on_error": true
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{% set ns=namespace(ok=true) %}\n{% for z in ['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_jidelna','1p_kuchyn','1p_koupelna','1p_chodba','2p_mama'] %}\n  {% set target = targets[z] %}\n  {% set actual = state_attr('climate.' ~ z, 'temperature') %}\n  {% if target is not number or actual is not number or ((actual|float)-(target|float))|abs >= 0.1 %}\n    {% set ns.ok=false %}\n  {% endif %}\n{% endfor %}\n{{ ns.ok }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.heating_restore_verified"
+                }
+              },
+              {
+                "action": "logbook.log",
+                "data": {
+                  "name": "Topení – obnova rozvrhů",
+                  "entity_id": "input_boolean.heating_restore_verified",
+                  "message": "Všech 8 hlavic potvrdilo očekávané cíle; obnova je ověřená."
+                }
+              }
+            ],
+            "else": [
+              {
+                "action": "input_boolean.turn_off",
+                "target": {
+                  "entity_id": "input_boolean.heating_restore_verified"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_restore_verification_failed",
+                  "title": "Topení – obnova rozvrhů není ověřena",
+                  "message": "Po obnově nepotvrdilo všech 8 hlavic očekávané cíle. Hlavní řízení zůstává blokované, dokud recovery logika nepotvrdí bezpečný stav."
+                }
+              }
+            ]
+          },
+          {
+            "action": "persistent_notification.dismiss",
+            "data": {
+              "notification_id": "heating_service_mode"
+            }
+          }
+        ]
+      }
+    },
+    "automation.topeni_tuv_interlock_rele_live": {
+      "config_hash": "d425210530e7749c",
+      "config": {
+        "id": "1791310763182",
+        "alias": "Topení – TUV interlock relé (LIVE)",
+        "description": "Dočasný live guard do nasazení verzované kotel_tuv_relay_interlock. Při aktivní TUV hydraulické cestě okamžitě vypne topné relé a zablokuje souběh vytápění s TUV. Před nasazením YAML verze odstranit atomicky.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.boiler_ww3wayvalve",
+              "binary_sensor.boiler_wwcharging",
+              "binary_sensor.boiler_tapwateractive"
+            ],
+            "to": "on"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "to": "on"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "or",
+            "conditions": [
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_ww3wayvalve",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_wwcharging",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_tapwateractive",
+                "state": "on"
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "state": "on"
+          }
+        ],
+        "actions": [
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – TUV interlock",
+              "entity_id": "switch.kotel_rele_spinac",
+              "message": "Topné relé bylo okamžitě vypnuto kvůli aktivní TUV hydraulické cestě."
+            }
+          }
+        ],
+        "mode": "restart"
+      }
+    }
+  }
+}
