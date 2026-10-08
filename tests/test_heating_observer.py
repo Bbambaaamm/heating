@@ -24,6 +24,7 @@ from custom_components.heating_observer.const import DOMAIN, INPUTS, ZONES
 from custom_components.heating_observer.engine import Observer, number
 from custom_components.heating_observer.storage import Journal
 from custom_components.heating_observer.permissions import PermissionManifest
+from custom_components.heating_observer.sensor import ObserverSensor
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_DATA = json.loads((PROJECT_ROOT / "custom_components/heating_observer/agent_policy.json").read_text(encoding="utf-8"))
@@ -253,6 +254,43 @@ class ObserverEngineTests(unittest.TestCase):
              "intelligence", "optimization", "permissions", "replay", "safety", "sensor",
              "storage", "watchdog"],
         )
+
+
+class OpportunitySensorTests(unittest.TestCase):
+    def test_opportunity_attributes_are_bounded_for_recorder(self):
+        large_evidence = {"blob": "x" * 4000, "samples": list(range(100))}
+        items = [
+            {
+                "opportunity_id": f"opp-{i}",
+                "title": f"Opportunity {i}",
+                "category": "comfort_energy",
+                "status": "NEW",
+                "risk_class": "yellow",
+                "confidence": 0.9,
+                "priority_score": 100 - i,
+                "next_action": "SHADOW_VALIDATE_THEN_REVIEW",
+                "evidence": large_evidence,
+                "experiment": {"payload": "y" * 4000},
+            }
+            for i in range(20)
+        ]
+        runtime = type("RuntimeStub", (), {
+            "cached_opportunities": {
+                "count": 20,
+                "by_status": {"NEW": 20},
+                "by_category": {"comfort_energy": 20},
+                "items": items,
+                "auto_pr_eligible": 0,
+                "shadow_validate": 20,
+            }
+        })()
+        attrs = ObserverSensor(runtime, "agent_opportunities").extra_state_attributes
+        encoded = json.dumps(attrs, ensure_ascii=False).encode("utf-8")
+        self.assertLess(len(encoded), 8192)
+        self.assertEqual(len(attrs["items"]), 5)
+        self.assertEqual(attrs["items_truncated"], 15)
+        self.assertNotIn("evidence", attrs["items"][0])
+        self.assertFalse(attrs["actuator_control"])
 
 
 class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
