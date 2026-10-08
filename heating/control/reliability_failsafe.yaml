@@ -44,36 +44,55 @@ template:
             'heating_boost_start',
             'heating_boost_apply_comfort_on',
             'heating_boost_reapply_schedule_off',
-            'heating_boiler_low_flow_package_guard',
             'heating_service_mode_package_hard_guard',
-            'kotel_turn_on_by_policy',
+            'heating_flow_v4_state_machine',
+            'kotel_v4_safe_start',
             'kotel_turn_off_by_policy',
+            'kotel_tuv_relay_interlock',
             'heating_startup_schedule_sync'
           ] %}
-          {% set healthy_ids = states.automation
+          {% set legacy_owner_ids = [
+            'heating_boiler_low_flow_package_guard',
+            'kotel_turn_on_by_policy'
+          ] %}
+          {% set active_ids = states.automation
              | selectattr('attributes.id', 'defined')
              | selectattr('state', 'eq', 'on')
              | map(attribute='attributes.id')
              | list %}
-          {{ required_ids | reject('in', healthy_ids) | list | count == 0 }}
+          {% set missing = required_ids | reject('in', active_ids) | list %}
+          {% set conflicts = legacy_owner_ids | select('in', active_ids) | list %}
+          {{ missing | count == 0 and conflicts | count == 0 }}
         attributes:
           missing_ids: >-
             {% set required_ids = [
               'heating_boost_start',
               'heating_boost_apply_comfort_on',
               'heating_boost_reapply_schedule_off',
-              'heating_boiler_low_flow_package_guard',
               'heating_service_mode_package_hard_guard',
-              'kotel_turn_on_by_policy',
+              'heating_flow_v4_state_machine',
+              'kotel_v4_safe_start',
               'kotel_turn_off_by_policy',
+              'kotel_tuv_relay_interlock',
               'heating_startup_schedule_sync'
             ] %}
-            {% set healthy_ids = states.automation
+            {% set active_ids = states.automation
                | selectattr('attributes.id', 'defined')
                | selectattr('state', 'eq', 'on')
                | map(attribute='attributes.id')
                | list %}
-            {{ required_ids | reject('in', healthy_ids) | list }}
+            {{ required_ids | reject('in', active_ids) | list }}
+          conflicting_legacy_ids: >-
+            {% set legacy_owner_ids = [
+              'heating_boiler_low_flow_package_guard',
+              'kotel_turn_on_by_policy'
+            ] %}
+            {% set active_ids = states.automation
+               | selectattr('attributes.id', 'defined')
+               | selectattr('state', 'eq', 'on')
+               | map(attribute='attributes.id')
+               | list %}
+            {{ legacy_owner_ids | select('in', active_ids) | list }}
 
 automation:
   - id: heating_service_mode_package_hard_guard
@@ -444,11 +463,13 @@ automation:
                   title: "Heating Watchdog"
                   message: >-
                     {% set missing_ids = state_attr('binary_sensor.heating_core_automations_healthy', 'missing_ids') | default([], true) %}
-                    ⚠️ Klíčové automace nejsou healthy.
+                    {% set conflict_ids = state_attr('binary_sensor.heating_core_automations_healthy', 'conflicting_legacy_ids') | default([], true) %}
+                    ⚠️ Vlastnictví klíčových automatizací není healthy.
                     {% if missing_ids | count > 0 %}
-                    Chybějící/vypnuté automation.id: {{ missing_ids | join(', ') }}.
-                    {% else %}
-                    Zkontrolujte automation.*.
+                    Chybějící/vypnuté V4 automation.id: {{ missing_ids | join(', ') }}.
+                    {% endif %}
+                    {% if conflict_ids | count > 0 %}
+                    Konfliktní legacy ownery jsou aktivní: {{ conflict_ids | join(', ') }}.
                     {% endif %}
         default:
           - action: persistent_notification.dismiss
