@@ -16,6 +16,7 @@ automation:
           - binary_sensor.boiler_ww3wayvalve
           - binary_sensor.boiler_wwcharging
           - binary_sensor.boiler_tapwateractive
+          - binary_sensor.boiler_wwrecharging
         to: null
       - trigger: state
         entity_id: sensor.kotel_effective_on_delay_sec
@@ -53,6 +54,9 @@ automation:
       - condition: state
         entity_id: binary_sensor.boiler_tapwateractive
         state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_wwrecharging
+        state: "off"
       - delay:
           # Druhá nezávislá pojistka: ani vadný efektivní senzor nesmí
           # spustit kotel dříve, než se termostatické ventily otevřou.
@@ -74,6 +78,9 @@ automation:
         state: "off"
       - condition: state
         entity_id: binary_sensor.boiler_tapwateractive
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.boiler_wwrecharging
         state: "off"
       - condition: state
         entity_id: binary_sensor.kotel_should_be_on
@@ -127,9 +134,11 @@ automation:
   - alias: "Kotel: TUV interlock relé"
     id: kotel_tuv_relay_interlock
     description: >-
-      TUV má hydraulickou prioritu. Jakmile je aktivní třícestný ventil,
-      nabíjení TUV nebo přímý TUV požadavek, topné relé musí okamžitě
-      odpadnout a nesmí se znovu sepnout, dokud TUV cesta nezmizí.
+      Fail-closed TUV hydraulický interlock. Topné relé smí zůstat sepnuté
+      pouze pokud jsou všechny čtyři TUV signály explicitně off. Unknown,
+      unavailable, restart/reload nebo aktivní TUV cesta vyvolají okamžité
+      vypnutí relé. Výsledek se ověřuje a při nepotvrzení proběhne jeden
+      omezený retry; neúspěch uzamkne další topný start.
     mode: restart
     trigger:
       - trigger: state
@@ -137,33 +146,94 @@ automation:
           - binary_sensor.boiler_ww3wayvalve
           - binary_sensor.boiler_wwcharging
           - binary_sensor.boiler_tapwateractive
-        to: "on"
+          - binary_sensor.boiler_wwrecharging
+        to: null
       - trigger: state
         entity_id: switch.kotel_rele_spinac
         to: "on"
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: automation_reloaded
     condition:
-      - condition: or
-        conditions:
-          - condition: state
-            entity_id: binary_sensor.boiler_ww3wayvalve
-            state: "on"
-          - condition: state
-            entity_id: binary_sensor.boiler_wwcharging
-            state: "on"
-          - condition: state
-            entity_id: binary_sensor.boiler_tapwateractive
-            state: "on"
       - condition: state
         entity_id: switch.kotel_rele_spinac
         state: "on"
+      - condition: not
+        conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: binary_sensor.boiler_ww3wayvalve
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.boiler_wwcharging
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.boiler_tapwateractive
+                state: "off"
+              - condition: state
+                entity_id: binary_sensor.boiler_wwrecharging
+                state: "off"
     action:
       - action: switch.turn_off
+        continue_on_error: true
         target:
           entity_id: switch.kotel_rele_spinac
-      - action: logbook.log
-        data:
-          name: "Topení – TUV interlock"
-          entity_id: switch.kotel_rele_spinac
-          message: >-
-            Topné relé bylo vypnuto, protože kotel je v TUV hydraulické cestě.
-            Nový topný start dostane po skončení TUV znovu plnou 120s prodlevu.
+      - wait_template: "{{ is_state('switch.kotel_rele_spinac', 'off') }}"
+        timeout: "00:00:02"
+        continue_on_timeout: true
+      - if:
+          - condition: state
+            entity_id: switch.kotel_rele_spinac
+            state: "on"
+        then:
+          - action: switch.turn_off
+            continue_on_error: true
+            target:
+              entity_id: switch.kotel_rele_spinac
+          - wait_template: "{{ is_state('switch.kotel_rele_spinac', 'off') }}"
+            timeout: "00:00:03"
+            continue_on_timeout: true
+      - if:
+          - condition: state
+            entity_id: switch.kotel_rele_spinac
+            state: "on"
+        then:
+          - action: input_boolean.turn_off
+            continue_on_error: true
+            target:
+              entity_id: input_boolean.topny_system_enable
+          - action: input_boolean.turn_on
+            continue_on_error: true
+            target:
+              entity_id: input_boolean.heating_flow_relief_lockout
+          - action: persistent_notification.create
+            data:
+              notification_id: heating_tuv_interlock_relay_off_failed
+              title: "Topení – TUV interlock: relé nepotvrdilo OFF"
+              message: >-
+                Topné relé zůstalo ON i po dvou pokusech o vypnutí během
+                aktivní/neznámé TUV cesty. Hlavní topení bylo vypnuto a další
+                start je uzamčen. Zkontrolujte Zigbee relé a TUV telemetrii.
+          - action: logbook.log
+            data:
+              name: "Topení – TUV interlock"
+              entity_id: switch.kotel_rele_spinac
+              message: "CRITICAL: relé nepotvrdilo OFF po bounded retry; master OFF + lockout."
+          - stop: "TUV interlock nepotvrdil vypnutí relé."
+            error: true
+        else:
+          - action: persistent_notification.dismiss
+            continue_on_error: true
+            data:
+              notification_id: heating_tuv_interlock_relay_off_failed
+          - action: logbook.log
+            data:
+              name: "Topení – TUV interlock"
+              entity_id: switch.kotel_rele_spinac
+              message: >-
+                Topné relé je potvrzeně OFF, protože TUV cesta není explicitně
+                bezpečná pro vytápění. Nový start dostane po stabilizaci TUV
+                znovu plnou 120s prodlevu.
+
