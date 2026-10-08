@@ -198,8 +198,26 @@ class ObserverSensor(SensorEntity):
                 "actuator_control": False,
             }
         if self.kind == "agent_opportunities":
+            # HA Recorder refuses state attributes above 16 KiB. Keep this
+            # diagnostic entity intentionally bounded; full evidence remains
+            # authoritative in the agent SQLite store.
+            summary = r.cached_opportunities or {}
+            keep = (
+                "opportunity_id", "title", "category", "status", "risk_class",
+                "confidence", "priority_score", "next_action",
+            )
+            items = [
+                {key: item.get(key) for key in keep if item.get(key) is not None}
+                for item in summary.get("items", [])[:5]
+            ]
             return {
-                **r.cached_opportunities,
+                "count": summary.get("count", 0),
+                "by_status": summary.get("by_status", {}),
+                "by_category": summary.get("by_category", {}),
+                "items": items,
+                "items_truncated": max(0, int(summary.get("count", 0)) - len(items)),
+                "auto_pr_eligible": summary.get("auto_pr_eligible", 0),
+                "shadow_validate": summary.get("shadow_validate", 0),
                 "autonomy_policy": {
                     "green": "AUTO_PR_ELIGIBLE",
                     "yellow": "SHADOW_VALIDATE_THEN_REVIEW",
