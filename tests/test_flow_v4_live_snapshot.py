@@ -43,6 +43,7 @@ class FlowV4LiveSnapshotTests(unittest.TestCase):
         cls.flow = objects["automation.topeni_flow_relief_pred_restartem_horaku"]["config"]
         cls.ticker = objects["automation.topeni_v4_periodicka_kontrola_pouze_nouzoveho_chlazeni"]["config"]
         cls.start = objects["automation.kotel_v4_bezpecny_start_podle_politiky"]["config"]
+        cls.stuck_watchdog = objects["automation.topeni_v4_watchdog_dlouhe_obnovy"]["config"]
         cls.restore = objects["script.heating_restore_schedule_after_service"]["config"]
 
     def test_every_safety_trigger_is_preserved(self):
@@ -208,6 +209,29 @@ class FlowV4LiveSnapshotTests(unittest.TestCase):
         self.assertIn("pocet_kroku_motoru", opts["state"])
         self.assertIn("temperature", opts["state"])
         self.assertNotIn("sensor.boiler_pc0flow", opts["state"])
+
+
+
+    def test_stuck_recovery_watchdog_is_passive_and_resolves_notifications(self):
+        cfg = self.stuck_watchdog
+        self.assertEqual(cfg["mode"], "restart")
+        restoring = next(t for t in cfg["triggers"] if t.get("id") == "restoring_stuck")
+        self.assertEqual(restoring["to"], "RESTORING")
+        self.assertGreaterEqual(restoring["for"].get("minutes", 0), 10)
+        self.assertTrue(any(x.get("id") == "cleared_normal" for x in cfg["triggers"]))
+        self.assertTrue(any(x.get("id") == "cleared_lockout" for x in cfg["triggers"]))
+        self.assertFalse(any(
+            obj.get("action", "").startswith(("switch.", "climate.", "input_boolean.", "input_select."))
+            for obj in all_dicts(cfg["actions"])
+        ))
+        self.assertTrue(any(
+            x.get("action") == "persistent_notification.create"
+            for x in all_dicts(cfg["actions"])
+        ))
+        self.assertTrue(any(
+            x.get("action") == "persistent_notification.dismiss"
+            for x in all_dicts(cfg["actions"])
+        ))
 
 
 if __name__ == "__main__":
