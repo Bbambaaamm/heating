@@ -89,6 +89,7 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "input_datetime": ["set_datetime"], "input_text": ["set_value"], "timer": ["cancel", "start"],
             "logbook": ["log"], "persistent_notification": ["create", "dismiss"],
             "switch": ["turn_on", "turn_off"], "number": ["set_value"],
+            "script": ["turn_off"],
         }.items():
             for name in names:
                 self.hass.services.async_register(domain, name, self.service)
@@ -214,6 +215,11 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     def fast_boiler(self, aid):
         a = automation("heating/control/kotel_control.yaml", aid)
+        if aid == "kotel_turn_on_by_policy":
+            # The legacy controller is correctly disabled in production. Enable
+            # it only in this isolated test to verify its fail-closed fallback.
+            self.assertIs(a.get("initial_state"), False)
+            a.pop("initial_state")
         # Only wall-clock duration is scaled, not triggers, conditions or actions.
         def scale(obj):
             if isinstance(obj, dict):
@@ -524,8 +530,9 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_tuv_interlock_immediately_drops_heating_relay(self):
         self.boiler_inputs(requested=True, relay="on")
-        await self.load_automations([automation("heating/control/kotel_control.yaml",
-                                                "kotel_tuv_relay_interlock")])
+        # The live storage-managed TUV guard is the only active TUV relay owner.
+        tuv = next(a for a in read("automations.yaml") if a["id"] == "1791310763182")
+        await self.load_automations([deepcopy(tuv)])
         self.set("binary_sensor.boiler_ww3wayvalve", "on")
         await asyncio.sleep(0.03)
         self.assertEqual(self.hass.states.get("switch.kotel_rele_spinac").state, "off")
