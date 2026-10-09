@@ -24,6 +24,13 @@ automation:
       - trigger: state
         entity_id: binary_sensor.kotel_should_be_on
         to: "off"
+      # Drop pending start immediately if a demand sensor becomes unavailable.
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "unavailable"
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "unknown"
       - trigger: state
         entity_id: sensor.kotel_effective_on_delay_sec
         to: null
@@ -103,6 +110,12 @@ automation:
       - trigger: state
         entity_id: binary_sensor.kotel_should_be_on
         to: "on"
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "unavailable"
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "unknown"
       - trigger: state
         entity_id: sensor.kotel_effective_off_delay_sec
         to: null
