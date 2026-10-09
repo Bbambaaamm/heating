@@ -185,7 +185,7 @@
       "id": "heating_service_mode_guard",
       "entity_id": "automation.topeni_servisni_rezim",
       "state": "on",
-      "config_hash": "PENDING_LIVE_DEPLOYMENT",
+      "config_hash": "f95522fe57dfb28f",
       "config": {
         "id": "heating_service_mode_guard",
         "alias": "Topení – servisní režim",
@@ -894,7 +894,16 @@
         ],
         "mode": "restart"
       },
-      "deployment_status": "proposed_ci"
+      "deployment_status": "live_verified_2026-10-09",
+      "live_verified": {
+        "flow_state": "NORMAL",
+        "master": "on",
+        "relay": "on",
+        "burner": "on",
+        "ems_code": "200",
+        "service_mode": "off",
+        "tested_by": "isolated Home Assistant 2026.5.1 / 2026.9.2 CI + immediate live readback; not forced physical service cycle"
+      }
     },
     {
       "id": "heating_service_mode_hard_guard",
