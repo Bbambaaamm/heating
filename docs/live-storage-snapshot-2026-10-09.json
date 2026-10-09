@@ -1055,11 +1055,11 @@
       }
     },
     "automation.kotel_v4_bezpecny_start_podle_politiky": {
-      "config_hash": "468a7e0a43a5c5e3",
+      "config_hash": "0ab680b3ea77dfae",
       "config": {
         "id": "1791376426962",
         "alias": "Kotel V4 – bezpečný start podle politiky",
-        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF.",
+        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů.",
         "triggers": [
           {
             "trigger": "state",
@@ -1085,6 +1085,18 @@
             "entity_id": "binary_sensor.kotel_should_be_on",
             "to": "off",
             "id": "demand_off"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "unavailable",
+            "id": "demand_unavailable"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "unknown",
+            "id": "demand_unknown"
           },
           {
             "trigger": "state",
