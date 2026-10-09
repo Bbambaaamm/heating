@@ -1055,7 +1055,7 @@
       }
     },
     "automation.kotel_v4_bezpecny_start_podle_politiky": {
-      "config_hash": "pending_live_confirmation",
+      "config_hash": "277bad20fd6deaba",
       "config": {
         "id": "1791376426962",
         "alias": "Kotel V4 – bezpečný start podle politiky",
