@@ -30,6 +30,36 @@ class ServiceModeRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.h.set(SERVICE, "off")
         self.h.set(RESTORE, "off")
         self.h.set(RELAY, "on")
+        # Simulation mirrors active Flow V4 and EMS safety inputs.
+        self.h.set("input_select.heating_flow_state_v4", "NORMAL")
+        self.h.set("input_boolean.heating_flow_relief_lockout", "off")
+        self.h.set("input_boolean.heating_restore_verified", "off")
+        self.h.set("binary_sensor.heating_boiler_fault_clear", "on")
+        self.h.set("binary_sensor.boiler_burngas", "off")
+        self.h.set("binary_sensor.boiler_heatingpump", "off")
+        self.h.set("sensor.boiler_heatblock", "25")
+        self.h.set("sensor.system_bus_status", "connected")
+        self.h.set("script.heating_restore_schedule_after_service", "off")
+
+        async def restore_real_schedule(call):
+            # Exercise actual recovery logic while fake devices respond fast.
+            seq = deepcopy(runtime.read("scripts.yaml")["heating_restore_schedule_after_service"]["sequence"])
+            def accelerate(node):
+                if isinstance(node, dict):
+                    if "delay" in node:
+                        node["delay"] = {"milliseconds": 2}
+                    for item in node.values():
+                        accelerate(item)
+                elif isinstance(node, list):
+                    for item in node:
+                        accelerate(item)
+            accelerate(seq)
+            self.h.set("script.heating_restore_schedule_after_service", "on")
+            try:
+                await self.h.run_sequence(seq)
+            finally:
+                self.h.set("script.heating_restore_schedule_after_service", "off")
+        self.h.hass.services.async_register("script", "heating_restore_schedule_after_service", restore_real_schedule)
 
     async def asyncTearDown(self):
         await self.h.asyncTearDown()
@@ -41,7 +71,13 @@ class ServiceModeRuntimeTests(unittest.IsolatedAsyncioTestCase):
         ids = {"heating_service_mode_guard", "heating_service_mode_hard_guard"}
         if include_low_flow:
             ids.add("heating_boiler_low_flow_hard_guard")
-        automations = [a for a in runtime.read("automations.yaml") if a["id"] in ids]
+        automations = deepcopy([a for a in runtime.read("automations.yaml") if a["id"] in ids])
+        if include_low_flow:
+            # Legacy low-flow is deliberately OFF in production: enable only
+            # in this isolated compatibility/fail-closed simulation.
+            guard = next(a for a in automations if a["id"] == "heating_boiler_low_flow_hard_guard")
+            self.assertFalse(guard["initial_state"])
+            guard.pop("initial_state")
         automations.append(runtime.automation(FAILSAFE, "heating_service_mode_package_hard_guard"))
         if include_low_flow:
             automations.append(runtime.automation(FAILSAFE, "heating_boiler_low_flow_package_guard"))
@@ -60,8 +96,13 @@ class ServiceModeRuntimeTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(automation_id=a["id"]):
                 PLATFORM_SCHEMA(deepcopy(a))
         await self.h.load_automations(deepcopy(automations))
-        for entity in self.h.hass.states.async_all("automation"):
-            self.assertEqual(entity.state, "on", entity.entity_id)
+        states_by_name = {
+            entity.attributes.get("friendly_name"): entity.state
+            for entity in self.h.hass.states.async_all("automation")
+        }
+        for conf in automations:
+            expected = "on" if conf.get("initial_state", True) else "off"
+            self.assertEqual(states_by_name[conf["alias"]], expected, conf["id"])
 
     async def test_service_stops_relay_before_valves_and_restores_enabled_master(self):
         await self.load_service()
@@ -69,7 +110,12 @@ class ServiceModeRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.state(RELAY), "off")
         self.assertEqual(self.state(MASTER), "off")
         self.assertEqual(self.state(RESTORE), "on")
-        self.assertEqual(self.h.calls[0][:2], ("switch", "turn_off"))
+        # A restore cancellation may precede relay OFF; no climate I/O may.
+        commands = [c[:2] for c in self.h.calls]
+        off_relay = commands.index(("switch", "turn_off"))
+        off_master = commands.index(("input_boolean", "turn_off"))
+        first_valve = next(i for i, c in enumerate(commands) if c[0] == "climate")
+        self.assertLess(max(off_relay, off_master), first_valve)
         for zone in runtime.ZONES:
             self.assertEqual(self.h.hass.states.get(f"climate.{zone}").attributes["temperature"], 29)
         await self.change_service("off")
