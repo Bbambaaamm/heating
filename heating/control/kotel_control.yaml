@@ -1,10 +1,16 @@
+# Single active TUV relay owner: automations.yaml id 1791310763182
+# (Topení – TUV interlock relé LIVE). Do not add a second package automation.
+# Keep the current Flow V4 safety state-machine and hardware fault interlocks.
 # Řízení relé: časování se váže na změnu rozhodnutí, nikoli na každý PI report.
 # Jde o debounce požadavku; nejde o výrobcem stanovené minimum chodu/odstávky.
 # Podmínky jsou uvnitř action: opačný stav musí zrušit rozběhnutý odpočet
 # i tehdy, kdy by podmínky nového běhu neprošly. PI reporty odpočet nerestartují.
 automation:
+  # Historical fallback controller retained for audit/rollback only.
+  # Flow V4 owns the active start, and deactivates any re-enabled legacy branch.
   - alias: "Kotel: zapnout při splnění politiky"
     id: kotel_turn_on_by_policy
+    initial_state: false
     mode: restart
     trigger:
       - trigger: state
@@ -146,48 +152,3 @@ automation:
       - action: switch.turn_off
         target:
           entity_id: switch.kotel_rele_spinac
-
-
-  - alias: "Kotel: TUV interlock relé"
-    id: kotel_tuv_relay_interlock
-    description: >-
-      TUV má hydraulickou prioritu. Jakmile je aktivní třícestný ventil,
-      nabíjení TUV nebo přímý TUV požadavek, topné relé musí okamžitě
-      odpadnout a nesmí se znovu sepnout, dokud TUV cesta nezmizí.
-    mode: restart
-    trigger:
-      - trigger: state
-        entity_id:
-          - binary_sensor.boiler_ww3wayvalve
-          - binary_sensor.boiler_wwcharging
-          - binary_sensor.boiler_tapwateractive
-        to: "on"
-      - trigger: state
-        entity_id: switch.kotel_rele_spinac
-        to: "on"
-    condition:
-      - condition: or
-        conditions:
-          - condition: state
-            entity_id: binary_sensor.boiler_ww3wayvalve
-            state: "on"
-          - condition: state
-            entity_id: binary_sensor.boiler_wwcharging
-            state: "on"
-          - condition: state
-            entity_id: binary_sensor.boiler_tapwateractive
-            state: "on"
-      - condition: state
-        entity_id: switch.kotel_rele_spinac
-        state: "on"
-    action:
-      - action: switch.turn_off
-        target:
-          entity_id: switch.kotel_rele_spinac
-      - action: logbook.log
-        data:
-          name: "Topení – TUV interlock"
-          entity_id: switch.kotel_rele_spinac
-          message: >-
-            Topné relé bylo vypnuto, protože kotel je v TUV hydraulické cestě.
-            Nový topný start dostane po skončení TUV znovu plnou 120s prodlevu.

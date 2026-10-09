@@ -1,0 +1,1970 @@
+{
+  "schema_version": 1,
+  "batch": 2,
+  "generated_at": "2026-10-09",
+  "source": "live Home Assistant",
+  "objects": [
+    {
+      "id": "1791310763182",
+      "entity_id": "automation.topeni_tuv_interlock_rele_live",
+      "state": "on",
+      "config_hash": "d425210530e7749c",
+      "config": {
+        "id": "1791310763182",
+        "alias": "Topení – TUV interlock relé (LIVE)",
+        "description": "Dočasný live guard do nasazení verzované kotel_tuv_relay_interlock. Při aktivní TUV hydraulické cestě okamžitě vypne topné relé a zablokuje souběh vytápění s TUV. Před nasazením YAML verze odstranit atomicky.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.boiler_ww3wayvalve",
+              "binary_sensor.boiler_wwcharging",
+              "binary_sensor.boiler_tapwateractive"
+            ],
+            "to": "on"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "to": "on"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "or",
+            "conditions": [
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_ww3wayvalve",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_wwcharging",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_tapwateractive",
+                "state": "on"
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "state": "on"
+          }
+        ],
+        "actions": [
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – TUV interlock",
+              "entity_id": "switch.kotel_rele_spinac",
+              "message": "Topné relé bylo okamžitě vypnuto kvůli aktivní TUV hydraulické cestě."
+            }
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "id": "1791376426962",
+      "entity_id": "automation.kotel_v4_bezpecny_start_podle_politiky",
+      "state": "on",
+      "config_hash": "0ab680b3ea77dfae",
+      "config": {
+        "id": "1791376426962",
+        "alias": "Kotel V4 – bezpečný start podle politiky",
+        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": [
+              "input_boolean.topny_system_enable",
+              "input_select.topny_rezim",
+              "binary_sensor.kotel_mode_off_block",
+              "input_select.heating_flow_state_v4",
+              "binary_sensor.boiler_ww3wayvalve",
+              "binary_sensor.boiler_wwcharging",
+              "binary_sensor.boiler_tapwateractive"
+            ],
+            "id": "policy"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "on",
+            "id": "demand_on"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "off",
+            "id": "demand_off"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "unavailable",
+            "id": "demand_unavailable"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "to": "unknown",
+            "id": "demand_unknown"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.kotel_effective_on_delay_sec",
+            "id": "delay_change"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "id": "relay"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "start"
+          },
+          {
+            "trigger": "event",
+            "event_type": "automation_reloaded",
+            "id": "reload"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topny_rezim",
+            "state": [
+              "Auto",
+              "Eco",
+              "Boost"
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_mode_off_block",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "state": "NORMAL"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_lockout",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_fault_recovery_pending",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_ww3wayvalve",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_wwcharging",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_tapwateractive",
+            "state": "off"
+          },
+          {
+            "delay": {
+              "seconds": "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120] | max }}"
+            }
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_should_be_on",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topny_rezim",
+            "state": [
+              "Auto",
+              "Eco",
+              "Boost"
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_mode_off_block",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "state": "NORMAL"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_lockout",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_fault_recovery_pending",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_ww3wayvalve",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_wwcharging",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_tapwateractive",
+            "state": "off"
+          },
+          {
+            "action": "switch.turn_on",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            }
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "id": "1791542912666",
+      "entity_id": "automation.topeni_watchdog_dostupnosti_a_teplot_kotle_zivy",
+      "state": "on",
+      "config_hash": "0eee8d32142fa940",
+      "config": {
+        "id": "1791542912666",
+        "alias": "Topení – watchdog dostupnosti a teplot kotle (živý)",
+        "description": "Monitoring bez zásahů do kotle. Teplotní varování 69 °C, HARD_LOCKOUT, požadavek bez topení, nízká teplota bez hořáku a porucha EMS. Persistent notifications mají stálé ID; push pouze při nových stavových triggerech. Flow V4 zůstává jediným vykonavatelem bezpečnostních zásahů. Okamžitý mobilní alarm pro události 2964–2967, i když nouzová logika krátce poté vypne master a zanikne poptávka. Upozornění zůstává uloženo jako záznam incidentu.",
+        "triggers": [
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "above": 69,
+            "for": {
+              "seconds": 20
+            },
+            "id": "hot"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "HARD_LOCKOUT",
+            "id": "lockout"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "to": "off",
+            "for": {
+              "minutes": 10
+            },
+            "id": "relay_stopped"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.boiler_burngas",
+            "to": "off",
+            "for": {
+              "minutes": 15
+            },
+            "id": "burn_stopped"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.system_bus_status",
+            "from": "connected",
+            "for": {
+              "minutes": 2
+            },
+            "id": "bus_disconnect"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/5",
+            "id": "periodic"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "start"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2964",
+            "id": "fault_2964"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2965",
+            "id": "fault_2965"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2966",
+            "id": "fault_2966"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2967",
+            "id": "fault_2967"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "if": [
+              {
+                "condition": "numeric_state",
+                "entity_id": "sensor.boiler_heatblock",
+                "above": 69
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_burngas",
+                "state": "on"
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_high_temp",
+                  "title": "Topení – zvýšená teplota kotle",
+                  "message": "Teplota kotlového bloku je {{ states('sensor.boiler_heatblock') }} °C, výstup {{ states('sensor.boiler_curflowtemp') }} °C a hořák {{ states('binary_sensor.boiler_burngas') }}. Ochrana Flow V4 při překročení 72 °C přebírá řízení."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "hot"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – provozní alarm",
+                      "message": "Teplota kotlového bloku je {{ states('sensor.boiler_heatblock') }} °C, výstup {{ states('sensor.boiler_curflowtemp') }} °C a hořák {{ states('binary_sensor.boiler_burngas') }}. Ochrana Flow V4 při překročení 72 °C přebírá řízení."
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_watchdog_high_temp"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "input_select.heating_flow_state_v4",
+                "state": "HARD_LOCKOUT"
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_lockout",
+                  "title": "Topení – blokace HARD_LOCKOUT",
+                  "message": "Kotel je v HARD_LOCKOUT. Akt. zóny: {{ states('sensor.kotel_aktivni_zony_pocet') }}, výstup: {{ states('sensor.boiler_curflowtemp') }} °C, poslední kód: {{ states('sensor.boiler_servicecodenumber') }}. Ověřte důvod zámku a průtok, neobcházejte ochranu."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "lockout"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – provozní alarm",
+                      "message": "Kotel je v HARD_LOCKOUT. Akt. zóny: {{ states('sensor.kotel_aktivni_zony_pocet') }}, výstup: {{ states('sensor.boiler_curflowtemp') }} °C, poslední kód: {{ states('sensor.boiler_servicecodenumber') }}. Ověřte důvod zámku a průtok, neobcházejte ochranu."
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_watchdog_lockout"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "input_select.heating_flow_state_v4",
+                "state": "NORMAL"
+              },
+              {
+                "condition": "state",
+                "entity_id": "input_boolean.topny_system_enable",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.kotel_should_be_on",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "input_boolean.heating_service_mode",
+                "state": "off"
+              },
+              {
+                "condition": "state",
+                "entity_id": "switch.kotel_rele_spinac",
+                "state": "off",
+                "for": {
+                  "minutes": 10
+                }
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_no_heat",
+                  "title": "Topení – požadavek bez kotle",
+                  "message": "Je požadavek na teplo, ale relé je nejméně 10 minut OFF; režim {{ states('input_select.heating_flow_state_v4') }}, aktivní zóny {{ states('sensor.kotel_aktivni_zony_pocet') }}, průměrná poptávka {{ states('sensor.kotel_poptavka_prumer') }} %."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "relay_stopped"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – provozní alarm",
+                      "message": "Je požadavek na teplo, ale relé je nejméně 10 minut OFF; režim {{ states('input_select.heating_flow_state_v4') }}, aktivní zóny {{ states('sensor.kotel_aktivni_zony_pocet') }}, průměrná poptávka {{ states('sensor.kotel_poptavka_prumer') }} %."
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_watchdog_no_heat"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "input_select.heating_flow_state_v4",
+                "state": "NORMAL"
+              },
+              {
+                "condition": "state",
+                "entity_id": "input_boolean.topny_system_enable",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.kotel_should_be_on",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "switch.kotel_rele_spinac",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_burngas",
+                "state": "off",
+                "for": {
+                  "minutes": 15
+                }
+              },
+              {
+                "condition": "numeric_state",
+                "entity_id": "sensor.boiler_heatblock",
+                "below": 40
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_no_flame",
+                  "title": "Topení – kotel nehřeje",
+                  "message": "Požadavek na teplo je aktivní, relé ON, ale hořák nejméně 15 minut OFF a kotlový blok pod 40 °C. Prověřte EMS a palivovou regulaci."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "burn_stopped"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – provozní alarm",
+                      "message": "Požadavek na teplo je aktivní, relé ON, ale hořák nejméně 15 minut OFF a kotlový blok pod 40 °C. Prověřte EMS a palivovou regulaci."
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_watchdog_no_flame"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "sensor.system_bus_status",
+                    "state": "connected"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_ems_offline",
+                  "title": "Topení – chyba komunikace EMS",
+                  "message": "EMS komunikace není potvrzená: {{ states('sensor.system_bus_status') }}. Vyhodnocení kotle a průtoku může být nespolehlivé."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "bus_disconnect"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – provozní alarm",
+                      "message": "EMS komunikace není potvrzená: {{ states('sensor.system_bus_status') }}. Vyhodnocení kotle a průtoku může být nespolehlivé."
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_watchdog_ems_offline"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "sensor.boiler_servicecodenumber",
+                "state": [
+                  "2964",
+                  "2965",
+                  "2966",
+                  "2967"
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_ems_fault",
+                  "title": "Topení – nová porucha kotle 2964–2967",
+                  "message": "Topení: EMS právě nahlásil poruchu {{ states('sensor.boiler_servicecodenumber') }}. Výstup {{ states('sensor.boiler_curflowtemp') }} °C, Flow V4 {{ states('input_select.heating_flow_state_v4') }}, relé {{ states('switch.kotel_rele_spinac') }}. U kódů 2964–2967 zkontrolujte hydraulickou cestu, pumpu a tlak; neobcházejte blokaci."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "fault_2964",
+                      "fault_2965",
+                      "fault_2966",
+                      "fault_2967"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – porucha kotle",
+                      "message": "Topení: EMS právě nahlásil poruchu {{ states('sensor.boiler_servicecodenumber') }}. Výstup {{ states('sensor.boiler_curflowtemp') }} °C, Flow V4 {{ states('input_select.heating_flow_state_v4') }}, relé {{ states('switch.kotel_rele_spinac') }}. U kódů 2964–2967 zkontrolujte hydraulickou cestu, pumpu a tlak; neobcházejte blokaci."
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "id": "1791543743116",
+      "entity_id": "automation.topeni_v4_periodicka_kontrola_pouze_nouzoveho_chlazeni",
+      "state": "on",
+      "config_hash": "b4c71c61b0992bb8",
+      "config": {
+        "id": "1791543743116",
+        "alias": "Topení V4 – periodická kontrola pouze nouzového chlazení",
+        "description": "Samostatný minutový kontrolní impuls pouze během EMERGENCY_COOLING. Nenarušuje vícefázový RESTORING Flow V4 (který má mode restart); při aktivní ochraně pravidelně vyvolá reconcile, aby po potvrzení průtokových cest či timeoutu mohl nastat další krok. Bez přímého ovládání kotle a bez obcházení lockoutu.",
+        "triggers": [
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "state": "EMERGENCY_COOLING"
+          }
+        ],
+        "actions": [
+          {
+            "event": "heating_flow_v4_reconcile",
+            "event_data": {
+              "source": "emergency_only_periodic_tick"
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "id": "1791544279063",
+      "entity_id": "automation.topeni_v4_watchdog_dlouhe_obnovy",
+      "state": "on",
+      "config_hash": "e27e89906f9cf281",
+      "config": {
+        "id": "1791544279063",
+        "alias": "Topení V4 – watchdog dlouhé obnovy",
+        "description": "Pouze pasivní dohled. Pokud RESTORING trvá 10 minut bez návratu do NORMAL či HARD_LOCKOUT, zobrazí stabilní oznámení a odešle jednorázové mobilní upozornění. Nedává žádné povely kotli, hlavicím, servisním režimům ani state machine.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "RESTORING",
+            "for": {
+              "minutes": 10
+            },
+            "id": "restoring_stuck"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "NORMAL",
+            "id": "cleared_normal"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "HARD_LOCKOUT",
+            "id": "cleared_lockout"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": "restoring_stuck"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_v4_restoring_stuck",
+                      "title": "Topení – obnova trvá déle než 10 minut",
+                      "message": "Flow V4 zůstává v RESTORING >10 min, relé {{ states('switch.kotel_rele_spinac') }}, master {{ states('input_boolean.topny_system_enable') }}, fault-clear {{ states('binary_sensor.heating_boiler_fault_clear') }}, EMS {{ states('sensor.system_bus_status') }}, potvrzení hlavic {{ states('input_boolean.heating_restore_verified') }}. Příčinu ověřte v trace skriptu. Kotel nezapínám."
+                    }
+                  },
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "continue_on_error": true,
+                    "data": {
+                      "title": "Topení – obnova se zasekla",
+                      "message": "Flow V4 >10 min v RESTORING. EMS kód: {{ states('sensor.boiler_servicecodenumber') }}, heatblock: {{ states('sensor.boiler_heatblock') }} °C. Kotel není automaticky odblokován."
+                    }
+                  }
+                ]
+              }
+            ],
+            "default": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_v4_restoring_stuck"
+                }
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "id": "heating_flow_relief_fault_recovery_reconciler_v2",
+      "entity_id": "automation.topeni_flow_relief_fault_recovery_reconciler_v2",
+      "state": "off",
+      "config_hash": "b0260ea07fb2d622",
+      "config": {
+        "id": "heating_flow_relief_fault_recovery_reconciler_v2",
+        "alias": "Topení – flow relief fault recovery reconciler V2",
+        "description": "Restart-safe recovery V3: při pending poruše drží kotel vypnutý, čeká bez pevného časového limitu na bezpečné vychladnutí bloku pod 60 °C, ověří fault-clear/EMS/průtokové cesty, obnoví všech 8 zón podle aktuálního normálního režimu a teprve potom obnoví původní povolení topení.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.heating_fault_recovery_pending",
+            "to": "on",
+            "id": "pending_on"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "minute"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "ha_start"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "to": "on",
+            "id": "fault_clear"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.system_bus_status",
+            "to": "connected",
+            "id": "bus_ok"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.boiler_burngas",
+            "to": "off",
+            "id": "burner_off"
+          },
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 60,
+            "id": "cool"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.heating_flow_relief_fault_paths_confirmed",
+            "to": "on",
+            "id": "paths"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_fault_recovery_pending",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_lockout",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_enabled",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_resume_armed",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "on"
+          }
+        ],
+        "actions": [
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{% set ts = state_attr('input_datetime.heating_flow_relief_last_fault','timestamp') %} {{ ts is none or not is_number(ts) }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_boolean.turn_off",
+                "target": {
+                  "entity_id": "input_boolean.heating_fault_recovery_pending"
+                }
+              },
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.heating_flow_relief_lockout"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_flow_relief_invalid_fault_timestamp",
+                  "title": "Topení – recovery zablokována",
+                  "message": "Fault recovery nemá platný persistentní čas poslední poruchy. Aktivován lockout; automatický restart se neprovede."
+                }
+              },
+              {
+                "stop": "Neplatný last_fault timestamp."
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "sensor.system_bus_status",
+            "state": "connected"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_burngas",
+            "state": "off"
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "numeric_state",
+                    "entity_id": "sensor.boiler_heatblock",
+                    "below": 60
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "logbook.log",
+                "data": {
+                  "name": "Topení – recovery V3",
+                  "entity_id": "sensor.boiler_heatblock",
+                  "message": "Kotel ještě není pod 60 °C. Kotel zůstává OFF a hlavice zůstávají dočasně otevřené; další trigger recovery stav znovu vyhodnotí."
+                }
+              },
+              {
+                "stop": "Čekám na vychladnutí kotle pod 60 °C."
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "binary_sensor.heating_flow_relief_fault_paths_confirmed",
+                    "state": "on"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "binary_sensor.heating_flow_relief_fault_paths_confirmed",
+                    "to": "on"
+                  }
+                ],
+                "timeout": "00:02:00",
+                "continue_on_timeout": true
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "binary_sensor.heating_flow_relief_fault_paths_confirmed",
+                    "state": "on"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "input_boolean.turn_off",
+                "target": {
+                  "entity_id": "input_boolean.heating_fault_recovery_pending"
+                }
+              },
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.heating_flow_relief_lockout"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_flow_relief_fault_no_paths",
+                  "title": "Topení – otevření hlavic nepotvrzeno",
+                  "message": "Ani po čekání nebyly explicitně potvrzeny alespoň dvě průtokové cesty. Aktivován lockout."
+                }
+              },
+              {
+                "stop": "Průtoková cesta po poruše není ověřena."
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "sensor.system_bus_status",
+            "state": "connected"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_burngas",
+            "state": "off"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 60
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_lockout",
+            "state": "off"
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_restore_verified"
+            }
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_service_mode"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_restore_verified",
+                    "state": "on"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "input_boolean.heating_restore_verified",
+                    "to": "on"
+                  }
+                ],
+                "timeout": "00:03:00",
+                "continue_on_timeout": true
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_restore_verified",
+                    "state": "on"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "input_boolean.turn_off",
+                "target": {
+                  "entity_id": "input_boolean.topny_system_enable"
+                },
+                "continue_on_error": true
+              },
+              {
+                "action": "switch.turn_off",
+                "target": {
+                  "entity_id": "switch.kotel_rele_spinac"
+                },
+                "continue_on_error": true
+              },
+              {
+                "action": "input_boolean.turn_off",
+                "target": {
+                  "entity_id": "input_boolean.heating_fault_recovery_pending"
+                }
+              },
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.heating_flow_relief_lockout"
+                }
+              },
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.heating_service_mode"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_flow_relief_restore_timeout",
+                  "title": "Topení – obnova rozvrhů neověřena",
+                  "message": "Po ukončení servisu nebyla do 3 minut potvrzena správná cílová teplota všech 8 hlavic. Aktivován lockout."
+                }
+              },
+              {
+                "stop": "Obnova všech zón nebyla ověřena."
+              }
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_lockout",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_restore_verified",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "sensor.system_bus_status",
+            "state": "connected"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.boiler_burngas",
+            "state": "off"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 60
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_enabled",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_resume_armed",
+            "state": "on"
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_fault_recovery_pending"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – flow relief",
+              "entity_id": "input_boolean.topny_system_enable",
+              "message": "V2 recovery dokončena: fault clear, EMS connected, burner off, blok <60 °C, průtokové cesty potvrzeny a všech 8 rozvrhových cílů ověřeno. AUTO znovu povoleno."
+            }
+          },
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_flow_relief_recovered",
+              "title": "Topení – automatická obnova dokončena",
+              "message": "Po poruše byly splněny všechny V2 podmínky a ověřeny cíle všech 8 hlavic. AUTO je znovu povolené."
+            }
+          }
+        ],
+        "mode": "single",
+        "max_exceeded": "silent"
+      }
+    },
+    {
+      "id": "heating_flow_relief_timeout_guard",
+      "entity_id": "automation.topeni_flow_relief_timeout_guard",
+      "state": "off",
+      "config_hash": "75472f15a98ed1d7",
+      "config": {
+        "id": "heating_flow_relief_timeout_guard",
+        "alias": "Topení – flow relief timeout guard",
+        "description": "Restart-safe watchdog V2. Kontroluje persistentní čas startu každou minutu a při startu HA; reload automatizací proto neresetuje 25min limit.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.heating_flow_relief_mode",
+            "to": "on",
+            "id": "mode_on"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "minute"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "ha_start"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_flow_relief_mode",
+            "state": "on"
+          },
+          {
+            "condition": "template",
+            "value_template": "{% set ts = state_attr('input_datetime.heating_flow_relief_started_at','timestamp') %} {{ ts is none or (not is_number(ts)) or (as_timestamp(now()) - (ts|float(0)) >= 1500) }}"
+          }
+        ],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_restore_verified"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.heating_flow_relief_lockout"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.heating_service_mode"
+            }
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_flow_relief_mode"
+            }
+          },
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_flow_relief_timeout_guard",
+              "title": "Topení – flow relief nedokončen",
+              "message": "Flow relief překročil 25 minut nebo chybí platný persistentní čas startu. Systém přešel do servisního lockoutu; hlavní řízení i relé jsou blokované."
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – flow relief",
+              "entity_id": "input_boolean.heating_flow_relief_lockout",
+              "message": "Restart-safe timeout guard aktivoval lockout: flow relief překročil 25 min nebo neměl platný started_at."
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "id": "heating_hydraulic_support_guard",
+      "entity_id": "automation.topeni_hlidani_a_navrat_hydraulicke_podpory",
+      "state": "on",
+      "config_hash": "33a99be8ffe5bc21",
+      "config": {
+        "id": "heating_hydraulic_support_guard",
+        "alias": "Topení – hlídání a návrat hydraulické podpory",
+        "description": "Hydraulická podpora V4: platná jen ve Flow=NORMAL a jen dokud podpůrná místnost zůstává pod 24 °C. Centrální apply-target zároveň nesmí aktivní podporu stáhnout pod 29 °C.",
+        "triggers": [
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "startup"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.topeni_hydraulicka_podpurna_zona",
+            "to": null,
+            "id": "support_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "to": null,
+            "id": "count_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "sensor.zona_sklep_michal_demand",
+              "sensor.zona_prizemi_michal_demand",
+              "sensor.zona_prizemi_chodba_zachod_demand",
+              "sensor.zona_1p_jidelna_demand",
+              "sensor.zona_1p_kuchyn_demand",
+              "sensor.zona_1p_koupelna_demand",
+              "sensor.zona_1p_chodba_demand",
+              "sensor.zona_2p_mama_demand"
+            ],
+            "to": null,
+            "id": "zone_demand_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "input_boolean.topny_system_enable",
+              "input_boolean.heating_service_mode",
+              "input_select.topny_rezim",
+              "input_select.heating_flow_state_v4"
+            ],
+            "to": null,
+            "id": "system_changed"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.heating_valve_1p_chodba_alive",
+              "binary_sensor.heating_valve_prizemi_chodba_zachod_alive",
+              "binary_sensor.zona_1p_chodba_okno_otevrene",
+              "binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene",
+              "input_boolean.schedule_enable_1p_chodba",
+              "input_boolean.schedule_enable_prizemi_chodba_zachod",
+              "input_boolean.1p_chodba_manual_override",
+              "input_boolean.prizemi_chodba_zachod_manual_override"
+            ],
+            "to": null,
+            "id": "support_eligibility"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.1p_chodba_potrebne_teplo",
+              "binary_sensor.prizemi_chodba_zachod_potrebne_teplo",
+              "sensor.1p_chodba_pozadavek_na_vytapeni_pi",
+              "sensor.prizemi_chodba_zachod_pozadavek_na_vytapeni_pi"
+            ],
+            "to": null,
+            "id": "support_feedback"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "climate.1p_chodba",
+              "climate.prizemi_chodba_zachod"
+            ],
+            "attribute": "temperature",
+            "to": null,
+            "id": "target_changed"
+          },
+          {
+            "trigger": "event",
+            "event_type": "heating_reconcile_requested",
+            "id": "reconcile"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "periodic"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "climate.1p_chodba",
+              "climate.prizemi_chodba_zachod"
+            ],
+            "attribute": "current_temperature",
+            "id": "support_room_temp"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "delay": "00:00:02"
+          },
+          {
+            "variables": {
+              "support_zone": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') }}",
+              "support_id": "{{ states('input_select.topeni_hydraulicka_podpurna_zona').split('.')[1] if '.' in states('input_select.topeni_hydraulicka_podpurna_zona') else '' }}",
+              "support_selected": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') in ['climate.1p_chodba','climate.prizemi_chodba_zachod'] }}"
+            }
+          },
+          {
+            "variables": {
+              "threshold_lowered": "{{ is_state('input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah','on') }}",
+              "saved_threshold": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}",
+              "current_threshold": "{{ states('input_number.kotel_min_zone_demand_pct') | float(70) }}",
+              "support_pi": "{{ states('sensor.' ~ support_id ~ '_pozadavek_na_vytapeni_pi') | float(0) if support_selected else 0 }}",
+              "support_needed_heat": "{{ support_selected and is_state('binary_sensor.' ~ support_id ~ '_potrebne_teplo','on') }}",
+              "candidate_healthy": "{{ support_selected and is_state('input_select.heating_flow_state_v4','NORMAL') and states(support_zone) not in ['unknown','unavailable',''] and is_state('binary_sensor.heating_valve_' ~ support_id ~ '_alive','on') and is_state('binary_sensor.zona_' ~ support_id ~ '_okno_otevrene','off') and is_state('input_boolean.schedule_enable_' ~ support_id,'on') and is_state('input_boolean.' ~ support_id ~ '_manual_override','off') and is_number(state_attr(support_zone,'current_temperature')) and (state_attr(support_zone,'current_temperature')|float) < 24.0 }}",
+              "target_is_support": "{{ support_selected and is_number(state_attr(support_zone,'temperature')) and ((state_attr(support_zone,'temperature') | float(0)) - 29) | abs <= 0.1 }}",
+              "support_age_sec": "{{ (as_timestamp(now()) - as_timestamp(states.input_select.topeni_hydraulicka_podpurna_zona.last_changed)) | int(0) }}",
+              "original_threshold": "{{ (states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70)) if is_state('input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah','on') else (states('input_number.kotel_min_zone_demand_pct') | float(70)) }}"
+            }
+          },
+          {
+            "variables": {
+              "real_high_count": "{% set ns = namespace(n=0) %}\n{% for z in ['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_jidelna','1p_kuchyn','1p_koupelna','1p_chodba','2p_mama'] %}\n  {% if ('climate.' ~ z) != support_zone\n        and is_state('binary_sensor.zona_' ~ z ~ '_aktivni','on')\n        and (states('sensor.zona_' ~ z ~ '_demand') | float(0)) >= (original_threshold | float(70)) %}\n    {% set ns.n = ns.n + 1 %}\n  {% endif %}\n{% endfor %}\n{{ ns.n }}",
+              "support_confirmed": "{{ support_selected and candidate_healthy and target_is_support and support_needed_heat and (support_pi | float(0)) >= 5 }}",
+              "desired_bridge_threshold": "{{ [[[support_pi | float(0), 5] | max, original_threshold | float(70)] | min, 0] | max }}"
+            }
+          },
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not support_selected }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "stop": "Hydraulická podpora není vybraná."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not is_state('input_boolean.topny_system_enable','on') or is_state('input_boolean.heating_service_mode','on') or states('input_select.topny_rezim') == 'Off' or not candidate_healthy }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "support_ineligible"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora ukončena: zóna není způsobilá nebo systém/režim ji nedovoluje.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Podpora ukončena – neplatné bezpečnostní podmínky."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ (real_high_count | int(0)) == 0 and (support_age_sec | int(0)) < 30 }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "PI settling: po výběru podpory dočasně není silně žádající zóna. Po dobu max. 30 s ponechávám podpůrnou TRV otevřenou, ale nesnižuji kotlový práh.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "30s stabilizační okno PI – podpora zůstává otevřená, práh zůstává bezpečný."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ real_high_count | int(0) != 1 }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "real_requester_count_changed"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora ukončena; skutečných silně žádajících zón={{ real_high_count }}.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Počet skutečných žádajících zón už není 1."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not target_is_support }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "script.heating_apply_zone_target",
+                    "continue_on_error": true,
+                    "data": {
+                      "climate_entity": "{{ support_zone }}",
+                      "requested_temp": 29,
+                      "reason": "hydraulic_support_maintain"
+                    }
+                  },
+                  {
+                    "stop": "Centrální dispatch přepsal podporu – znovu otevírám, práh zůstává bezpečný."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ (not support_confirmed) and (support_age_sec | int(0) >= 300) }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_guard",
+                      "reason": "support_confirmation_timeout"
+                    }
+                  },
+                  {
+                    "action": "timer.start",
+                    "target": {
+                      "entity_id": "timer.topeni_hydraulicka_podpora_cooldown"
+                    },
+                    "data": {
+                      "duration": "00:15:00"
+                    }
+                  },
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_hydraulic_support_timeout",
+                      "title": "Topení – hydraulická podpora nepotvrzena",
+                      "message": "Pomocná hlavice do 5 minut nepotvrdila Potřebné teplo + PI ≥ 5 %. Práh kotle nebyl ponechán snížený a podpora byla ukončena."
+                    }
+                  },
+                  {
+                    "stop": "Timeout potvrzení hydraulické podpory."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ not support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ saved_threshold }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "stop": "Čekám na potvrzení Potřebné teplo + PI pomocné zóny."
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "choose": [
+                      {
+                        "conditions": [
+                          {
+                            "condition": "template",
+                            "value_template": "{{ (desired_bridge_threshold | float(0)) < (original_threshold | float(70)) }}"
+                          }
+                        ],
+                        "sequence": [
+                          {
+                            "if": [
+                              {
+                                "condition": "state",
+                                "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                                "state": "off"
+                              }
+                            ],
+                            "then": [
+                              {
+                                "action": "input_number.set_value",
+                                "target": {
+                                  "entity_id": "input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony"
+                                },
+                                "data": {
+                                  "value": "{{ current_threshold }}"
+                                }
+                              },
+                              {
+                                "action": "input_boolean.turn_on",
+                                "target": {
+                                  "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "action": "input_number.set_value",
+                            "target": {
+                              "entity_id": "input_number.kotel_min_zone_demand_pct"
+                            },
+                            "data": {
+                              "value": "{{ desired_bridge_threshold }}"
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "default": [
+                      {
+                        "if": [
+                          {
+                            "condition": "state",
+                            "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                            "state": "on"
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "input_number.set_value",
+                            "target": {
+                              "entity_id": "input_number.kotel_min_zone_demand_pct"
+                            },
+                            "data": {
+                              "value": "{{ saved_threshold }}"
+                            }
+                          },
+                          {
+                            "action": "input_boolean.turn_off",
+                            "target": {
+                              "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora potvrzena: {{ support_zone }}, Potřebné teplo=ON, PI={{ support_pi }} %. Efektivní práh={{ desired_bridge_threshold }} %, původní={{ original_threshold }} %.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      }
+    }
+  ]
+}

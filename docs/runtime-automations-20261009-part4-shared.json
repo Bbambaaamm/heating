@@ -1,0 +1,979 @@
+{
+  "schema_version": 1,
+  "batch": 4,
+  "generated_at": "2026-10-09",
+  "source": "live Home Assistant",
+  "objects": [
+    {
+      "id": "1789741778892",
+      "entity_id": "automation.topeni_kontrola_adaptace_chodby_2026_09_18",
+      "state": "off",
+      "config_hash": "bbbe603209f7551d",
+      "config": {
+        "id": "1789741778892",
+        "alias": "Topení – kontrola adaptace chodby 2026-09-18",
+        "description": "Jednorázová kontrola adaptace zahájené 18. 9. 2026 v 16:28. Oznámí výsledek při ukončení nebo v 19:45. Nemění nastavení hlavic ani kotle; po oznámení se vypne.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "sensor.1p_chodba_stav_adaptacniho_behu",
+            "attribute": "Valve_characteristic_found",
+            "to": true,
+            "id": "found"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.1p_chodba_stav_adaptacniho_behu",
+            "attribute": "In_progress",
+            "from": true,
+            "to": false,
+            "for": {
+              "seconds": 30
+            },
+            "id": "ended"
+          },
+          {
+            "trigger": "time",
+            "at": "19:45:00",
+            "id": "deadline"
+          }
+        ],
+        "actions": [
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "sensor.1p_chodba_stav_adaptacniho_behu",
+                    "attribute": "Valve_characteristic_found",
+                    "state": true
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "title": "Topení – adaptace chodby",
+                      "message": "Adaptace hlavice na chodbě v 1. patře je úspěšná. Hlavice potvrdila naučenou charakteristiku ventilu.",
+                      "notification_id": "heating_chodba_adaptation_20260918"
+                    }
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "sensor.1p_chodba_stav_adaptacniho_behu",
+                    "attribute": "In_progress",
+                    "state": true
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "title": "Topení – adaptace chodby",
+                      "message": "Adaptace hlavice na chodbě stále probíhá. Do kontrolního času 19:45 nebyl úspěch potvrzen. Stav je vidět v Diagnostice hlavic; opravu zatím nelze považovat za dokončenou.",
+                      "notification_id": "heating_chodba_adaptation_20260918"
+                    }
+                  }
+                ]
+              }
+            ],
+            "default": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "title": "Topení – adaptace chodby",
+                  "message": "Úspěšná adaptace hlavice na chodbě nebyla potvrzena. Zkontroluj Diagnostiku hlavic: dostupnost, přívod tepla a případné přerušení změnou požadované teploty. Naučená charakteristika ventilu zatím není potvrzena.",
+                  "notification_id": "heating_chodba_adaptation_20260918"
+                }
+              }
+            ]
+          },
+          {
+            "action": "automation.turn_off",
+            "target": {
+              "entity_id": "automation.topeni_kontrola_adaptace_chodby_2026_09_18"
+            },
+            "data": {
+              "stop_actions": false
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "id": "heating_boiler_low_flow_hard_guard",
+      "entity_id": "automation.topeni_ochrana_pri_nedostatecnem_prutoku_kotlem",
+      "state": "off",
+      "config_hash": "35cb122415fbcc45",
+      "config": {
+        "id": "heating_boiler_low_flow_hard_guard",
+        "alias": "Topení – ochrana při nedostatečném průtoku kotlem",
+        "description": "Tvrdý fail-closed guard pro kódy 2964–2967: nejdřív zablokuje hlavní řízení, nezávisle vypne relé a zapne servisní režim. Jednotlivé selhání výstupního povelu nesmí zabránit dalšímu bezpečnostnímu kroku.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2964",
+            "id": "2964"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2965",
+            "id": "2965"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2966",
+            "id": "2966"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2967",
+            "id": "2967"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            },
+            "continue_on_error": true
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.heating_restore_verified"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.heating_service_mode"
+            }
+          },
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_boiler_low_flow_guard",
+              "title": "Topení zastaveno – nedostatečný průtok",
+              "message": "Kotel ohlásil servisní kód {{ trigger.id }}. Relé a hlavní řízení byly vypnuty a servisní režim otevře chytré hlavice. Manuální ventily ponechte otevřené a před dalším spuštěním zkontrolujte průtok."
+            }
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "id": "heating_service_mode_guard",
+      "entity_id": "automation.topeni_servisni_rezim",
+      "state": "on",
+      "config_hash": "f95522fe57dfb28f",
+      "config": {
+        "id": "heating_service_mode_guard",
+        "alias": "Topení – servisní režim",
+        "description": "Ruční servisní režim. Je oddělený od Flow V4; během EMERGENCY_COOLING/RESTORING se nesmí aktivovat ani spustit restore. V NORMAL/HARD_LOCKOUT funguje standardně. 2026-10-09: Service OFF saves resume eligibility before restore script clears the helper and reenables master only after successful restore and EMS safety checks; boiler relay remains controlled by Flow V4 start policy.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "to": "on",
+            "id": "service_on"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "from": "on",
+            "to": "off",
+            "id": "service_off"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "ha_start"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": "service_on"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_select.heating_flow_state_v4",
+                        "state": [
+                          "EMERGENCY_COOLING",
+                          "RESTORING"
+                        ]
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.heating_service_mode"
+                        },
+                        "continue_on_error": true
+                      },
+                      {
+                        "action": "logbook.log",
+                        "data": {
+                          "name": "Topení – servis",
+                          "entity_id": "input_boolean.heating_service_mode",
+                          "message": "Servisní režim byl odmítnut: Flow V4 právě chladí nebo obnovuje systém."
+                        }
+                      },
+                      {
+                        "stop": "Servis je během EMERGENCY_COOLING/RESTORING blokovaný."
+                      }
+                    ]
+                  },
+                  {
+                    "action": "script.turn_off",
+                    "target": {
+                      "entity_id": "script.heating_restore_schedule_after_service"
+                    }
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ trigger.from_state is defined\n   and trigger.from_state is not none\n   and trigger.from_state.state == 'off'\n   and states('input_boolean.topny_system_enable') in ['on', 'off'] }}"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "if": [
+                          {
+                            "condition": "state",
+                            "entity_id": "input_boolean.topny_system_enable",
+                            "state": "on"
+                          }
+                        ],
+                        "then": [
+                          {
+                            "action": "input_boolean.turn_on",
+                            "target": {
+                              "entity_id": "input_boolean.heating_service_restore_main_enable"
+                            }
+                          }
+                        ],
+                        "else": [
+                          {
+                            "action": "input_boolean.turn_off",
+                            "target": {
+                              "entity_id": "input_boolean.heating_service_restore_main_enable"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_boolean.turn_off",
+                    "target": {
+                      "entity_id": "input_boolean.topny_system_enable"
+                    },
+                    "continue_on_error": true,
+                    "alias": "Nejdřív zablokuje hlavní řízení."
+                  },
+                  {
+                    "action": "switch.turn_off",
+                    "target": {
+                      "entity_id": "switch.kotel_rele_spinac"
+                    },
+                    "continue_on_error": true,
+                    "alias": "Relé se vypíná nezávisle; jeho chyba nesmí zablokovat servisní fail-safe."
+                  },
+                  {
+                    "parallel": [
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.sklep_michal"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.sklep_michal"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.prizemi_michal"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.prizemi_michal"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.prizemi_chodba_zachod"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.prizemi_chodba_zachod"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.1p_kuchyn"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.1p_kuchyn"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.1p_jidelna"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.1p_jidelna"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.1p_chodba"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.1p_chodba"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.1p_koupelna"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.1p_koupelna"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      },
+                      {
+                        "sequence": [
+                          {
+                            "action": "climate.set_hvac_mode",
+                            "target": {
+                              "entity_id": "climate.2p_mama"
+                            },
+                            "data": {
+                              "hvac_mode": "heat"
+                            },
+                            "continue_on_error": true
+                          },
+                          {
+                            "action": "climate.set_temperature",
+                            "target": {
+                              "entity_id": "climate.2p_mama"
+                            },
+                            "data": {
+                              "temperature": 29
+                            },
+                            "continue_on_error": true
+                          }
+                        ]
+                      }
+                    ],
+                    "alias": "Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje ostatní."
+                  },
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_service_mode",
+                      "title": "Servisní režim topení je aktivní",
+                      "message": "Kotlové relé je blokované, hlavní řízení je pozastavené a všech 8 hlavic má cíl 29 °C. Počkej několik minut na mechanické otevření ventilů. Režim ukonči stejným přepínačem."
+                    }
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "ha_start",
+                      "relay_guard",
+                      "main_guard"
+                    ]
+                  },
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.heating_service_mode",
+                    "state": "on"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "input_boolean.turn_off",
+                    "target": {
+                      "entity_id": "input_boolean.topny_system_enable"
+                    },
+                    "continue_on_error": true
+                  },
+                  {
+                    "action": "switch.turn_off",
+                    "target": {
+                      "entity_id": "switch.kotel_rele_spinac"
+                    },
+                    "continue_on_error": true
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "trigger",
+                        "id": "ha_start"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "parallel": [
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.sklep_michal"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.sklep_michal"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.prizemi_michal"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.prizemi_michal"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.prizemi_chodba_zachod"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.prizemi_chodba_zachod"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.1p_kuchyn"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.1p_kuchyn"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.1p_jidelna"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.1p_jidelna"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.1p_chodba"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.1p_chodba"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.1p_koupelna"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.1p_koupelna"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          },
+                          {
+                            "sequence": [
+                              {
+                                "action": "climate.set_hvac_mode",
+                                "target": {
+                                  "entity_id": "climate.2p_mama"
+                                },
+                                "data": {
+                                  "hvac_mode": "heat"
+                                },
+                                "continue_on_error": true
+                              },
+                              {
+                                "action": "climate.set_temperature",
+                                "target": {
+                                  "entity_id": "climate.2p_mama"
+                                },
+                                "data": {
+                                  "temperature": 29
+                                },
+                                "continue_on_error": true
+                              }
+                            ]
+                          }
+                        ],
+                        "alias": "Každá hlavice se otevírá samostatně; nedostupnost jedné nezablokuje ostatní."
+                      }
+                    ]
+                  },
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_service_mode",
+                      "title": "Servisní režim topení je aktivní",
+                      "message": "Kotlové relé je blokované, hlavní řízení je pozastavené a hlavice jsou otevřené pro servis."
+                    }
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": "service_off"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_select.heating_flow_state_v4",
+                    "state": [
+                      "NORMAL",
+                      "HARD_LOCKOUT"
+                    ]
+                  },
+                  {
+                    "variables": {
+                      "resume_allowed": "{{ is_state('input_boolean.heating_service_restore_main_enable', 'on') }}"
+                    }
+                  },
+                  {
+                    "action": "input_boolean.turn_off",
+                    "target": {
+                      "entity_id": "input_boolean.topny_system_enable"
+                    },
+                    "continue_on_error": true
+                  },
+                  {
+                    "action": "switch.turn_off",
+                    "target": {
+                      "entity_id": "switch.kotel_rele_spinac"
+                    },
+                    "continue_on_error": true
+                  },
+                  {
+                    "action": "script.heating_restore_schedule_after_service"
+                  },
+                  {
+                    "if": [
+                      {
+                        "condition": "template",
+                        "value_template": "{{ resume_allowed | bool(false) }}"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "input_select.heating_flow_state_v4",
+                        "state": "NORMAL"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.heating_service_mode",
+                        "state": "off"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.heating_restore_verified",
+                        "state": "on"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.heating_flow_relief_lockout",
+                        "state": "off"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "binary_sensor.heating_boiler_fault_clear",
+                        "state": "on"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "sensor.system_bus_status",
+                        "state": "connected"
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "binary_sensor.boiler_burngas",
+                        "state": "off"
+                      },
+                      {
+                        "condition": "numeric_state",
+                        "entity_id": "sensor.boiler_heatblock",
+                        "below": 72
+                      },
+                      {
+                        "condition": "state",
+                        "entity_id": "input_select.topny_rezim",
+                        "state": [
+                          "Auto",
+                          "Eco",
+                          "Boost"
+                        ]
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_boolean.turn_on",
+                        "target": {
+                          "entity_id": "input_boolean.topny_system_enable"
+                        }
+                      },
+                      {
+                        "action": "logbook.log",
+                        "data": {
+                          "name": "Topení – servisní režim",
+                          "entity_id": "input_boolean.topny_system_enable",
+                          "message": "Ruční servis skončil; obnovení hlavic potvrzeno, EMS bez chyby a původní master byl ON. Povoluji automatické topení; relé spouští výhradně bezpečná V4 politika po 120 s."
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "action": "logbook.log",
+                        "data": {
+                          "name": "Topení – servisní režim",
+                          "entity_id": "input_boolean.topny_system_enable",
+                          "message": "Po ukončení servisu zůstává master OFF: před servisem byl vypnutý, nebo obnova/bezpečnostní podmínky nejsou potvrzené. Bez ručního obejití blokací."
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      },
+      "deployment_status": "live_verified_2026-10-09",
+      "live_verified": {
+        "flow_state": "NORMAL",
+        "master": "on",
+        "relay": "on",
+        "burner": "on",
+        "ems_code": "200",
+        "service_mode": "off",
+        "tested_by": "isolated Home Assistant 2026.5.1 / 2026.9.2 CI + immediate live readback; not forced physical service cycle"
+      }
+    },
+    {
+      "id": "heating_service_mode_hard_guard",
+      "entity_id": "automation.topeni_servisni_rezim_okamzita_ochrana_rele",
+      "state": "on",
+      "config_hash": "9a676fd68ef67b89",
+      "config": {
+        "id": "heating_service_mode_hard_guard",
+        "alias": "Topení – servisní režim: okamžitá ochrana relé",
+        "description": "Nezávislá bezpečnostní pojistka servisního režimu. Pomalé nebo chybující povely Zigbee hlavic nesmějí zdržet vypnutí kotlového relé a hlavního povolení. Relé zůstává blokované také během obnovy rozvrhů.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "switch.kotel_rele_spinac",
+            "to": "on",
+            "id": "relay_on"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "to": "on",
+            "id": "main_on"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "ha_start"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "script.heating_restore_schedule_after_service",
+            "to": "on",
+            "id": "schedule_restore"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "or",
+            "conditions": [
+              {
+                "condition": "state",
+                "entity_id": "input_boolean.heating_service_mode",
+                "state": "on"
+              },
+              {
+                "condition": "state",
+                "entity_id": "script.heating_restore_schedule_after_service",
+                "state": "on"
+              }
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            }
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.topny_system_enable"
+            }
+          }
+        ],
+        "mode": "parallel",
+        "max": 10,
+        "max_exceeded": "silent"
+      }
+    }
+  ]
+}

@@ -98,7 +98,12 @@ blueprint:
           domain: input_select
 
 
-mode: restart
+# Queue short ingest operations rather than interrupting manual setpoint capture.
+# In central-dispatch mode this blueprint performs no TRV I/O; fallback writes
+# are guarded against stale schedule/mode inputs before setting temperatures.
+mode: queued
+max: 20
+max_exceeded: warning
 initial_state: true
 
 # ---------------------------------------------------------------

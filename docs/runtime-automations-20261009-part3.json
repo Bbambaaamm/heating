@@ -1,0 +1,1527 @@
+{
+  "schema_version": 1,
+  "batch": 3,
+  "generated_at": "2026-10-09",
+  "source": "live Home Assistant",
+  "objects": [
+    {
+      "id": "heating_hydraulic_support_start",
+      "entity_id": "automation.topeni_hydraulicka_podpora_jedine_zadajici_zony",
+      "state": "on",
+      "config_hash": "92daf238a92819b5",
+      "config": {
+        "id": "heating_hydraulic_support_start",
+        "alias": "Topení – hydraulická podpora jediné žádající zóny",
+        "description": "Hydraulická podpora V4: pouze ve Flow=NORMAL. Vybere zdravou podpůrnou zónu, která je pod 24 °C; pokud jsou způsobilé obě, použije chladnější. Tím se pomocná místnost nepřetápí.",
+        "triggers": [
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "above": 0,
+            "below": 2,
+            "id": "single_zone"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.kotel_threshold_ok_avg_demand",
+            "to": "on",
+            "id": "demand_ok"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+            "id": "periodic"
+          },
+          {
+            "trigger": "event",
+            "event_type": "heating_hydraulic_support_retry",
+            "id": "retry"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "state": "NORMAL"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topny_rezim",
+            "state": [
+              "Auto",
+              "Eco",
+              "Boost"
+            ]
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_mode_off_block",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.kotel_threshold_ok_avg_demand",
+            "state": "on"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.kotel_aktivni_zony_pocet",
+            "above": 0,
+            "below": 2
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_select.topeni_hydraulicka_podpurna_zona",
+            "state": "none"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_central_dispatch_enable",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_dispatch_inputs_available",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.heating_startup_reconcile_guard",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+            "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "timer.topeni_hydraulicka_podpora_cooldown",
+            "state": "idle"
+          }
+        ],
+        "actions": [
+          {
+            "variables": {
+              "support_zone": "{% set t1 = state_attr('climate.1p_chodba','current_temperature') %}\n{% set t2 = state_attr('climate.prizemi_chodba_zachod','current_temperature') %}\n{% set ok1 = is_state('binary_sensor.heating_valve_1p_chodba_alive','on')\n   and is_state('binary_sensor.zona_1p_chodba_okno_otevrene','off')\n   and is_state('input_boolean.schedule_enable_1p_chodba','on')\n   and is_state('input_boolean.1p_chodba_manual_override','off')\n   and (states('sensor.zona_1p_chodba_demand') | float(0)) < (states('input_number.kotel_min_zone_demand_pct') | float(70))\n   and states('climate.1p_chodba') not in ['unknown','unavailable','']\n   and is_number(t1) and (t1|float) < 24.0 %}\n{% set ok2 = is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive','on')\n   and is_state('binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene','off')\n   and is_state('input_boolean.schedule_enable_prizemi_chodba_zachod','on')\n   and is_state('input_boolean.prizemi_chodba_zachod_manual_override','off')\n   and (states('sensor.zona_prizemi_chodba_zachod_demand') | float(0)) < (states('input_number.kotel_min_zone_demand_pct') | float(70))\n   and states('climate.prizemi_chodba_zachod') not in ['unknown','unavailable','']\n   and is_number(t2) and (t2|float) < 24.0 %}\n{% if ok1 and ok2 %}\n  {{ 'climate.1p_chodba' if (t1|float) <= (t2|float) else 'climate.prizemi_chodba_zachod' }}\n{% elif ok1 %}\n  climate.1p_chodba\n{% elif ok2 %}\n  climate.prizemi_chodba_zachod\n{% else %}\n  none\n{% endif %}"
+            }
+          },
+          {
+            "condition": "template",
+            "value_template": "{{ support_zone | trim != 'none' }}"
+          },
+          {
+            "action": "input_select.select_option",
+            "target": {
+              "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+            },
+            "data": {
+              "option": "{{ support_zone | trim }}"
+            }
+          },
+          {
+            "action": "script.heating_apply_zone_target",
+            "continue_on_error": true,
+            "data": {
+              "climate_entity": "{{ support_zone | trim }}",
+              "requested_temp": 29,
+              "reason": "hydraulic_support_single_requester"
+            }
+          },
+          {
+            "wait_template": "{% set z = support_zone | trim %}\n{{ (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >= 2\n   or not is_state('input_boolean.topny_system_enable','on')\n   or is_state('input_boolean.heating_service_mode','on')\n   or states('input_select.topeni_hydraulicka_podpurna_zona') != z }}",
+            "timeout": "00:05:00",
+            "continue_on_timeout": true
+          },
+          {
+            "variables": {
+              "support_zone_now": "{{ states('input_select.topeni_hydraulicka_podpurna_zona') }}",
+              "support_id": "{{ states('input_select.topeni_hydraulicka_podpurna_zona').split('.')[1] if '.' in states('input_select.topeni_hydraulicka_podpurna_zona') else '' }}",
+              "support_confirmed": "{% set z = states('input_select.topeni_hydraulicka_podpurna_zona') %}\n{% set zid = z.split('.')[1] if '.' in z else '' %}\n{{ z in ['climate.1p_chodba','climate.prizemi_chodba_zachod']\n   and (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >= 2\n   and is_state('binary_sensor.' ~ zid ~ '_potrebne_teplo','on')\n   and (states('sensor.' ~ zid ~ '_pozadavek_na_vytapeni_pi') | float(0)) >= 5\n   and is_number(state_attr(z,'temperature'))\n   and ((state_attr(z,'temperature') | float(0)) - 29) | abs <= 0.1 }}"
+            }
+          },
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_confirmed }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Hydraulická podpora potvrzena: {{ support_zone_now }} je otevřená, původní hard-floor zůstává 2 zóny a agregace nyní bezpečně vidí alespoň dvě zóny.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  }
+                ]
+              },
+              {
+                "conditions": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ support_zone_now != (support_zone | trim) or not is_state('input_boolean.topny_system_enable','on') or is_state('input_boolean.heating_service_mode','on') }}"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "if": [
+                      {
+                        "condition": "state",
+                        "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                        "state": "on"
+                      }
+                    ],
+                    "then": [
+                      {
+                        "action": "input_number.set_value",
+                        "target": {
+                          "entity_id": "input_number.kotel_min_zone_demand_pct"
+                        },
+                        "data": {
+                          "value": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}"
+                        }
+                      },
+                      {
+                        "action": "input_boolean.turn_off",
+                        "target": {
+                          "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "action": "input_select.select_option",
+                    "target": {
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    },
+                    "data": {
+                      "option": "none"
+                    }
+                  },
+                  {
+                    "event": "heating_reconcile_requested",
+                    "event_data": {
+                      "source": "heating_hydraulic_support_start",
+                      "reason": "support_aborted_without_cooldown"
+                    }
+                  },
+                  {
+                    "action": "logbook.log",
+                    "data": {
+                      "name": "Topení – hydraulická podpora",
+                      "message": "Podpora byla zrušena změnou systému nebo reconcilerem. Nejde o selhání TRV; cooldown se nespouští.",
+                      "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                    }
+                  },
+                  {
+                    "stop": "Podpora byla korektně zrušena bez penalizačního cooldownu."
+                  }
+                ]
+              }
+            ],
+            "default": [
+              {
+                "if": [
+                  {
+                    "condition": "state",
+                    "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah",
+                    "state": "on"
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "input_number.set_value",
+                    "target": {
+                      "entity_id": "input_number.kotel_min_zone_demand_pct"
+                    },
+                    "data": {
+                      "value": "{{ states('input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony') | float(70) }}"
+                    }
+                  },
+                  {
+                    "action": "input_boolean.turn_off",
+                    "target": {
+                      "entity_id": "input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah"
+                    }
+                  }
+                ]
+              },
+              {
+                "action": "input_select.select_option",
+                "target": {
+                  "entity_id": "input_select.topeni_hydraulicka_podpurna_zona"
+                },
+                "data": {
+                  "option": "none"
+                }
+              },
+              {
+                "event": "heating_reconcile_requested",
+                "event_data": {
+                  "source": "heating_hydraulic_support_start",
+                  "reason": "support_not_confirmed"
+                }
+              },
+              {
+                "action": "timer.start",
+                "target": {
+                  "entity_id": "timer.topeni_hydraulicka_podpora_cooldown"
+                },
+                "data": {
+                  "duration": "00:15:00"
+                }
+              },
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_hydraulic_support_failed",
+                  "title": "Topení – hydraulická podpora nepotvrzena",
+                  "message": "Pomocná TRV zóna se do 5 minut nepotvrdila jako bezpečná hydraulická podpora a agregace nedosáhla dvou započítaných zón. Původní práh byl obnoven a kotel zůstal blokovaný."
+                }
+              }
+            ]
+          }
+        ],
+        "mode": "single",
+        "max_exceeded": "silent"
+      }
+    },
+    {
+      "id": "heating_observation_fault_capture_20260920",
+      "entity_id": "automation.topeni_zachyt_poruchy_pri_pozorovani_20260920",
+      "state": "off",
+      "config_hash": "e0eb223c542524a6",
+      "config": {
+        "id": "heating_observation_fault_capture_20260920",
+        "alias": "Topení – záchyt poruchy při pozorování 20260920",
+        "description": "Pouze diagnostika. Zachytí novou poruchu, oznámí stav, sleduje reakci a po potvrzeném vypnutí hořáku ukončí diagnostický záznam. Neovládá topení.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": [
+              "2964",
+              "2965",
+              "2966",
+              "2967"
+            ],
+            "id": "low_flow"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_lastcode",
+            "id": "new_last_fault"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "or",
+            "conditions": [
+              {
+                "condition": "trigger",
+                "id": "low_flow"
+              },
+              {
+                "condition": "and",
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": "new_last_fault"
+                  },
+                  {
+                    "condition": "template",
+                    "value_template": "{{ trigger.from_state is not none and trigger.to_state is not none and trigger.from_state.state not in ['unknown','unavailable',''] and trigger.to_state.state not in ['unknown','unavailable','','0','none'] and trigger.from_state.state.split(' - ')[0] != trigger.to_state.state.split(' - ')[0] }}"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "variables": {
+              "fault_snapshot": "{% set ns = namespace(values={}) %}{% for e in [\"input_boolean.topny_system_enable\",\"input_boolean.heating_service_mode\",\"switch.kotel_rele_spinac\",\"binary_sensor.kotel_should_be_on\",\"binary_sensor.boiler_burngas\",\"binary_sensor.boiler_heatingpump\",\"sensor.boiler_curflowtemp\",\"sensor.boiler_heatblock\",\"sensor.boiler_curburnpow\",\"sensor.boiler_heatingpumpmod\",\"sensor.boiler_servicecodenumber\",\"sensor.boiler_lastcode\",\"sensor.kotel_aktivni_zony_pocet\",\"sensor.kotel_poptavka_prumer\",\"sensor.system_bus_status\"] %}{% set ns.values = dict(ns.values, **{e: states(e)}) %}{% endfor %}{% for z in [\"sklep_michal\",\"prizemi_michal\",\"prizemi_chodba_zachod\",\"1p_jidelna\",\"1p_kuchyn\",\"1p_koupelna\",\"1p_chodba\",\"2p_mama\"] %}{% set e = 'climate.' ~ z %}{% set ns.values = dict(ns.values, **{e: {'state':states(e), 'target':state_attr(e,'temperature'), 'temperature':state_attr(e,'current_temperature'), 'demand':state_attr(e,'pi_heating_demand'), 'action':state_attr(e,'hvac_action')}}) %}{% endfor %}{{ {'time':now().isoformat(), 'values':ns.values} | to_json }}",
+              "boiler_snapshot": "{% set ns = namespace(values={}) %}{% for s in states if s.entity_id.split('.')[1].startswith('boiler_') %}{% set ns.values = dict(ns.values, **{s.entity_id: {'state':s.state, 'updated':s.last_updated.isoformat()}}) %}{% endfor %}{{ ns.values | to_json }}"
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – zachycená porucha",
+              "entity_id": "sensor.boiler_servicecodenumber",
+              "message": "{{ fault_snapshot }} | ALL_BOILER={{ boiler_snapshot }}"
+            }
+          },
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_observation_fault_20260920",
+              "title": "Topení – nová porucha zachycena",
+              "message": "Stav při přijetí hlášení (údaje mohou být opožděné): {{ fault_snapshot }}"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "not",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity_id": "binary_sensor.boiler_burngas",
+                    "state": "off"
+                  }
+                ]
+              }
+            ],
+            "then": [
+              {
+                "wait_for_trigger": [
+                  {
+                    "trigger": "state",
+                    "entity_id": "binary_sensor.boiler_burngas",
+                    "to": "off"
+                  }
+                ],
+                "timeout": "00:02:00",
+                "continue_on_timeout": false
+              }
+            ]
+          },
+          {
+            "delay": {
+              "seconds": 30
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – reakce po poruše",
+              "entity_id": "sensor.boiler_servicecodenumber",
+              "message": "{% set ns = namespace(values={}) %}{% for e in [\"input_boolean.topny_system_enable\",\"input_boolean.heating_service_mode\",\"switch.kotel_rele_spinac\",\"binary_sensor.kotel_should_be_on\",\"binary_sensor.boiler_burngas\",\"binary_sensor.boiler_heatingpump\",\"sensor.boiler_curflowtemp\",\"sensor.boiler_heatblock\",\"sensor.boiler_curburnpow\",\"sensor.boiler_heatingpumpmod\",\"sensor.boiler_servicecodenumber\",\"sensor.boiler_lastcode\",\"sensor.kotel_aktivni_zony_pocet\",\"sensor.kotel_poptavka_prumer\",\"sensor.system_bus_status\"] %}{% set ns.values = dict(ns.values, **{e: states(e)}) %}{% endfor %}{% for z in [\"sklep_michal\",\"prizemi_michal\",\"prizemi_chodba_zachod\",\"1p_jidelna\",\"1p_kuchyn\",\"1p_koupelna\",\"1p_chodba\",\"2p_mama\"] %}{% set e = 'climate.' ~ z %}{% set ns.values = dict(ns.values, **{e: {'state':states(e), 'target':state_attr(e,'temperature'), 'temperature':state_attr(e,'current_temperature'), 'demand':state_attr(e,'pi_heating_demand'), 'action':state_attr(e,'hvac_action')}}) %}{% endfor %}{{ {'time':now().isoformat(), 'values':ns.values} | to_json }}"
+            }
+          },
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_observation_fault_20260920",
+              "title": "Topení – porucha a vypnutí hořáku zachyceny",
+              "message": "Při hlášení: {{ fault_snapshot }}\nPo vypnutí: {% set ns = namespace(values={}) %}{% for e in [\"input_boolean.topny_system_enable\",\"input_boolean.heating_service_mode\",\"switch.kotel_rele_spinac\",\"binary_sensor.kotel_should_be_on\",\"binary_sensor.boiler_burngas\",\"binary_sensor.boiler_heatingpump\",\"sensor.boiler_curflowtemp\",\"sensor.boiler_heatblock\",\"sensor.boiler_curburnpow\",\"sensor.boiler_heatingpumpmod\",\"sensor.boiler_servicecodenumber\",\"sensor.boiler_lastcode\",\"sensor.kotel_aktivni_zony_pocet\",\"sensor.kotel_poptavka_prumer\",\"sensor.system_bus_status\"] %}{% set ns.values = dict(ns.values, **{e: states(e)}) %}{% endfor %}{% for z in [\"sklep_michal\",\"prizemi_michal\",\"prizemi_chodba_zachod\",\"1p_jidelna\",\"1p_kuchyn\",\"1p_koupelna\",\"1p_chodba\",\"2p_mama\"] %}{% set e = 'climate.' ~ z %}{% set ns.values = dict(ns.values, **{e: {'state':states(e), 'target':state_attr(e,'temperature'), 'temperature':state_attr(e,'current_temperature'), 'demand':state_attr(e,'pi_heating_demand'), 'action':state_attr(e,'hvac_action')}}) %}{% endfor %}{{ {'time':now().isoformat(), 'values':ns.values} | to_json }}"
+            }
+          },
+          {
+            "action": "automation.turn_off",
+            "target": {
+              "entity_id": [
+                "automation.topeni_pozorovani_do_poruchy_20260920",
+                "automation.topeni_zachyt_poruchy_pri_pozorovani_20260920"
+              ]
+            },
+            "data": {
+              "stop_actions": false
+            }
+          }
+        ],
+        "mode": "single",
+        "max_exceeded": "silent"
+      }
+    },
+    {
+      "id": "heating_observation_until_fault_20260920",
+      "entity_id": "automation.topeni_pozorovani_do_poruchy_20260920",
+      "state": "off",
+      "config_hash": "1c7adf1caf3945d5",
+      "config": {
+        "id": "heating_observation_until_fault_20260920",
+        "alias": "Topení – pozorování do poruchy 20260920",
+        "description": "Pasivní záznam od 20.9.2026: při změnách a po 30 sekundách zapisuje stav hlavic a kotle do deníku. Nemění řízení, hlavice ani kotel. Vypne jej související záchyt nové poruchy.",
+        "triggers": [
+          {
+            "trigger": "time_pattern",
+            "seconds": "/30",
+            "id": "sample"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "input_boolean.topny_system_enable",
+              "input_boolean.heating_service_mode",
+              "switch.kotel_rele_spinac",
+              "binary_sensor.kotel_should_be_on",
+              "binary_sensor.boiler_burngas",
+              "binary_sensor.boiler_heatingpump",
+              "sensor.boiler_servicecodenumber",
+              "sensor.boiler_lastcode",
+              "sensor.kotel_aktivni_zony_pocet",
+              "sensor.kotel_poptavka_prumer",
+              "sensor.system_bus_status",
+              "climate.sklep_michal",
+              "climate.prizemi_michal",
+              "climate.prizemi_chodba_zachod",
+              "climate.1p_jidelna",
+              "climate.1p_kuchyn",
+              "climate.1p_koupelna",
+              "climate.1p_chodba",
+              "climate.2p_mama"
+            ],
+            "id": "change"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "restart"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – pozorování",
+              "entity_id": "sensor.boiler_servicecodenumber",
+              "message": "{% set ns = namespace(values={}) %}{% for e in [\"input_boolean.topny_system_enable\",\"input_boolean.heating_service_mode\",\"switch.kotel_rele_spinac\",\"binary_sensor.kotel_should_be_on\",\"binary_sensor.boiler_burngas\",\"binary_sensor.boiler_heatingpump\",\"sensor.boiler_curflowtemp\",\"sensor.boiler_heatblock\",\"sensor.boiler_curburnpow\",\"sensor.boiler_heatingpumpmod\",\"sensor.boiler_servicecodenumber\",\"sensor.boiler_lastcode\",\"sensor.kotel_aktivni_zony_pocet\",\"sensor.kotel_poptavka_prumer\",\"sensor.system_bus_status\"] %}{% set ns.values = dict(ns.values, **{e: states(e)}) %}{% endfor %}{% for z in [\"sklep_michal\",\"prizemi_michal\",\"prizemi_chodba_zachod\",\"1p_jidelna\",\"1p_kuchyn\",\"1p_koupelna\",\"1p_chodba\",\"2p_mama\"] %}{% set e = 'climate.' ~ z %}{% set ns.values = dict(ns.values, **{e: {'state':states(e), 'target':state_attr(e,'temperature'), 'temperature':state_attr(e,'current_temperature'), 'demand':state_attr(e,'pi_heating_demand'), 'action':state_attr(e,'hvac_action')}}) %}{% endfor %}{{ {'time':now().isoformat(), 'values':ns.values} | to_json }} | ALL_BOILER={% set ns = namespace(values={}) %}{% for s in states if s.entity_id.split('.')[1].startswith('boiler_') %}{% set ns.values = dict(ns.values, **{s.entity_id: {'state':s.state, 'updated':s.last_updated.isoformat()}}) %}{% endfor %}{{ ns.values | to_json }}"
+            }
+          }
+        ],
+        "mode": "queued",
+        "max": 100
+      }
+    },
+    {
+      "id": "heating_response_pair_v2",
+      "entity_id": "automation.topeni_parovani_povelu_a_hlaseni",
+      "state": "on",
+      "config_hash": "68babd7208b6942b",
+      "config": {
+        "id": "heating_response_pair_v2",
+        "alias": "Topení – párování povelů a hlášení",
+        "description": "Pasivní diagnostika v2. Páruje skalární set_temperature s novou změnou cíle a první změnou PI. Stejný povel do 30 s slučuje; jiný cíl ukončí předchozí párování. Timeout 600 s, přerušení při startu HA/reloadu automatizací. Nepotvrzuje doručení, pohyb ani příčinnost. Zapisuje pouze diagnostické input_text a deník. Parametry nejsou bezpečnostní limity.",
+        "triggers": [
+          {
+            "trigger": "event",
+            "event_type": "heating_response_observed_v2",
+            "id": "record"
+          },
+          {
+            "trigger": "time_pattern",
+            "seconds": "/15",
+            "id": "tick"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "reset"
+          },
+          {
+            "trigger": "event",
+            "event_type": "automation_reloaded",
+            "id": "reset"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "variables": {
+              "z": "climate.sklep_michal",
+              "p": "{{ states('input_text.heating_pair_sklep_michal')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_sklep_michal"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.prizemi_michal",
+              "p": "{{ states('input_text.heating_pair_prizemi_michal')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_prizemi_michal"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.prizemi_chodba_zachod",
+              "p": "{{ states('input_text.heating_pair_prizemi_chodba_zachod')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_prizemi_chodba_zachod"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.1p_jidelna",
+              "p": "{{ states('input_text.heating_pair_1p_jidelna')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_1p_jidelna"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.1p_kuchyn",
+              "p": "{{ states('input_text.heating_pair_1p_kuchyn')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_1p_kuchyn"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.1p_koupelna",
+              "p": "{{ states('input_text.heating_pair_1p_koupelna')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_1p_koupelna"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.1p_chodba",
+              "p": "{{ states('input_text.heating_pair_1p_chodba')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_1p_chodba"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "variables": {
+              "z": "climate.2p_mama",
+              "p": "{{ states('input_text.heating_pair_2p_mama')[3:]|from_json({}) }}",
+              "t": "{{ as_timestamp(now()) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure diagnostic reducer; p=previous helper JSON, r=observed record, z=climate id, t=processing time. #}\n{% set ns=namespace(p=p if p is mapping else {}, events=[]) %}\n{% if reset %}\n  {% if ns.p %}{% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='diagnostic_restart',pending=ns.p)] %}{% endif %}\n  {% set ns.p={} %}\n{% else %}\n  {% if ns.p and t-ns.p.get('t',0)>600 %}\n    {% if ns.p.get('a') is none or ns.p.get('p') is none %}\n      {% set ns.events=ns.events+[dict(kind='pair_timeout',reason='no_complete_report_within_600s',pending=ns.p)] %}\n    {% endif %}\n    {% set ns.p={} %}\n  {% endif %}\n  {% if r.get('kind')=='command' and z in r.get('targets',[]) and r.get('service')=='set_temperature' %}\n    {% set v=r.get('requested',{}).get('temperature') %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% if not is_number(v) %}\n      {% set ns.events=ns.events+[dict(kind='pair_unsupported',reason='no_scalar_temperature',event_at=rt)] %}\n    {% elif rt>t+5 or t-rt>30 or (ns.p and rt<ns.p.get('l',0)) %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif ns.p and (ns.p.v|float-v|float)|abs<0.05 and rt-ns.p.l<=30 %}\n      {% set ns.p=dict(ns.p,l=rt|round(3),n=ns.p.n+1) %}\n      {% set ns.events=ns.events+[dict(kind='pair_duplicate',pending=ns.p)] %}\n    {% else %}\n      {% if ns.p and (ns.p.get('a') is none or ns.p.get('p') is none) %}\n        {% set ns.events=ns.events+[dict(kind='pair_superseded',pending=ns.p)] %}\n      {% endif %}\n      {% set zone=r.get('zones',{}).get(z,{}) %}\n      {% set ns.p=dict(t=rt|round(3),l=rt|round(3),v=v|float,b=zone.get('demand'),a=none,p=none,n=1,c=r.get('context_id','')) %}\n      {% set ns.events=ns.events+[dict(kind='pair_started',pending=ns.p,target_already_reported=zone.get('target')==v)] %}\n    {% endif %}\n  {% elif r.get('kind')=='reported_state' and r.get('entity')==z and ns.p %}\n    {% set rt=r.get('event_at',t)|float %}\n    {% set old=r.get('before',{}) %}{% set new=r.get('after',{}) %}\n    {% if rt<ns.p.l or rt>t+5 or t-rt>30 %}\n      {% set ns.events=ns.events+[dict(kind='pair_out_of_order',event_at=rt)] %}\n    {% elif new.get('state') not in ['heat','off'] %}\n      {% set ns.events=ns.events+[dict(kind='pair_interrupted',reason='zone_unavailable',pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% elif is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs>=0.05 %}\n      {% set ns.events=ns.events+[dict(kind='pair_diverged',reported_target=new.target,pending=ns.p)] %}\n      {% set ns.p={} %}\n    {% else %}\n      {% set was_complete=ns.p.a is not none and ns.p.p is not none %}\n      {% if ns.p.a is none and is_number(new.get('target')) and new.get('target')!=old.get('target') and (new.target|float-ns.p.v)|abs<0.05 %}\n        {% set ns.p=dict(ns.p,a=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_target_reported',delay_s=ns.p.a,pending=ns.p)] %}\n      {% endif %}\n      {% if ns.p.p is none and is_number(new.get('demand')) and is_number(old.get('demand')) and new.demand!=old.demand %}\n        {% set ns.p=dict(ns.p,p=(rt-ns.p.t)|round(3)) %}\n        {% set ns.events=ns.events+[dict(kind='pair_pi_changed',delay_s=ns.p.p,old_pi=old.demand,new_pi=new.demand,pending=ns.p)] %}\n      {% endif %}\n      {% if not was_complete and ns.p.a is not none and ns.p.p is not none %}\n        {% set ns.events=ns.events+[dict(kind='pair_complete',pending=ns.p)] %}\n      {% endif %}\n    {% endif %}\n  {% endif %}\n{% endif %}\n{{ dict(next=ns.p,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.next != p }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_pair_2p_mama"
+                },
+                "data": {
+                  "value": "v2:{{ result.next|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování DATA",
+                    "message": "{{ dict(schema='heating_pair_v2',entity=z,captured_at=t,physical_valve_position_confirmed=false,causal_match_confirmed=false,event=repeat.item)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – párování",
+                    "message": "{% set e=repeat.item %}{% set names={'pair_started':'Povel zařazen','pair_duplicate':'Opakovaný povel','pair_target_reported':'Změna cíle hlášena','pair_pi_changed':'Změna PI hlášena','pair_complete':'Obě hlášení zachycena','pair_timeout':'Párování neúplné po 10 min','pair_superseded':'Nahrazeno novým povelem','pair_diverged':'Hlášen jiný cíl','pair_interrupted':'Párování přerušeno','pair_out_of_order':'Opožděná nebo přeházená událost','pair_unsupported':'Nepodporovaný povel'} %}{{ state_attr(z,'friendly_name') or z }}: {{ names.get(e.kind,e.kind) }}.{% if e.get('delay_s') is not none %} Za {{ e.delay_s|round(1) }} s od prvního povelu.{% endif %}{% if e.kind=='pair_complete' %} Cíl {{ e.pending.a|round(1) }} s; změna PI {{ e.pending.p|round(1) }} s; povelů {{ e.pending.n }}.{% endif %} Jde o časovou souvislost hlášení, ne potvrzení pohybu ventilu.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "action": "input_text.set_value",
+            "target": {
+              "entity_id": "input_text.heating_pair_heartbeat"
+            },
+            "data": {
+              "value": "v2:{{ as_timestamp(now())|int }}"
+            }
+          }
+        ],
+        "variables": {
+          "r": "{{ trigger.event.data.get('record',{}) if trigger is defined and trigger.id=='record' else {} }}",
+          "reset": "{{ trigger is defined and trigger.id=='reset' }}"
+        },
+        "mode": "queued",
+        "max": 100,
+        "max_exceeded": "warning"
+      }
+    },
+    {
+      "id": "heating_response_passive_log_v1",
+      "entity_id": "automation.topeni_pasivni_zaznam_povelu_a_odezvy",
+      "state": "on",
+      "config_hash": "641ced1895491597",
+      "config": {
+        "id": "heating_response_passive_log_v1",
+        "alias": "Topení – pasivní záznam povelů a odezvy",
+        "description": "Pouze diagnostika: zapisuje climate povely pro osm sledovaných hlavic a změny cíle, teploty místnosti, PI požadavku, režimu či hvac_action. Ukládá čas události, čas snímku, kontext a stav kotle. Potvrzení nastavení v HA není potvrzení pohybu ventilu. Záznam nevyhodnocuje příčinný účinek ani neovládá topení. Čitelné záznamy jsou u senzoru vyhodnocování, podrobné JSON záznamy bez entity pod názvem Topení – odezva DATA. Uchování řídí Recorder.",
+        "triggers": [
+          {
+            "trigger": "event",
+            "event_type": "call_service",
+            "event_data": {
+              "domain": "climate",
+              "service": "set_temperature"
+            },
+            "id": "command"
+          },
+          {
+            "trigger": "event",
+            "event_type": "call_service",
+            "event_data": {
+              "domain": "climate",
+              "service": "set_hvac_mode"
+            },
+            "id": "command"
+          },
+          {
+            "trigger": "event",
+            "event_type": "call_service",
+            "event_data": {
+              "domain": "climate",
+              "service": "turn_on"
+            },
+            "id": "command"
+          },
+          {
+            "trigger": "event",
+            "event_type": "call_service",
+            "event_data": {
+              "domain": "climate",
+              "service": "turn_off"
+            },
+            "id": "command"
+          },
+          {
+            "trigger": "event",
+            "event_type": "call_service",
+            "event_data": {
+              "domain": "climate",
+              "service": "set_preset_mode"
+            },
+            "id": "command"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "climate.sklep_michal",
+              "climate.prizemi_michal",
+              "climate.prizemi_chodba_zachod",
+              "climate.1p_jidelna",
+              "climate.1p_kuchyn",
+              "climate.1p_koupelna",
+              "climate.1p_chodba",
+              "climate.2p_mama"
+            ],
+            "id": "reported_state"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "ha_start"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "template",
+            "value_template": "{% if trigger is not defined or trigger.id not in ['command','reported_state'] %}true\n{% elif trigger.id=='command' %}{{ command_targets|length>0 }}\n{% else %}\n{% set a=trigger.from_state %}{% set b=trigger.to_state %}\n{% set ns=namespace(changed=a is none or b is none) %}\n{% if a is not none and b is not none %}\n{% set ns.changed=a.state!=b.state %}\n{% for k in ['temperature','current_temperature','pi_heating_demand','hvac_action','preset_mode'] %}\n{% if a.attributes.get(k)!=b.attributes.get(k) %}{% set ns.changed=true %}{% endif %}\n{% endfor %}\n{% endif %}{{ ns.changed }}\n{% endif %}"
+          }
+        ],
+        "actions": [
+          {
+            "variables": {
+              "record": "{% set now_s=as_timestamp(now()) %}\n{% set tid=trigger.id if trigger is defined and trigger.id is defined else 'manual_check' %}\n{% set ns=namespace(record={'schema':'heating_response_log_v1','kind':tid,'captured_at':now_s,'physical_valve_position_confirmed':false},boiler={},zones={}) %}\n{% if tid=='command' %}\n{% set ev=trigger.event %}{% set data=ev.data.get('service_data',{}) %}{% set d=namespace(values={}) %}\n{% for k in ['entity_id','device_id','area_id','floor_id','label_id','temperature','target_temp_high','target_temp_low','hvac_mode','preset_mode'] %}\n{% if k in data %}{% set d.values=dict(d.values,**{k:data[k]}) %}{% endif %}{% endfor %}\n{% set ns.record=dict(ns.record, event_at=as_timestamp(ev.time_fired),service=ev.data.get('service'),requested=d.values,targets=command_targets,context_id=ev.context.id,parent_id=ev.context.parent_id,meaning='HA service call observed; delivery and valve movement not confirmed') %}\n{% elif tid=='reported_state' %}\n{% set old=trigger.from_state %}{% set new=trigger.to_state %}{% set ss=namespace(values={}) %}\n{% for key,s in [('before',old),('after',new)] %}\n{% set a=s.attributes if s is not none else {} %}\n{% set ss.values=dict(ss.values,**{key:{'state':s.state if s is not none else none,'target':a.get('temperature'),'room':a.get('current_temperature'),'demand':a.get('pi_heating_demand'),'action':a.get('hvac_action'),'preset':a.get('preset_mode')}}) %}\n{% endfor %}\n{% set ns.record=dict(ns.record,entity=trigger.entity_id,event_at=as_timestamp(new.last_updated) if new is not none else now_s,before=ss.values.before,after=ss.values.after,context_id=new.context.id if new is not none else none,parent_id=new.context.parent_id if new is not none else none,meaning='HA reported state; may be optimistic; no causal acknowledgement inferred') %}\n{% else %}\n{% set ns.record=dict(ns.record,event_at=now_s,meaning='diagnostic lifecycle record; not a heating command') %}\n{% endif %}\n{% for e in ['sensor.boiler_heatblock','sensor.boiler_curflowtemp','sensor.boiler_curburnpow','sensor.boiler_servicecodenumber','binary_sensor.boiler_burngas','binary_sensor.boiler_heatingpump','switch.kotel_rele_spinac','input_boolean.heating_service_mode','input_boolean.topny_system_enable','sensor.system_bus_status'] %}\n{% set ss=states[e] %}{% set ns.boiler=dict(ns.boiler,**{e:{'state':ss.state if ss is not none else 'missing','reported_at':as_timestamp(ss.last_reported) if ss is not none else none}}) %}\n{% endfor %}\n{% for e in observed_climates %}\n{% set ss=states[e] %}{% set aa=ss.attributes if ss is not none else {} %}{% set ns.zones=dict(ns.zones,**{e:{'state':ss.state if ss is not none else 'missing','target':aa.get('temperature'),'demand':aa.get('pi_heating_demand'),'reported_at':as_timestamp(ss.last_reported) if ss is not none else none}}) %}\n{% endfor %}\n{{ dict(ns.record,boiler=ns.boiler,zones=ns.zones)|to_json|from_json }}"
+            }
+          },
+          {
+            "event": "heating_response_observed_v2",
+            "event_data": {
+              "record": "{{ record }}"
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – povely a odezva",
+              "entity_id": "sensor.heating_observer_learning",
+              "message": "{% if record.kind=='command' %}\nPovel HA {{ record.service }} pro {{ record.targets|join(', ') }}: {{ record.requested|to_json }}. Doručení ani pohyb ventilu nejsou potvrzeny.\n{% elif record.kind=='reported_state' %}\n{{ record.entity }}: cíl {{ record.before.target if record.before.target is not none else '—' }} → {{ record.after.target if record.after.target is not none else '—' }} °C; požadavek {{ record.before.demand if record.before.demand is not none else '—' }} → {{ record.after.demand if record.after.demand is not none else '—' }} %; režim {{ record.before.state }} → {{ record.after.state }}; teplota místnosti {{ record.after.room if record.after.room is not none else '—' }} °C. Hlášená změna, nikoli potvrzení polohy ventilu.\n{% else %}Záznam povelů a odezvy je aktivní ({{ record.kind }}). Toto je pouze diagnostický záznam.{% endif %}\nBlok {{ record.boiler['sensor.boiler_heatblock'].state }} °C; výstup {{ record.boiler['sensor.boiler_curflowtemp'].state }} °C; hořák {{ record.boiler['binary_sensor.boiler_burngas'].state }}; čerpadlo {{ record.boiler['binary_sensor.boiler_heatingpump'].state }}."
+            }
+          },
+          {
+            "action": "logbook.log",
+            "data": {
+              "name": "Topení – odezva DATA",
+              "message": "{{ record|to_json }}"
+            }
+          }
+        ],
+        "variables": {
+          "observed_climates": [
+            "climate.sklep_michal",
+            "climate.prizemi_michal",
+            "climate.prizemi_chodba_zachod",
+            "climate.1p_jidelna",
+            "climate.1p_kuchyn",
+            "climate.1p_koupelna",
+            "climate.1p_chodba",
+            "climate.2p_mama"
+          ],
+          "command_targets": "{% if trigger is defined and trigger.id == 'command' %}\n{% set d=trigger.event.data.get('service_data',{}) %}\n{% set ns=namespace(ids=[]) %}\n{% for key in ['entity_id','area_id','device_id','label_id','floor_id'] %}\n{% set val=d.get(key,[]) %}\n{% set vals=val.split(',')|map('trim')|list if val is string else val or [] %}\n{% for v in vals %}\n{% if key=='entity_id' %}{% set ns.ids=ns.ids+(observed_climates if v=='all' else [v]) %}\n{% elif key=='area_id' %}{% set ns.ids=ns.ids+area_entities(v) %}\n{% elif key=='device_id' %}{% set ns.ids=ns.ids+device_entities(v) %}\n{% elif key=='label_id' %}{% set ns.ids=ns.ids+label_entities(v) %}\n{% elif key=='floor_id' %}{% set ns.ids=ns.ids+floor_entities(v) %}\n{% endif %}\n{% endfor %}{% endfor %}\n{{ observed_climates|select('in',ns.ids)|list }}\n{% else %}{{ [] }}{% endif %}"
+        },
+        "mode": "parallel",
+        "max": 50,
+        "max_exceeded": "warning"
+      }
+    },
+    {
+      "id": "heating_restart_shadow_v1",
+      "entity_id": "automation.topeni_pasivni_pravidla_internich_restartu",
+      "state": "on",
+      "config_hash": "46991b26964af42e",
+      "config": {
+        "id": "heating_restart_shadow_v1",
+        "alias": "Topení – pasivní pravidla interních restartů",
+        "description": "restart-shadow-v1: jen diagnostika. R1 během pauzy uvnitř sledovaného požadavku <3 hlavice s PI>=10%; R2 <2 s PI>=20%; R3 R1 trvá 30 s. Onsety uchovává bez 180s ořezu a porovnává s prvním hlášením poslední chyby i aktuálním kódem. Samostatné statistiky restartů; po 300 s od gas-off nebo při dalším startu uzavře okno. 60 s je pouze porovnávací rozpočet. Při restartu/gapu vyřadí rozpracované okno. Neřídí žádné zařízení.",
+        "triggers": [
+          {
+            "trigger": "time_pattern",
+            "seconds": "/10",
+            "id": "tick"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "reset"
+          },
+          {
+            "trigger": "event",
+            "event_type": "automation_reloaded",
+            "id": "reset"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "switch.kotel_rele_spinac",
+              "binary_sensor.boiler_burngas",
+              "input_boolean.topny_system_enable",
+              "input_boolean.heating_service_mode"
+            ],
+            "id": "control"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "id": "code"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_lastcode",
+            "id": "lastcode"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "variables": {
+              "phase": "{{ states('input_text.heating_restart_shadow_v1')[3:]|from_json([]) }}",
+              "episode": "{{ states('input_text.heating_restart_episode_v1')[3:]|from_json([]) }}",
+              "stats": "{{ states('input_text.heating_restart_stats_v1')[3:]|from_json([]) }}"
+            }
+          },
+          {
+            "variables": {
+              "result": "{# Pure reducer. Phase: [schema,relay,gas,burns,last_off,heartbeat,onsets3,last_onsets3,cluster_first].\nEpisode: [schema,start,gas_off,warning_onsets3,eligible,first_fault].\nStats: [schema,eligible_clean,faults,censored,[[warn_clean,timely_fault,late_or_missed] x3]].\nRules are frozen hypotheses, never actuator permissions. #}\n{% set phase=phase if phase is sequence and phase is not string and phase|length==9 else [1,-1,-1,-1,0,0,[0,0,0],[0,0,0],0] %}\n{% set episode=episode if episode is sequence and episode is not string and episode|length==6 else [] %}\n{% set stats=stats if stats is sequence and stats is not string and stats|length==5 else [1,0,0,0,[[0,0,0],[0,0,0],[0,0,0]]] %}\n{% set t=s.t|int %}\n{% set ns=namespace(r=phase[1],g=phase[2],n=phase[3],off=phase[4],a=phase[6],w=phase[7],f=phase[8],ep=episode,st=stats,events=[],finish='',quality=s.quality|list) %}\n{% set gap=phase[5]>0 and (t-phase[5]>45 or t<phase[5]) %}\n{% if reset or gap %}\n  {% if ns.ep %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}{% set ns.finish='capture_interrupted' %}{% endif %}\n  {% set ns.n=-1 %}{% set ns.a=[0,0,0] %}{% set ns.w=[0,0,0] %}{% set ns.off=0 %}\n  {% set ns.events=ns.events+[dict(kind='shadow_baseline',reason='restart' if reset else 'capture_gap')] %}\n{% endif %}\n{% if s.r==0 %}\n  {% set ns.n=0 %}\n{% elif s.r==1 and ns.r==0 and not reset and not gap %}\n  {% set ns.n=0 %}\n  {% set ns.a=[0,0,0] %}{% set ns.w=[0,0,0] %}\n{% elif s.r not in [0,1] %}\n  {% set ns.n=-1 %}\n{% endif %}\n{% set start=s.g==1 and ns.g==0 and not reset and not gap %}\n{% set internal=start and s.r==1 and ns.r==1 and ns.n>=1 %}\n{% if s.g==0 and ns.g==1 %}{% set ns.off=t %}{% if ns.ep %}{% set ns.ep=[1,ns.ep[1],t,ns.ep[3],ns.ep[4],ns.ep[5]] %}{% endif %}{% endif %}\n{% set censor_quality=s.quality|reject('equalto','active_fault')|list if s.fault_edge else s.quality %}\n{% if ns.ep and not ns.ep[5] and (censor_quality|length>0 or s.master!=1 or s.service!=0 or s.r!=1) %}\n  {% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}\n{% endif %}\n{% if ns.ep and not ns.finish and start %}{% set ns.finish='next_burner_start' %}\n{% elif ns.ep and not ns.finish and ns.ep[2]>0 and s.g==0 and t-ns.ep[2]>=300 %}{% set ns.finish='postrun_300s' %}\n{% elif ns.ep and not ns.finish and t-ns.ep[1]>7200 %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}{% set ns.finish='duration_cap' %}{% endif %}\n{# A fault observed at a closing boundary belongs to the preceding tracked episode. #}\n{% set new_cluster=s.fault_edge and (ns.f==0 or t-ns.f>600) %}\n{% if s.fault_edge %}\n  {% if new_cluster %}{% set ns.f=t %}{% endif %}\n  {% if ns.ep and not ns.ep[5] %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],ns.ep[4],ns.f] %}{% endif %}\n  {% set leads=namespace(v=[]) %}{% for w in (ns.ep[3] if ns.ep else ns.w) %}{% set leads.v=leads.v+[ns.f-w if w>0 and w<ns.f else none] %}{% endfor %}\n  {% set ns.events=ns.events+[dict(kind='shadow_fault_first' if new_cluster else 'shadow_fault_update',source=s.fault_source,first_fault_at=ns.f,leads_s=leads.v,tracked_internal_restart=ns.ep|length>0,eligible=ns.ep[4] if ns.ep else false)] %}\n{% endif %}\n{% if ns.finish and ns.ep %}\n  {% set score=namespace(rows=[],leads=[]) %}\n  {% for i in range(3) %}\n    {% set row=ns.st[4][i] %}{% set w=ns.ep[3][i] %}{% set lead=ns.ep[5]-w if ns.ep[5]>0 and w>0 and w<ns.ep[5] else none %}\n    {% set score.leads=score.leads+[lead] %}\n    {% set score.rows=score.rows+[[row[0]+(1 if ns.ep[4] and not ns.ep[5] and w>0 else 0),row[1]+(1 if ns.ep[4] and ns.ep[5]>0 and lead is not none and lead>=60 else 0),row[2]+(1 if ns.ep[4] and ns.ep[5]>0 and (lead is none or lead<60) else 0)]] %}\n  {% endfor %}\n  {% set outcome='censored' if not ns.ep[4] else 'fault' if ns.ep[5]>0 else 'observed_no_fault' %}\n  {% set ns.st=[1,ns.st[1]+(1 if outcome=='observed_no_fault' else 0),ns.st[2]+(1 if outcome=='fault' else 0),ns.st[3]+(1 if outcome=='censored' else 0),score.rows] %}\n  {% set ns.events=ns.events+[dict(kind='shadow_episode_closed',outcome=outcome,reason=ns.finish,start=ns.ep[1],first_fault_at=ns.ep[5],warning_onsets=ns.ep[3],leads_s=score.leads,stats=ns.st)] %}\n  {% set ns.ep=[] %}\n{% endif %}\n{% if start %}\n  {% if internal %}\n    {% set good=s.quality|length==0 and s.master==1 and s.service==0 and not s.fault_edge and (ns.f==0 or t-ns.f>600) %}\n    {% set ns.ep=[1,t,0,ns.a,good,0] %}\n    {% set ns.events=ns.events+[dict(kind='shadow_internal_restart',eligible=good,warning_onsets=ns.a,pause_s=t-ns.off if ns.off>0 else none)] %}\n  {% else %}\n    {% set ns.events=ns.events+[dict(kind='shadow_other_start',classification='request_start' if s.r==1 and ns.n==0 else 'unknown_request_history')] %}\n  {% endif %}\n  {% if s.r==1 and ns.n>=0 %}{% set ns.n=ns.n+1 %}{% endif %}\n{% endif %}\n{% if s.g not in [0,1] %}{% set ns.n=-1 %}{% endif %}\n{% set pause=s.r==1 and s.g==0 and ns.n>=1 and s.master==1 and s.service==0 and s.quality|length==0 and not s.fault_edge and (ns.f==0 or t-ns.f>600) %}\n{% set one=pause and s.c10<3 %}{% set two=pause and s.c20<2 %}\n{% set a1=(ns.a[0] or t) if one else 0 %}{% set a2=(ns.a[1] or t) if two else 0 %}\n{% set three=one and ns.a[0]>0 and t-ns.a[0]>=30 %}\n{% set a3=(ns.a[2] or t) if three else 0 %}\n{% set fresh=[a1,a2,a3] %}\n{% for i in range(3) %}\n  {% if fresh[i]>0 and ns.a[i]==0 %}{% set ns.events=ns.events+[dict(kind='shadow_warning_on',rule=i+1,onset=fresh[i])] %}\n  {% elif fresh[i]==0 and ns.a[i]>0 %}{% set ns.events=ns.events+[dict(kind='shadow_warning_off',rule=i+1,onset=ns.a[i],duration_s=t-ns.a[i])] %}{% endif %}\n{% endfor %}\n{% if pause %}{% set ns.w=fresh %}\n{% elif not internal and not ns.ep %}{% set ns.w=[0,0,0] %}{% endif %}\n{% set next_phase=[1,s.r,s.g,ns.n,ns.off,t,fresh,ns.w,ns.f] %}\n{{ dict(phase=next_phase,episode=ns.ep,stats=ns.st,events=ns.events)|to_json|from_json }}\n"
+            }
+          },
+          {
+            "action": "input_text.set_value",
+            "target": {
+              "entity_id": "input_text.heating_restart_shadow_v1"
+            },
+            "data": {
+              "value": "v2:{{ result.phase|to_json }}"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.episode != episode }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_restart_episode_v1"
+                },
+                "data": {
+                  "value": "v2:{{ result.episode|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "template",
+                "value_template": "{{ result.stats != stats }}"
+              }
+            ],
+            "then": [
+              {
+                "action": "input_text.set_value",
+                "target": {
+                  "entity_id": "input_text.heating_restart_stats_v1"
+                },
+                "data": {
+                  "value": "v2:{{ result.stats|to_json }}"
+                }
+              }
+            ]
+          },
+          {
+            "repeat": {
+              "for_each": "{{ result.events }}",
+              "sequence": [
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – restart SHADOW DATA",
+                    "message": "{{ dict(schema='restart-shadow-v1',physical_flow_confirmed=false,actuator_control=false,captured_at=s.t,event=repeat.item,snapshot=s)|to_json }}"
+                  }
+                },
+                {
+                  "action": "logbook.log",
+                  "data": {
+                    "name": "Topení – restart nanečisto",
+                    "message": "{% set e=repeat.item %}{% set labels={'shadow_baseline':'Nový začátek pozorování','shadow_internal_restart':'Interní restart zachycen','shadow_other_start':'První nebo nezařazený start','shadow_warning_on':'Podmínka začala platit','shadow_warning_off':'Podmínka přestala platit','shadow_fault_first':'První hlášení poruchy','shadow_fault_update':'Další hlášení stejné skupiny poruch','shadow_episode_closed':'Okno restartu vyhodnoceno'} %}{{ labels.get(e.kind,e.kind) }}.{% if e.get('rule') is not none %} Pravidlo R{{ e.rule }}.{% endif %}{% if e.get('duration_s') is not none %} Délka {{ e.duration_s }} s.{% endif %}{% if e.get('outcome') %} Výsledek {{ e.outcome }}; důvod {{ e.reason }}.{% endif %}{% if e.get('leads_s') %} Předstihy R1/R2/R3: {{ e.leads_s|to_json }} s.{% endif %} Blok {{ s.block }} °C; hlavic PI≥10 %: {{ s.c10 }}. Pouze pozorování.",
+                    "entity_id": "sensor.heating_observer_learning"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "variables": {
+          "climates": [
+            "climate.sklep_michal",
+            "climate.prizemi_michal",
+            "climate.prizemi_chodba_zachod",
+            "climate.1p_jidelna",
+            "climate.1p_kuchyn",
+            "climate.1p_koupelna",
+            "climate.1p_chodba",
+            "climate.2p_mama"
+          ],
+          "s": "{% set n=namespace(q=[],demands=[],zone_states={}) %}\n{% set t=as_timestamp(now()) %}\n{% set r=1 if is_state('switch.kotel_rele_spinac','on') else 0 if is_state('switch.kotel_rele_spinac','off') else -1 %}\n{% set g=1 if is_state('binary_sensor.boiler_burngas','on') else 0 if is_state('binary_sensor.boiler_burngas','off') else -1 %}\n{% set master=1 if is_state('input_boolean.topny_system_enable','on') else 0 if is_state('input_boolean.topny_system_enable','off') else -1 %}\n{% set service=1 if is_state('input_boolean.heating_service_mode','on') else 0 if is_state('input_boolean.heating_service_mode','off') else -1 %}\n{% if -1 in [r,g,master,service] %}{% set n.q=n.q+['unknown_control_state'] %}{% endif %}\n{% if not is_state('sensor.system_bus_status','connected') %}{% set n.q=n.q+['bus_not_connected'] %}{% endif %}\n{% for e in ['sensor.boiler_heatblock','sensor.boiler_curflowtemp'] %}\n{% set st=states[e] %}\n{% if st is none or not is_number(st.state) %}{% set n.q=n.q+['invalid:'~e] %}\n{% elif (st.state|float)<-20 or (st.state|float)>150 %}{% set n.q=n.q+['range:'~e] %}\n{% elif t-as_timestamp(st.last_reported)>45 or t-as_timestamp(st.last_reported)<0 %}{% set n.q=n.q+['stale:'~e] %}{% endif %}\n{% endfor %}\n{% for e in ['binary_sensor.boiler_wwcharging','binary_sensor.boiler_wwrecharging','binary_sensor.boiler_ww3wayvalve'] %}\n{% if not is_state(e,'off') %}{% set n.q=n.q+['dhw_or_unknown:'~e] %}{% endif %}{% endfor %}\n{% for e in climates %}\n{% set st=states[e] %}{% set pi=state_attr(e,'pi_heating_demand') %}\n{% if st is none or st.state not in ['heat','off'] or not is_number(pi) %}{% set n.q=n.q+['invalid:'~e] %}\n{% elif (pi|float)<0 or (pi|float)>100 %}{% set n.q=n.q+['range:'~e] %}\n{% else %}{% set n.demands=n.demands+[pi|float if st.state=='heat' else 0] %}{% endif %}\n{% set n.zone_states=dict(n.zone_states,**{e:{'pi':pi,'target':state_attr(e,'temperature'),'state':states(e)}}) %}\n{% endfor %}\n{% if not is_number(states('sensor.boiler_servicecodenumber')) %}{% set n.q=n.q+['unknown_service_code'] %}{% endif %}\n{% if states('sensor.boiler_servicecodenumber') in ['2964','2965','2966','2967'] %}{% set n.q=n.q+['active_fault'] %}{% endif %}\n{% set f=namespace(edge=false,source='') %}\n{% if trigger is defined and trigger.id in ['lastcode','code'] and trigger.from_state is not none and trigger.to_state is not none and trigger.from_state.state not in ['unknown','unavailable',''] %}\n{% set old=trigger.from_state.state %}{% set new=trigger.to_state.state %}\n{% if old!=new and ((trigger.id=='code' and new in ['2964','2965','2966','2967']) or (trigger.id=='lastcode' and old.split(' - ')[0]!=new.split(' - ')[0] and new|regex_search('\\(296[4-7]\\)'))) %}\n{% set f.edge=true %}{% set f.source=trigger.id %}{% endif %}\n{% endif %}\n{{ dict(t=t,r=r,g=g,master=master,service=service,c10=n.demands|select('ge',10)|list|length,c20=n.demands|select('ge',20)|list|length,quality=n.q,block=states('sensor.boiler_heatblock')|float(none),flow=states('sensor.boiler_curflowtemp')|float(none),power=states('sensor.boiler_curburnpow')|float(none),zones=n.zone_states,fault_edge=f.edge,fault_source=f.source)|to_json|from_json }}",
+          "reset": "{{ trigger is defined and trigger.id=='reset' }}"
+        },
+        "mode": "queued",
+        "max": 100,
+        "max_exceeded": "warning"
+      }
+    },
+    {
+      "id": "heating_trv_test_timeout_20260920",
+      "entity_id": "automation.topeni_test_hlavic_automaticke_ukonceni",
+      "state": "off",
+      "config_hash": "dd06a578e6b5264c",
+      "config": {
+        "id": "heating_trv_test_timeout_20260920",
+        "alias": "Topení – test hlavic – automatické ukončení",
+        "description": "Dočasné ukončení testu hlavic dne 20. 9. 2026, nejpozději 17:48:00 Europe/Prague. Při limitu, ukončení řízení, servisním režimu nebo restartu vypne požadavek kotle, otevře chytré hlavice pomocí servisního režimu a obnoví původní komfortní teploty a ruční přepínače. Po dokončení se samo vypne. Další měření se všemi ručními radiátory zavřenými: 6, 5, 4 aktivní chytré zóny. Test se ukončí také nad 72 °C na výstupu či bloku nebo při ztrátě těchto teplot; 72 °C je konzervativní mez tohoto testu, nikoli určení bezpečné provozní hranice kotle.",
+        "triggers": [
+          {
+            "trigger": "time",
+            "at": "17:48:00",
+            "id": "limit"
+          },
+          {
+            "trigger": "homeassistant",
+            "event": "start",
+            "id": "restart"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.heating_service_mode",
+            "from": "off",
+            "to": "on",
+            "id": "service"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_boolean.topny_system_enable",
+            "from": "on",
+            "to": "off",
+            "id": "master"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.system_bus_status",
+            "from": "connected",
+            "id": "ems"
+          },
+          {
+            "trigger": "numeric_state",
+            "entity_id": [
+              "sensor.boiler_curflowtemp",
+              "sensor.boiler_heatblock"
+            ],
+            "above": 72,
+            "id": "test_temperature_limit"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "sensor.boiler_curflowtemp",
+              "sensor.boiler_heatblock"
+            ],
+            "to": [
+              "unavailable",
+              "unknown"
+            ],
+            "id": "temperature_data_lost"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "switch.turn_off",
+            "target": {
+              "entity_id": "switch.kotel_rele_spinac"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.heating_service_mode"
+            }
+          },
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": [
+                "input_boolean.sklep_michal_manual_override",
+                "input_boolean.prizemi_michal_manual_override",
+                "input_boolean.prizemi_chodba_zachod_manual_override",
+                "input_boolean.1p_jidelna_manual_override",
+                "input_boolean.1p_kuchyn_manual_override",
+                "input_boolean.1p_koupelna_manual_override",
+                "input_boolean.1p_chodba_manual_override",
+                "input_boolean.2p_mama_manual_override"
+              ]
+            }
+          },
+          {
+            "action": "timer.cancel",
+            "target": {
+              "entity_id": [
+                "timer.sklep_michal_manual_override",
+                "timer.prizemi_michal_manual_override",
+                "timer.prizemi_chodba_zachod_manual_override",
+                "timer.1p_jidelna_manual_override",
+                "timer.1p_kuchyn_manual_override",
+                "timer.1p_koupelna_manual_override",
+                "timer.1p_chodba_manual_override",
+                "timer.2p_mama_manual_override"
+              ]
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.sklep_michal_last_comfort"
+            },
+            "data": {
+              "value": 20
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.prizemi_michal_last_comfort"
+            },
+            "data": {
+              "value": 20
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.prizemi_chodba_zachod_last_comfort"
+            },
+            "data": {
+              "value": 16.5
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.1p_jidelna_last_comfort"
+            },
+            "data": {
+              "value": 24
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.1p_kuchyn_last_comfort"
+            },
+            "data": {
+              "value": 21
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.1p_koupelna_last_comfort"
+            },
+            "data": {
+              "value": 19
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.1p_chodba_last_comfort"
+            },
+            "data": {
+              "value": 18
+            }
+          },
+          {
+            "action": "input_number.set_value",
+            "target": {
+              "entity_id": "input_number.2p_mama_last_comfort"
+            },
+            "data": {
+              "value": 20
+            }
+          },
+          {
+            "action": "input_select.select_option",
+            "target": {
+              "entity_id": [
+                "input_select.sklep_michal_manual_override_type",
+                "input_select.prizemi_michal_manual_override_type",
+                "input_select.prizemi_chodba_zachod_manual_override_type",
+                "input_select.1p_jidelna_manual_override_type",
+                "input_select.1p_kuchyn_manual_override_type",
+                "input_select.1p_koupelna_manual_override_type",
+                "input_select.1p_chodba_manual_override_type",
+                "input_select.2p_mama_manual_override_type"
+              ]
+            },
+            "data": {
+              "option": "Do další změny rozvrhu"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": [
+                "input_boolean.schedule_enable_sklep_michal",
+                "input_boolean.schedule_enable_prizemi_michal",
+                "input_boolean.schedule_enable_prizemi_chodba_zachod",
+                "input_boolean.schedule_enable_1p_jidelna",
+                "input_boolean.schedule_enable_1p_kuchyn",
+                "input_boolean.schedule_enable_1p_koupelna",
+                "input_boolean.schedule_enable_1p_chodba",
+                "input_boolean.schedule_enable_2p_mama"
+              ]
+            }
+          },
+          {
+            "action": "automation.turn_off",
+            "target": {
+              "entity_id": "automation.topeni_test_hlavic_automaticke_ukonceni"
+            },
+            "data": {
+              "stop_actions": false
+            }
+          }
+        ],
+        "mode": "single",
+        "max_exceeded": "silent"
+      }
+    },
+    {
+      "id": "heating_watchdog_clean_notification",
+      "entity_id": "automation.heating_watchdog_cista_notifikace_hlavic",
+      "state": "on",
+      "config_hash": "ff64a1ae201a7d36",
+      "config": {
+        "id": "heating_watchdog_clean_notification",
+        "alias": "Heating Watchdog – čistá notifikace hlavic",
+        "description": "Uživatelsky čitelná notifikace při problému s hlavicemi. Nahrazuje technický výpis interního diagnostického slovníku; používá stejný notification_id, aby existovala jen jedna hláška a stávající clear automatizace ji mohla odstranit.",
+        "triggers": [
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.heating_valves_unhealthy_count",
+            "above": 0,
+            "for": {
+              "seconds": 30
+            },
+            "id": "problem"
+          },
+          {
+            "trigger": "time_pattern",
+            "minutes": "/10",
+            "id": "refresh"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.heating_valves_unhealthy_count",
+            "above": 0
+          }
+        ],
+        "actions": [
+          {
+            "action": "persistent_notification.create",
+            "data": {
+              "notification_id": "heating_watchdog_connectivity_unhealthy",
+              "title": "Topení – problém s hlavicí",
+              "message": "{% set count = states('sensor.heating_valves_unhealthy_count') | int(0) %}\n{% set bad = state_attr('sensor.heating_valves_unhealthy_count', 'unhealthy_entities') or [] %}\n⚠️ Heating Watchdog zjistil {{ count }} problematických hlavic.\n{% if bad | count > 0 %}\nDotčené: {% for e in bad %}{{ entity_name(e) }}{% if not loop.last %}, {% endif %}{% endfor %}\n{% endif %}\nKontrola: dostupnost komunikace a poslední aktualizace hlavice (limit 180 min).\nPo obnovení komunikace se upozornění automaticky smaže."
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    }
+  ]
+}
