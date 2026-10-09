@@ -9,7 +9,6 @@ automation:
     trigger:
       - trigger: state
         entity_id:
-          - binary_sensor.kotel_should_be_on
           - input_boolean.topny_system_enable
           - input_select.topny_rezim
           - binary_sensor.kotel_mode_off_block
@@ -17,6 +16,14 @@ automation:
           - binary_sensor.boiler_wwcharging
           - binary_sensor.boiler_tapwateractive
         to: null
+      # Attributes of the aggregate may change while state remains ON:
+      # listen only for actual demand transitions to avoid resetting the 120s timer.
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "on"
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "off"
       - trigger: state
         entity_id: sensor.kotel_effective_on_delay_sec
         to: null
@@ -91,7 +98,11 @@ automation:
     trigger:
       - trigger: state
         entity_id: binary_sensor.kotel_should_be_on
-        to: null
+        to: "off"
+      # An ON transition still cancels pending OFF action in restart mode.
+      - trigger: state
+        entity_id: binary_sensor.kotel_should_be_on
+        to: "on"
       - trigger: state
         entity_id: sensor.kotel_effective_off_delay_sec
         to: null
