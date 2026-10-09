@@ -2571,7 +2571,7 @@
 -
   id: "1791376426962"
   alias: "Kotel V4 – bezpečný start podle politiky"
-  description: "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů."
+  description: "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery se start odloží do alespoň 240 s stabilního NORMAL, aby se stihl obnovit PI feedback hlavic."
   mode: "restart"
   trigger:
     -
@@ -2677,7 +2677,7 @@
       state: "off"
     -
       delay:
-        seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120] | max }}"
+        seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120, (240 - (as_timestamp(now()) - as_timestamp(states.input_select.heating_flow_state_v4.last_changed, as_timestamp(now())))) | int(0)] | max }}"
     -
       condition: "state"
       entity_id: "binary_sensor.kotel_should_be_on"
