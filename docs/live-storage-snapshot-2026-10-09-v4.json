@@ -1093,7 +1093,7 @@
       "config": {
         "id": "1791376426962",
         "alias": "Kotel V4 – bezpečný start podle politiky",
-        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery vyckej nejmene 240 s stabilni NORMAL na nove PI reporty termostatickych hlavic.",
+        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery se start odloží do alespoň 240 s stabilního NORMAL, aby se stihl obnovit PI feedback hlavic.",
         "triggers": [
           {
             "trigger": "state",
