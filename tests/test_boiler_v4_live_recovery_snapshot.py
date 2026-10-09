@@ -107,6 +107,16 @@ class LiveV4SafetySnapshotTests(unittest.TestCase):
         ids = {t.get("id") for t in w["triggers"]}
         self.assertTrue({"hot", "lockout", "relay_stopped", "burn_stopped",
                          "bus_disconnect", "periodic", "start"}.issubset(ids))
+        self.assertTrue({"fault_2964", "fault_2965", "fault_2966",
+                         "fault_2967"}.issubset(ids))
+        self.assertIn("notify.mobile_app_sm_s938b", list(each_action(w)))
+        fault_alerts = [a for a in w["actions"]
+                        if "heating_watchdog_ems_fault" in str(a)]
+        self.assertEqual(len(fault_alerts), 1)
+        self.assertEqual(
+            set(fault_alerts[0]["if"][0]["state"]),
+            {"2964", "2965", "2966", "2967"}
+        )
         temp_trig = next(t for t in w["triggers"] if t.get("id") == "hot")
         self.assertEqual(temp_trig["above"], 69)
 
