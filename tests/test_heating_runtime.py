@@ -519,7 +519,10 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.set("sensor.kotel_effective_off_delay_sec", "999")
         on_delay = next(step["delay"]["seconds"] for step in turn_on["action"] if "delay" in step)
         off_delay = next(step["delay"]["seconds"] for step in turn_off["action"] if "delay" in step)
-        self.assertEqual(self.render(on_delay), 120)
+        # A freshly initialized Flow V4 NORMAL state requires the longer
+        # conservative settling window; ordinary stable starts still retain
+        # the original 120s minimum (also covered by the cooldown truth table).
+        self.assertEqual(self.render(on_delay), 240)
         self.assertEqual(self.render(off_delay), 30)
 
     async def test_boiler_cannot_start_while_tuv_path_is_active(self):
