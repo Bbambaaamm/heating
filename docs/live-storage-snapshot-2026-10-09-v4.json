@@ -2285,6 +2285,79 @@
         "template_type": "sensor",
         "unit_of_measurement": "cesty"
       }
+    },
+    "automation.topeni_v4_watchdog_dlouhe_obnovy": {
+      "config_hash": "e27e89906f9cf281",
+      "config": {
+        "id": "1791544279063",
+        "alias": "Topení V4 – watchdog dlouhé obnovy",
+        "description": "Pouze pasivní dohled. Pokud RESTORING trvá 10 minut bez návratu do NORMAL či HARD_LOCKOUT, zobrazí stabilní oznámení a odešle jednorázové mobilní upozornění. Nedává žádné povely kotli, hlavicím, servisním režimům ani state machine.",
+        "triggers": [
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "RESTORING",
+            "for": {
+              "minutes": 10
+            },
+            "id": "restoring_stuck"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "NORMAL",
+            "id": "cleared_normal"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "input_select.heating_flow_state_v4",
+            "to": "HARD_LOCKOUT",
+            "id": "cleared_lockout"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "choose": [
+              {
+                "conditions": [
+                  {
+                    "condition": "trigger",
+                    "id": "restoring_stuck"
+                  }
+                ],
+                "sequence": [
+                  {
+                    "action": "persistent_notification.create",
+                    "data": {
+                      "notification_id": "heating_v4_restoring_stuck",
+                      "title": "Topení – obnova trvá déle než 10 minut",
+                      "message": "Flow V4 zůstává v RESTORING >10 min, relé {{ states('switch.kotel_rele_spinac') }}, master {{ states('input_boolean.topny_system_enable') }}, fault-clear {{ states('binary_sensor.heating_boiler_fault_clear') }}, EMS {{ states('sensor.system_bus_status') }}, potvrzení hlavic {{ states('input_boolean.heating_restore_verified') }}. Příčinu ověřte v trace skriptu. Kotel nezapínám."
+                    }
+                  },
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "continue_on_error": true,
+                    "data": {
+                      "title": "Topení – obnova se zasekla",
+                      "message": "Flow V4 >10 min v RESTORING. EMS kód: {{ states('sensor.boiler_servicecodenumber') }}, heatblock: {{ states('sensor.boiler_heatblock') }} °C. Kotel není automaticky odblokován."
+                    }
+                  }
+                ]
+              }
+            ],
+            "default": [
+              {
+                "action": "persistent_notification.dismiss",
+                "data": {
+                  "notification_id": "heating_v4_restoring_stuck"
+                }
+              }
+            ]
+          }
+        ],
+        "mode": "restart"
+      }
     }
   }
 }
