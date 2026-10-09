@@ -241,7 +241,7 @@
 -
   id: "heating_service_mode_guard"
   alias: "Topení – servisní režim"
-  description: "Ruční servisní režim. Je oddělený od Flow V4; během EMERGENCY_COOLING/RESTORING se nesmí aktivovat ani spustit restore. V NORMAL/HARD_LOCKOUT funguje standardně."
+  description: "Ruční servisní režim. Je oddělený od Flow V4; během EMERGENCY_COOLING/RESTORING se nesmí aktivovat ani spustit restore. V NORMAL/HARD_LOCKOUT funguje standardně. 2026-10-09: Service OFF saves resume eligibility before restore script clears the helper and reenables master only after successful restore and EMS safety checks; boiler relay remains controlled by Flow V4 start policy."
   mode: "restart"
   trigger:
     -
@@ -646,6 +646,9 @@
                 - "NORMAL"
                 - "HARD_LOCKOUT"
             -
+              variables:
+                resume_allowed: "{{ is_state('input_boolean.heating_service_restore_main_enable', 'on') }}"
+            -
               action: "input_boolean.turn_off"
               target:
                 entity_id: "input_boolean.topny_system_enable"
@@ -656,11 +659,69 @@
                 entity_id: "switch.kotel_rele_spinac"
               continue_on_error: true
             -
-              action: "input_boolean.turn_off"
-              target:
-                entity_id: "input_boolean.heating_service_restore_main_enable"
-            -
               action: "script.heating_restore_schedule_after_service"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ resume_allowed | bool(false) }}"
+                -
+                  condition: "state"
+                  entity_id: "input_select.heating_flow_state_v4"
+                  state: "NORMAL"
+                -
+                  condition: "state"
+                  entity_id: "input_boolean.heating_service_mode"
+                  state: "off"
+                -
+                  condition: "state"
+                  entity_id: "input_boolean.heating_restore_verified"
+                  state: "on"
+                -
+                  condition: "state"
+                  entity_id: "input_boolean.heating_flow_relief_lockout"
+                  state: "off"
+                -
+                  condition: "state"
+                  entity_id: "binary_sensor.heating_boiler_fault_clear"
+                  state: "on"
+                -
+                  condition: "state"
+                  entity_id: "sensor.system_bus_status"
+                  state: "connected"
+                -
+                  condition: "state"
+                  entity_id: "binary_sensor.boiler_burngas"
+                  state: "off"
+                -
+                  condition: "numeric_state"
+                  entity_id: "sensor.boiler_heatblock"
+                  below: 72
+                -
+                  condition: "state"
+                  entity_id: "input_select.topny_rezim"
+                  state:
+                    - "Auto"
+                    - "Eco"
+                    - "Boost"
+              then:
+                -
+                  action: "input_boolean.turn_on"
+                  target:
+                    entity_id: "input_boolean.topny_system_enable"
+                -
+                  action: "logbook.log"
+                  data:
+                    name: "Topení – servisní režim"
+                    entity_id: "input_boolean.topny_system_enable"
+                    message: "Ruční servis skončil; obnovení hlavic potvrzeno, EMS bez chyby a původní master byl ON. Povoluji automatické topení; relé spouští výhradně bezpečná V4 politika po 120 s."
+              else:
+                -
+                  action: "logbook.log"
+                  data:
+                    name: "Topení – servisní režim"
+                    entity_id: "input_boolean.topny_system_enable"
+                    message: "Po ukončení servisu zůstává master OFF: před servisem byl vypnutý, nebo obnova/bezpečnostní podmínky nejsou potvrzené. Bez ručního obejití blokací."
   initial_state: true
 -
   id: "heating_service_mode_hard_guard"
