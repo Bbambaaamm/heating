@@ -7,6 +7,8 @@
 # i tehdy, kdy by podmínky nového běhu neprošly. PI reporty odpočet nerestartují.
 automation:
   # Historical fallback controller retained for audit/rollback only.
+  # Post-Flow-V4 recovery allow 240 s NORMAL settling for TRV PI feedback;
+  # ordinary stable-NORMAL starts retain the minimum 120 s debounce.
   # Flow V4 owns the active start, and deactivates any re-enabled legacy branch.
   - alias: "Kotel: zapnout při splnění politiky"
     id: kotel_turn_on_by_policy
@@ -76,7 +78,7 @@ automation:
       - delay:
           # Druhá nezávislá pojistka: ani vadný efektivní senzor nesmí
           # spustit kotel dříve, než se termostatické ventily otevřou.
-          seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120] | max }}"
+          seconds: "{{ [states('sensor.kotel_effective_on_delay_sec') | int(120), 120, (240 - (as_timestamp(now()) - as_timestamp(states.input_select.heating_flow_state_v4.last_changed, as_timestamp(now())))) | int(0)] | max }}"
       - condition: state
         entity_id: input_boolean.topny_system_enable
         state: "on"
