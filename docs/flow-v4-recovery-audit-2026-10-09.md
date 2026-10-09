@@ -3,7 +3,7 @@
 ## Rozsah a zdroje
 
 - Live Home Assistant **Core 2026.9.2**, HA OS 18.2, Bosch přes EMS-ESP a Danfoss Zigbee TRV.
-- Konfigurace ověřená přes HA API: Flow V4, bezpečný start kotle, obnovovací skript, čtyři šablonové pomocníky.
+- Konfigurace ověřená přes HA API: Flow V4, bezpečný start kotle, obnovovací skript, čtyři šablonové pomocníky a pasivní watchdog dlouhé obnovy.
 - Historie EMS kódů, relay/hořáku, průběhu chlazení a potvrzení motorů hlavic; systémový log Zigbee.
 - Přesný **read-only snapshot** těchto storage-managed objektů: [`live-storage-snapshot-2026-10-09-v4.json`](live-storage-snapshot-2026-10-09-v4.json). **Nikdy ho nenačítat jako další HA package** a nevytvářet duplicitní YAML řídicí automace.
 
@@ -31,8 +31,9 @@
 1. Vytvořena storage automation `automation.topeni_v4_periodicka_kontrola_pouze_nouzoveho_chlazeni`, každou minutu pouze pro `EMERGENCY_COOLING` vyšle `heating_flow_v4_reconcile`. **Sama nemění relé ani teploty.**
 2. Z Flow V4 odebrán jeho univerzální minutový trigger. Kritické EMS/heatblock triggery i explicitní recovery event zůstávají. Tím se minutový tick nedostane do rozpracovaného `RESTORING` a neukončí dlouhý restore skript.
 3. Na úspěšném konci `RESTORING → NORMAL` se po publikaci stavu NORMAL vymaže starý pomocník `heating_flow_paths_verified_v4`. Když v době úpravy již bylo NORMAL, starý příznak byl jednorázově vymazán v HA.
-4. **Již dříve** bylo v HA opraveno spouštění `automation.kotel_v4_bezpecny_start_podle_politiky`, aby změny atributů senzoru `kotel_should_be_on` nerestartovaly 120s čekání. Tato konfigurace je součástí snapshotu.
-5. V předchozím paralelním zásahu byla do Flow V4 zavedena podmínka: pokud je kotel už pod 60 °C, nepokračuje do RESTORING bez potvrzených cest ani před dokončením 120s timeoutu; lockout při nepotvrzených cestách se zachovává.
+4. V HA přidán čistě pasivní watchdog: pokud `RESTORING` trvá 10 minut, vytvoří stabilní upozornění a pošle jednorázový mobilní alarm. Při NORMAL/HARD_LOCKOUT oznámení smaže. Watchdog nikdy nesepíná kotel.
+5. **Již dříve** bylo v HA opraveno spouštění `automation.kotel_v4_bezpecny_start_podle_politiky`, aby změny atributů senzoru `kotel_should_be_on` nerestartovaly 120s čekání. Tato konfigurace je součástí snapshotu.
+6. V předchozím paralelním zásahu byla do Flow V4 zavedena podmínka: pokud je kotel už pod 60 °C, nepokračuje do RESTORING bez potvrzených cest ani před dokončením 120s timeoutu; lockout při nepotvrzených cestách se zachovává.
 
 ## Zachované bezpečnostní invarianty
 
