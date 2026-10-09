@@ -1265,11 +1265,11 @@
       }
     },
     "automation.topeni_watchdog_dostupnosti_a_teplot_kotle_zivy": {
-      "config_hash": "396c88eac88f31bb",
+      "config_hash": "0eee8d32142fa940",
       "config": {
         "id": "1791542912666",
         "alias": "Topení – watchdog dostupnosti a teplot kotle (živý)",
-        "description": "Monitoring bez zásahů do kotle. Teplotní varování 69 °C, HARD_LOCKOUT, požadavek bez topení, nízká teplota bez hořáku a porucha EMS. Persistent notifications mají stálé ID; push pouze při nových stavových triggerech. Flow V4 zůstává jediným vykonavatelem bezpečnostních zásahů.",
+        "description": "Monitoring bez zásahů do kotle. Teplotní varování 69 °C, HARD_LOCKOUT, požadavek bez topení, nízká teplota bez hořáku a porucha EMS. Persistent notifications mají stálé ID; push pouze při nových stavových triggerech. Flow V4 zůstává jediným vykonavatelem bezpečnostních zásahů. Okamžitý mobilní alarm pro události 2964–2967, i když nouzová logika krátce poté vypne master a zanikne poptávka. Upozornění zůstává uloženo jako záznam incidentu.",
         "triggers": [
           {
             "trigger": "numeric_state",
@@ -1322,6 +1322,30 @@
             "trigger": "homeassistant",
             "event": "start",
             "id": "start"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2964",
+            "id": "fault_2964"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2965",
+            "id": "fault_2965"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2966",
+            "id": "fault_2966"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_servicecodenumber",
+            "to": "2967",
+            "id": "fault_2967"
           }
         ],
         "conditions": [],
@@ -1614,6 +1638,52 @@
                 "data": {
                   "notification_id": "heating_watchdog_ems_offline"
                 }
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "sensor.boiler_servicecodenumber",
+                "state": [
+                  "2964",
+                  "2965",
+                  "2966",
+                  "2967"
+                ]
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_watchdog_ems_fault",
+                  "title": "Topení – nová porucha kotle 2964–2967",
+                  "message": "Topení: EMS právě nahlásil poruchu {{ states('sensor.boiler_servicecodenumber') }}. Výstup {{ states('sensor.boiler_curflowtemp') }} °C, Flow V4 {{ states('input_select.heating_flow_state_v4') }}, relé {{ states('switch.kotel_rele_spinac') }}. U kódů 2964–2967 zkontrolujte hydraulickou cestu, pumpu a tlak; neobcházejte blokaci."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "fault_2964",
+                      "fault_2965",
+                      "fault_2966",
+                      "fault_2967"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "data": {
+                      "title": "Topení – porucha kotle",
+                      "message": "Topení: EMS právě nahlásil poruchu {{ states('sensor.boiler_servicecodenumber') }}. Výstup {{ states('sensor.boiler_curflowtemp') }} °C, Flow V4 {{ states('input_select.heating_flow_state_v4') }}, relé {{ states('switch.kotel_rele_spinac') }}. U kódů 2964–2967 zkontrolujte hydraulickou cestu, pumpu a tlak; neobcházejte blokaci."
+                    }
+                  }
+                ]
               }
             ]
           }
