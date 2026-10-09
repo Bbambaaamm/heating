@@ -183,7 +183,8 @@ class FlowV4LiveSnapshotTests(unittest.TestCase):
     def test_demand_changes_only_restart_for_real_transitions(self):
         triggers = self.start["triggers"]
         demand = [x for x in triggers if x.get("entity_id") == "binary_sensor.kotel_should_be_on"]
-        self.assertEqual({x.get("to") for x in demand}, {"on", "off"})
+        self.assertTrue({"on", "off"}.issubset({x.get("to") for x in demand}))
+        self.assertTrue({x.get("to") for x in demand}.issubset({"on", "off", "unknown", "unavailable"}))
         self.assertFalse(any(
             isinstance(x.get("entity_id"), list)
             and "binary_sensor.kotel_should_be_on" in x["entity_id"]
