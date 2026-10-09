@@ -50,6 +50,7 @@ template:
 script:
   heating_apply_zone_target:
     alias: "Heating – apply zone target (central)"
+    description: "Centrální aplikace cíle zóny. Respektuje aktivní hydraulickou podporu: pokud je zóna vybraná jako podpora ve Flow V4 NORMAL, běžný dispatch ji nesmí stáhnout pod 29 °C."
     mode: queued
     max: 2
     fields:
@@ -108,9 +109,15 @@ script:
             {{ climate_exists
                and climate_state not in ['unknown', 'unavailable', ''] }}
           # A disabled zone stays at ECO even for direct/queued script callers.
-          target_raw: >-
-            {{ requested_temp if is_state('input_boolean.schedule_enable_' ~ climate_entity.split('.')[1], 'on')
-               else states('input_number.eco_temp_default') }}
+          target_raw: |-
+            {% set base = requested_temp if is_state('input_boolean.schedule_enable_' ~ climate_entity.split('.')[1], 'on') else states('input_number.eco_temp_default') %}
+            {% if states('input_select.topeni_hydraulicka_podpurna_zona') == climate_entity
+                  and is_state('input_boolean.topny_system_enable','on')
+                  and is_state('input_select.heating_flow_state_v4','NORMAL') %}
+              {{ [base | float(29), 29] | max }}
+            {% else %}
+              {{ base }}
+            {% endif %}
           target_valid: >-
             {% set raw = target_raw %}
             {% if raw is none %}

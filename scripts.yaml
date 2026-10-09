@@ -1,11 +1,649 @@
-# =====================================================================
-# Soubor   : scripts.yaml
-# Modul    : Skripty
-# Účel     : Globální skripty Home Assistant
-# Autor    : Michal
-# Poslední úprava : 2026-04-10
-# Poznámka : YAML syntaxe podle HA 2024.10 (trigger / condition / action)
-# =====================================================================
-
-# Tento soubor je záměrně prázdný.
-# Veškerá runtime logika je spravována v package struktuře `heating/*` načítané z `configuration.yaml`.
+# Home Assistant root scripts - runtime Flow V4 recovery.
+# The central zone target script is defined ONCE in heating/control/refactor_mode_schedule_override.yaml.
+heating_restore_schedule_after_service:
+  alias: "Topení – obnova rozvrhů po servisu"
+  description: "Obnoví cíle všech 8 zón podle aktuálního Auto/ECO/Comfort stavu a explicitně potvrdí heating_restore_verified až PO posledním bezpečnostním vypnutí masteru a relé. Tím recovery reconciler nemůže být následně přepsán pozdním turn_off z restore skriptu."
+  mode: "single"
+  max_exceeded: "silent"
+  sequence:
+    -
+      action: "input_boolean.turn_off"
+      target:
+        entity_id: "input_boolean.topny_system_enable"
+      continue_on_error: true
+    -
+      action: "switch.turn_off"
+      target:
+        entity_id: "switch.kotel_rele_spinac"
+      continue_on_error: true
+    -
+      action: "input_boolean.turn_off"
+      target:
+        entity_id: "input_boolean.heating_restore_verified"
+    -
+      action: "input_boolean.turn_off"
+      target:
+        entity_id: "input_boolean.heating_service_restore_main_enable"
+    -
+      if:
+        -
+          condition: "not"
+          conditions:
+            -
+              condition: "state"
+              entity_id: "binary_sensor.boiler_burngas"
+              state: "off"
+      then:
+        -
+          wait_for_trigger:
+            -
+              trigger: "state"
+              entity_id: "binary_sensor.boiler_burngas"
+              to: "off"
+          timeout: "00:05:00"
+          continue_on_timeout: false
+    -
+      if:
+        -
+          condition: "not"
+          conditions:
+            -
+              condition: "state"
+              entity_id: "binary_sensor.boiler_heatingpump"
+              state: "off"
+      then:
+        -
+          wait_for_trigger:
+            -
+              trigger: "state"
+              entity_id: "binary_sensor.boiler_heatingpump"
+              to: "off"
+          timeout: "00:05:00"
+          continue_on_timeout: false
+    -
+      if:
+        -
+          condition: "not"
+          conditions:
+            -
+              condition: "state"
+              entity_id: "automation.topeni_fail_safe_nedostatecny_prutok_kotlem"
+              attribute: "current"
+              state: 0
+      then:
+        -
+          wait_for_trigger:
+            -
+              trigger: "state"
+              entity_id: "automation.topeni_fail_safe_nedostatecny_prutok_kotlem"
+              attribute: "current"
+              to: 0
+          timeout: "00:02:00"
+          continue_on_timeout: false
+    -
+      condition: "state"
+      entity_id: "input_boolean.heating_service_mode"
+      state: "off"
+    -
+      variables:
+        targets: |-
+          {% set ns = namespace(values={}) %}
+          {% set eco = states('input_number.eco_temp_default') | float(default=none) %}
+          {% set mode = states('input_select.topny_rezim') %}
+          {% set active = state_attr('sensor.heating_schedule_windows', 'active_helpers') or [] %}
+          {% for z in ["sklep_michal","prizemi_michal","prizemi_chodba_zachod","1p_jidelna","1p_kuchyn","1p_koupelna","1p_chodba","2p_mama"] %}
+          {% set comfort = states('input_number.' ~ z ~ '_last_comfort') | float(default=none) %}
+          {% set enabled = is_state('input_boolean.schedule_enable_' ~ z, 'on') %}
+          {% set manual = is_state('input_boolean.' ~ z ~ '_manual_override', 'on') and (is_state('input_select.' ~ z ~ '_manual_override_type', 'Do další změny rozvrhu') or (is_state('input_select.' ~ z ~ '_manual_override_type', 'Časovač') and is_state('timer.' ~ z ~ '_manual_override', 'active'))) %}
+          {% set in_window = 'input_boolean.' ~ z ~ '_schedule_active' in active %}
+          {% set boost = is_state('binary_sensor.kotel_boost_active', 'on') %}
+          {% set value = eco if not enabled else comfort if manual else comfort + (states('input_number.boost_comfort_offset_c') | float(0)) if boost and comfort is not none else eco if mode in ['Eco', 'Vypnuto', 'Off'] else comfort if in_window else eco %}
+          {% set low = state_attr('climate.' ~ z, 'min_temp') | float(5) %}
+          {% set high = state_attr('climate.' ~ z, 'max_temp') | float(29) %}
+          {% set ns.values = dict(ns.values, **{z: ([[value, low] | max, high] | min if value is not none else none)}) %}
+          {% endfor %}
+          {{ ns.values }}
+    -
+      parallel:
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['sklep_michal'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.sklep_michal', 'temperature') is number and targets['sklep_michal'] is number and ((state_attr('climate.sklep_michal', 'temperature') | float) - (targets['sklep_michal'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.sklep_michal"
+                            data:
+                              temperature: "{{ targets['sklep_michal'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.sklep_michal', 'temperature') is number and targets['sklep_michal'] is number and ((state_attr('climate.sklep_michal', 'temperature') | float) - (targets['sklep_michal'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_sklep_michal"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice sklep_michal nepotvrdila požadovaný cíl {{ targets['sklep_michal'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_sklep_michal"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro sklep_michal chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['prizemi_michal'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.prizemi_michal', 'temperature') is number and targets['prizemi_michal'] is number and ((state_attr('climate.prizemi_michal', 'temperature') | float) - (targets['prizemi_michal'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.prizemi_michal"
+                            data:
+                              temperature: "{{ targets['prizemi_michal'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.prizemi_michal', 'temperature') is number and targets['prizemi_michal'] is number and ((state_attr('climate.prizemi_michal', 'temperature') | float) - (targets['prizemi_michal'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_prizemi_michal"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice prizemi_michal nepotvrdila požadovaný cíl {{ targets['prizemi_michal'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_prizemi_michal"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro prizemi_michal chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['prizemi_chodba_zachod'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.prizemi_chodba_zachod', 'temperature') is number and targets['prizemi_chodba_zachod'] is number and ((state_attr('climate.prizemi_chodba_zachod', 'temperature') | float) - (targets['prizemi_chodba_zachod'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.prizemi_chodba_zachod"
+                            data:
+                              temperature: "{{ targets['prizemi_chodba_zachod'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.prizemi_chodba_zachod', 'temperature') is number and targets['prizemi_chodba_zachod'] is number and ((state_attr('climate.prizemi_chodba_zachod', 'temperature') | float) - (targets['prizemi_chodba_zachod'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_prizemi_chodba_zachod"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice prizemi_chodba_zachod nepotvrdila požadovaný cíl {{ targets['prizemi_chodba_zachod'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_prizemi_chodba_zachod"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro prizemi_chodba_zachod chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['1p_jidelna'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.1p_jidelna', 'temperature') is number and targets['1p_jidelna'] is number and ((state_attr('climate.1p_jidelna', 'temperature') | float) - (targets['1p_jidelna'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.1p_jidelna"
+                            data:
+                              temperature: "{{ targets['1p_jidelna'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.1p_jidelna', 'temperature') is number and targets['1p_jidelna'] is number and ((state_attr('climate.1p_jidelna', 'temperature') | float) - (targets['1p_jidelna'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_1p_jidelna"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice 1p_jidelna nepotvrdila požadovaný cíl {{ targets['1p_jidelna'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_1p_jidelna"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro 1p_jidelna chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['1p_kuchyn'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.1p_kuchyn', 'temperature') is number and targets['1p_kuchyn'] is number and ((state_attr('climate.1p_kuchyn', 'temperature') | float) - (targets['1p_kuchyn'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.1p_kuchyn"
+                            data:
+                              temperature: "{{ targets['1p_kuchyn'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.1p_kuchyn', 'temperature') is number and targets['1p_kuchyn'] is number and ((state_attr('climate.1p_kuchyn', 'temperature') | float) - (targets['1p_kuchyn'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_1p_kuchyn"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice 1p_kuchyn nepotvrdila požadovaný cíl {{ targets['1p_kuchyn'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_1p_kuchyn"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro 1p_kuchyn chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['1p_koupelna'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.1p_koupelna', 'temperature') is number and targets['1p_koupelna'] is number and ((state_attr('climate.1p_koupelna', 'temperature') | float) - (targets['1p_koupelna'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.1p_koupelna"
+                            data:
+                              temperature: "{{ targets['1p_koupelna'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.1p_koupelna', 'temperature') is number and targets['1p_koupelna'] is number and ((state_attr('climate.1p_koupelna', 'temperature') | float) - (targets['1p_koupelna'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_1p_koupelna"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice 1p_koupelna nepotvrdila požadovaný cíl {{ targets['1p_koupelna'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_1p_koupelna"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro 1p_koupelna chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['1p_chodba'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.1p_chodba', 'temperature') is number and targets['1p_chodba'] is number and ((state_attr('climate.1p_chodba', 'temperature') | float) - (targets['1p_chodba'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.1p_chodba"
+                            data:
+                              temperature: "{{ targets['1p_chodba'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.1p_chodba', 'temperature') is number and targets['1p_chodba'] is number and ((state_attr('climate.1p_chodba', 'temperature') | float) - (targets['1p_chodba'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_1p_chodba"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice 1p_chodba nepotvrdila požadovaný cíl {{ targets['1p_chodba'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_1p_chodba"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro 1p_chodba chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+        -
+          sequence:
+            -
+              condition: "state"
+              entity_id: "input_boolean.heating_service_mode"
+              state: "off"
+            -
+              if:
+                -
+                  condition: "template"
+                  value_template: "{{ targets['2p_mama'] is number }}"
+              then:
+                -
+                  repeat:
+                    count: 3
+                    sequence:
+                      -
+                        condition: "state"
+                        entity_id: "input_boolean.heating_service_mode"
+                        state: "off"
+                      -
+                        if:
+                          -
+                            condition: "not"
+                            conditions:
+                              -
+                                condition: "template"
+                                value_template: "{{ state_attr('climate.2p_mama', 'temperature') is number and targets['2p_mama'] is number and ((state_attr('climate.2p_mama', 'temperature') | float) - (targets['2p_mama'] | float)) | abs < 0.1 }}"
+                        then:
+                          -
+                            action: "climate.set_temperature"
+                            target:
+                              entity_id: "climate.2p_mama"
+                            data:
+                              temperature: "{{ targets['2p_mama'] }}"
+                            continue_on_error: true
+                          -
+                            delay:
+                              seconds: 2
+                -
+                  if:
+                    -
+                      condition: "not"
+                      conditions:
+                        -
+                          condition: "template"
+                          value_template: "{{ state_attr('climate.2p_mama', 'temperature') is number and targets['2p_mama'] is number and ((state_attr('climate.2p_mama', 'temperature') | float) - (targets['2p_mama'] | float)) | abs < 0.1 }}"
+                  then:
+                    -
+                      action: "persistent_notification.create"
+                      data:
+                        notification_id: "heating_restore_failed_2p_mama"
+                        title: "Topení – hlavice nepotvrdila obnovu"
+                        message: "Hlavice 2p_mama nepotvrdila požadovaný cíl {{ targets['2p_mama'] }} °C. Kotel zůstává nepovolený."
+              else:
+                -
+                  action: "persistent_notification.create"
+                  data:
+                    notification_id: "heating_restore_failed_2p_mama"
+                    title: "Topení – chybí cílová teplota"
+                    message: "Pro 2p_mama chybí platný komfort nebo ECO. Cíl nebyl změněn, kotel zůstává nepovolený."
+    -
+      condition: "state"
+      entity_id: "input_boolean.heating_service_mode"
+      state: "off"
+    -
+      action: "input_boolean.turn_off"
+      target:
+        entity_id: "input_boolean.topny_system_enable"
+      continue_on_error: true
+    -
+      action: "switch.turn_off"
+      target:
+        entity_id: "switch.kotel_rele_spinac"
+      continue_on_error: true
+    -
+      if:
+        -
+          condition: "template"
+          value_template: |-
+            {% set ns=namespace(ok=true) %}
+            {% for z in ['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_jidelna','1p_kuchyn','1p_koupelna','1p_chodba','2p_mama'] %}
+              {% set target = targets[z] %}
+              {% set actual = state_attr('climate.' ~ z, 'temperature') %}
+              {% if target is not number or actual is not number or ((actual|float)-(target|float))|abs >= 0.1 %}
+                {% set ns.ok=false %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.ok }}
+      then:
+        -
+          action: "input_boolean.turn_on"
+          target:
+            entity_id: "input_boolean.heating_restore_verified"
+        -
+          action: "logbook.log"
+          data:
+            name: "Topení – obnova rozvrhů"
+            entity_id: "input_boolean.heating_restore_verified"
+            message: "Všech 8 hlavic potvrdilo očekávané cíle; obnova je ověřená."
+      else:
+        -
+          action: "input_boolean.turn_off"
+          target:
+            entity_id: "input_boolean.heating_restore_verified"
+        -
+          action: "persistent_notification.create"
+          data:
+            notification_id: "heating_restore_verification_failed"
+            title: "Topení – obnova rozvrhů není ověřena"
+            message: "Po obnově nepotvrdilo všech 8 hlavic očekávané cíle. Hlavní řízení zůstává blokované, dokud recovery logika nepotvrdí bezpečný stav."
+    -
+      action: "persistent_notification.dismiss"
+      data:
+        notification_id: "heating_service_mode"
