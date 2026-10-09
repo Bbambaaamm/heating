@@ -82,13 +82,13 @@ class LiveV4SafetySnapshotTests(unittest.TestCase):
         self.assertEqual(start["mode"], "restart")
         demand = [t for t in start["triggers"]
                   if t.get("entity_id") == "binary_sensor.kotel_should_be_on"]
-        self.assertEqual({t.get("to") for t in demand}, {"on", "off"})
+        self.assertEqual({t.get("to") for t in demand}, {"on", "off", "unknown", "unavailable"})
         for t in start["triggers"]:
             group = t.get("entity_id", [])
             if isinstance(group, str):
                 group = [group]
             if "binary_sensor.kotel_should_be_on" in group:
-                self.assertIn(t.get("to"), ("on", "off"))
+                self.assertIn(t.get("to"), ("on", "off", "unknown", "unavailable"))
         acts = start["actions"]
         self.assertTrue(any("delay" in a and "120" in str(a["delay"]) for a in acts))
         self.assertGreaterEqual(sum(
@@ -126,9 +126,9 @@ class GitFallbackPolicyTests(unittest.TestCase):
                     ids = [ids]
                 if "binary_sensor.kotel_should_be_on" in ids:
                     self.assertEqual(ids, ["binary_sensor.kotel_should_be_on"])
-                    self.assertIn(t.get("to"), ("on", "off"))
+                    self.assertIn(t.get("to"), ("on", "off", "unknown", "unavailable"))
                     demand.append(t.get("to"))
-            self.assertEqual(set(demand), {"on", "off"})
+            self.assertEqual(set(demand), {"on", "off", "unknown", "unavailable"})
 
 
 if __name__ == "__main__":
