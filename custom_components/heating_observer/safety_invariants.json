@@ -140,6 +140,13 @@
       "description": "Agent s parentem nesmí rozšířit capabilities nad parenta.",
       "kind": "permission",
       "rule": "child_capabilities_subset_parent"
+    },
+    {
+      "id": "S21",
+      "severity": "critical",
+      "description": "Heatblock nad 72 °C je kritické přehřátí bez ohledu na stav kotlového relé nebo hořáku.",
+      "kind": "state",
+      "rule": "heatblock_overtemp_is_never_safe"
     }
   ]
 }
