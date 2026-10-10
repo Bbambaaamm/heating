@@ -1,0 +1,49 @@
+# Standalone candidate for isolated HA Core tests; this fixture does not deploy
+# an automation. NORMAL and explicit lockout OFF are required to allow relay ON.
+# Missing or invalid safety helpers fail closed. Only the relay is switched OFF.
+id: heating_v4_relay_lockout_guard
+alias: "Topení V4 – nezávislá blokace relé při lockoutu"
+description: >-
+  Nezávislá ochrana pouze vypíná kotlové relé při cizím zapnutí během
+  EMERGENCY_COOLING, RESTORING, HARD_LOCKOUT nebo při aktivním lockoutu.
+  Nedostupný či neplatný bezpečnostní helper rovněž blokuje relé.
+  Nezasahuje do masteru, cílů hlavic ani běžící V4 recovery.
+initial_state: true
+mode: parallel
+max: 10
+max_exceeded: warning
+trigger:
+  - trigger: state
+    entity_id: switch.kotel_rele_spinac
+    to: "on"
+    id: relay_on
+  - trigger: state
+    entity_id:
+      - input_select.heating_flow_state_v4
+      - input_boolean.heating_flow_relief_lockout
+    to: null
+    id: safety_state_changed
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: event
+    event_type: automation_reloaded
+    id: reload
+condition:
+  - condition: state
+    entity_id: switch.kotel_rele_spinac
+    state: "on"
+  - condition: not
+    conditions:
+      - condition: and
+        conditions:
+          - condition: state
+            entity_id: input_select.heating_flow_state_v4
+            state: "NORMAL"
+          - condition: state
+            entity_id: input_boolean.heating_flow_relief_lockout
+            state: "off"
+action:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.kotel_rele_spinac
