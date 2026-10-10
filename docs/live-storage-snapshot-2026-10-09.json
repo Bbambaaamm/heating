@@ -1265,11 +1265,11 @@
       }
     },
     "automation.topeni_watchdog_dostupnosti_a_teplot_kotle_zivy": {
-      "config_hash": "0eee8d32142fa940",
+      "config_hash": "d8b78c1da0b80b1f",
       "config": {
         "id": "1791542912666",
         "alias": "Topení – watchdog dostupnosti a teplot kotle (živý)",
-        "description": "Monitoring bez zásahů do kotle. Teplotní varování 69 °C, HARD_LOCKOUT, požadavek bez topení, nízká teplota bez hořáku a porucha EMS. Persistent notifications mají stálé ID; push pouze při nových stavových triggerech. Flow V4 zůstává jediným vykonavatelem bezpečnostních zásahů. Okamžitý mobilní alarm pro události 2964–2967, i když nouzová logika krátce poté vypne master a zanikne poptávka. Upozornění zůstává uloženo jako záznam incidentu.",
+        "description": "Monitoring bez zásahů do kotle. Teplotní varování 69 °C, HARD_LOCKOUT, požadavek bez topení, nízká teplota bez hořáku a porucha EMS. Persistent notifications mají stálé ID; push pouze při nových stavových triggerech. Flow V4 zůstává jediným vykonavatelem bezpečnostních zásahů. Okamžitý mobilní alarm pro události 2964–2967, i když nouzová logika krátce poté vypne master a zanikne poptávka. Upozornění zůstává uloženo jako záznam incidentu. Nezávislý výstražný dohled hlásí i více než 80 °C při čerpadle OFF po vypnutí hořáku/TUV; žádná akce nesepíná kotel.",
         "triggers": [
           {
             "trigger": "numeric_state",
@@ -1346,6 +1346,24 @@
             "entity_id": "sensor.boiler_servicecodenumber",
             "to": "2967",
             "id": "fault_2967"
+          },
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "above": 80,
+            "for": {
+              "seconds": 15
+            },
+            "id": "hot_pump_off"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "binary_sensor.boiler_heatingpump",
+            "to": "off",
+            "for": {
+              "seconds": 20
+            },
+            "id": "pump_stopped"
           }
         ],
         "conditions": [],
@@ -1681,6 +1699,51 @@
                     "data": {
                       "title": "Topení – porucha kotle",
                       "message": "Topení: EMS právě nahlásil poruchu {{ states('sensor.boiler_servicecodenumber') }}. Výstup {{ states('sensor.boiler_curflowtemp') }} °C, Flow V4 {{ states('input_select.heating_flow_state_v4') }}, relé {{ states('switch.kotel_rele_spinac') }}. U kódů 2964–2967 zkontrolujte hydraulickou cestu, pumpu a tlak; neobcházejte blokaci."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "condition": "numeric_state",
+                "entity_id": "sensor.boiler_heatblock",
+                "above": 80
+              },
+              {
+                "condition": "state",
+                "entity_id": "binary_sensor.boiler_heatingpump",
+                "state": "off"
+              }
+            ],
+            "then": [
+              {
+                "action": "persistent_notification.create",
+                "data": {
+                  "notification_id": "heating_hot_no_pump",
+                  "title": "Topení – horký kotel, čerpadlo OFF",
+                  "message": "Kotlový blok {{ states('sensor.boiler_heatblock') }} °C a oběhové čerpadlo OFF, hořák {{ states('binary_sensor.boiler_burngas') }}, EMS {{ states('sensor.boiler_servicecodenumber') }}, Flow V4 {{ states('input_select.heating_flow_state_v4') }}. Hrozí nedostatečné odvádění zbytkového tepla. Nezapínejte relé ani neobcházejte ochranu. Ověřte hydrauliku a čerpadlo odborným servisem."
+                }
+              },
+              {
+                "if": [
+                  {
+                    "condition": "trigger",
+                    "id": [
+                      "hot_pump_off",
+                      "pump_stopped"
+                    ]
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "notify.mobile_app_sm_s938b",
+                    "continue_on_error": true,
+                    "data": {
+                      "title": "Kotel – vysoká teplota, čerpadlo OFF",
+                      "message": "Kotel {{ states('sensor.boiler_heatblock') }} °C, čerpadlo OFF, hořák {{ states('binary_sensor.boiler_burngas') }}, EMS {{ states('sensor.boiler_servicecodenumber') }}. Neobcházej ochranu; zkontroluj kotel a zajisti servis čerpadla/průtoku."
                     }
                   }
                 ]
