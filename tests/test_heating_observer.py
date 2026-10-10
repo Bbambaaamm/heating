@@ -109,6 +109,20 @@ class ObserverEngineTests(unittest.TestCase):
         self.assertNotIn("block", feature)
         self.assertNotIn("flow", feature)
 
+    def test_unknown_pi_report_age_does_not_suppress_temperature_warning(self):
+        o = Observer("test")
+        first = sample(0, relay=False, demand=0)
+        hot = sample(10, gas=True, demand=0, block=76)
+        for s in (first, hot):
+            s["pi_report_freshness_verified"] = False
+            for zone in s["zones"].values():
+                zone.update(pi_reported_at=None, pi_report_age_sec=None,
+                            pi_report_time_quality="unknown")
+            o.feed(s)
+        self.assertEqual(o.current_quality, [])
+        self.assertIn("block_above_75", o.current_warnings)
+        self.assertTrue(o.data["active"]["shadow_recent"])
+
     def test_postburn_temperature_growth_is_measured_without_claiming_cause(self):
         o = Observer("test")
         o.feed(sample(0, relay=False))
@@ -318,6 +332,39 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.drain()
         self.assertIn("invalid_block", self.engine.current_quality)
         self.assertIsNone(self.engine.previous["block"])
+        self.assertEqual(self.calls, [])
+
+    async def test_climate_changes_do_not_create_pi_report_timestamps(self):
+        zone = ZONES[0]
+        before = self.runtime.snapshot("before")["zones"][zone]
+        self.hass.states.async_set(f"climate.{zone}", "heat", {
+            "pi_heating_demand": 20, "temperature": 22, "current_temperature": 20.5,
+        })
+        captured = self.runtime.snapshot("climate_update")
+        after = captured["zones"][zone]
+        self.assertEqual(before["pi"], after["pi"])
+        self.assertGreater(after["climate_state_reported_at"], before["climate_state_reported_at"])
+        self.assertFalse(captured["pi_report_freshness_verified"])
+        self.assertEqual(after["reported_at"], after["climate_state_reported_at"])
+        self.assertEqual(after["updated_at"], after["climate_state_updated_at"])
+        self.assertIsNone(after["pi_reported_at"])
+        self.assertIsNone(after["pi_report_age_sec"])
+        self.assertEqual(after["pi_report_time_quality"], "unknown")
+        self.assertEqual(self.calls, [])
+
+    async def test_restored_climate_does_not_verify_pi_report_freshness(self):
+        zone = ZONES[0]
+        self.hass.states.async_set(f"climate.{zone}", "heat", {
+            "pi_heating_demand": 100, "temperature": 21,
+            "current_temperature": 20, "restored": True,
+        })
+        captured = self.runtime.snapshot("restored")
+        row = captured["zones"][zone]
+        self.assertIsNone(row["state"])
+        self.assertFalse(captured["pi_report_freshness_verified"])
+        self.assertIsNone(row["pi_reported_at"])
+        self.assertIsNone(row["pi_report_age_sec"])
+        self.assertEqual(row["pi_report_time_quality"], "unknown")
         self.assertEqual(self.calls, [])
 
     async def test_storage_failure_is_visible_and_heating_is_untouched(self):

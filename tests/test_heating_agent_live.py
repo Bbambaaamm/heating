@@ -112,6 +112,22 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(any(x.get("promoted") for x in entries))
         self.assertNotIn("FACT", [x["kind"] for x in entries])
 
+    def test_cached_pi_cannot_gain_confidence_from_recent_climate_timestamps(self):
+        for recent_climate_times in (False, True):
+            with self.subTest(recent_climate_times=recent_climate_times):
+                prelude = [sample(0, gas=True, demand=0), sample(10, gas=True, demand=0, block=44)]
+                if recent_climate_times:
+                    for s in prelude:
+                        for zone in s["zones"].values():
+                            zone.update(reported_at=s["t"], updated_at=s["t"])
+                report = DiagnosticAgent().analyze({"code": 2964, "prelude": prelude})
+                hydraulic = report["hypotheses"][0]
+                self.assertEqual(hydraulic["confidence"], 0.50)
+                self.assertFalse(report["pi_report_freshness_verified"])
+                self.assertTrue(any("PI reportu" in s for s in hydraulic["evidence_against"]))
+                self.assertEqual(report["hypotheses"][1]["confidence"], 0.65)
+                self.assertEqual(report["root_cause"], "UNKNOWN")
+
 
 class DatabaseTests(unittest.TestCase):
     def test_sqlite_store_is_append_only_for_raw_events_and_persists_agents(self):

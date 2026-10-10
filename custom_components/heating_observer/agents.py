@@ -69,7 +69,8 @@ class DiagnosticAgent:
             f"Předporuchový kontext obsahuje {len(prelude)} vzorků.",
         ]
         if min_requesting is not None:
-            facts.append(f"Nejnižší pozorovaný počet hlavic s PI≥10 % byl {min_requesting}.")
+            facts.append(f"Nejnižší počet hlavic podle uložené PI proxy≥10 % byl {min_requesting}.")
+        facts.append("Čas posledního skutečného PI reportu není v této telemetrii ověřen.")
         if max_rise is not None:
             facts.append(f"Nejvyšší pozorovaný růst teploty bloku byl {max_rise:.3f} K/s.")
         if quality:
@@ -83,14 +84,17 @@ class DiagnosticAgent:
         low_flow_against = []
         low_flow_confidence = 0.25
         if min_requesting is not None and min_requesting < 3:
-            low_flow_for.append(f"Počet requesting zón klesl až na {min_requesting}.")
+            low_flow_for.append(f"Počet zón podle uložené PI proxy klesl až na {min_requesting}.")
             low_flow_for.append("Stejný typ proxy je ve stávajícím observeru sledován před interními restarty.")
-            low_flow_confidence = 0.70 if not quality and not dhw_seen else 0.50
+            # Capture records cached HA PI, not individual Zigbee reports.
+            # Empty general quality flags do not establish PI freshness.
+            low_flow_confidence = 0.50
         elif min_requesting is not None:
             low_flow_against.append(f"V dostupném okně zůstaly alespoň {min_requesting} requesting zóny.")
         else:
             low_flow_against.append("Počet requesting zón nelze z dostupných dat spolehlivě určit.")
         low_flow_against.append("PI požadavek hlavice nepotvrzuje fyzickou polohu ventilu ani průtok.")
+        low_flow_against.append("Čas posledního skutečného PI reportu není známý; obecný climate timestamp jej nenahrazuje.")
         hypotheses.append({
             "name": "Nedostatečná hydraulická odběrná kapacita",
             "evidence_for": low_flow_for,
@@ -124,7 +128,8 @@ class DiagnosticAgent:
             telemetry_for.append("Před poruchou byly přítomné quality flags: " + ", ".join(quality) + ".")
             telemetry_confidence = 0.55
         else:
-            telemetry_against.append("V uloženém předporuchovém kontextu nejsou explicitní quality flags.")
+            telemetry_against.append("V uloženém předporuchovém kontextu nejsou obecné quality flags; to neověřuje čerstvost PI.")
+        telemetry_for.append("Uložené PI proxy nemají ověřený čas jednotlivého Zigbee reportu.")
         hypotheses.append({
             "name": "Neúplná nebo časově nesourodá telemetrie ovlivňuje interpretaci",
             "evidence_for": telemetry_for,
@@ -151,6 +156,7 @@ class DiagnosticAgent:
             "next_measurement": next_measurement,
             "safety_implication": safety_implication,
             "root_cause": "UNKNOWN",
+            "pi_report_freshness_verified": False,
         }
 
 

@@ -179,7 +179,8 @@ class Runtime:
         now = dt_util.utcnow().timestamp()
         sample = {"t": now, "schema": 1, "version": VERSION, "reason": reason,
                   "revision": self.config["site_revision"], "ages": {}, "zones": {},
-                  "reported_at": {}, "gap": self.capture_gap}
+                  "reported_at": {}, "gap": self.capture_gap,
+                  "pi_report_freshness_verified": False}
         self.capture_gap = False
         for key, entity_id in INPUTS.items():
             raw, state = self._read(entity_id)
@@ -227,6 +228,12 @@ class Runtime:
                    "action": attrs.get("hvac_action"),
                    "reported_at": state.last_reported.timestamp() if state else None,
                    "updated_at": state.last_updated.timestamp() if state else None,
+                   "climate_state_reported_at": state.last_reported.timestamp() if state else None,
+                   "climate_state_updated_at": state.last_updated.timestamp() if state else None,
+                   "pi_source": "cached_ha_climate_attribute",
+                   "pi_reported_at": None,
+                   "pi_report_age_sec": None,
+                   "pi_report_time_quality": "unknown",
                    "in_window": f"input_boolean.{zone}_schedule_active" in active_helpers if active_helpers is not None else None}
             for key, entity_id in {
                 "comfort": f"input_number.{zone}_last_comfort",
