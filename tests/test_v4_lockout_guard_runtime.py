@@ -54,7 +54,7 @@ class V4RelayLockoutGuardRuntimeTests(unittest.IsolatedAsyncioTestCase):
             for entity in entities
         }
 
-    async def test_candidate_has_at_most_one_root_owner_and_only_relay_off_action(self):
+    async def test_root_has_one_guard_owner_and_only_relay_off_action(self):
         configuration = runtime.read("configuration.yaml")
         root_matches = [
             row for row in configuration["automation"]
@@ -71,12 +71,11 @@ class V4RelayLockoutGuardRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 row for row in rows
                 if isinstance(row, dict) and str(row.get("id")) == GUARD_ID
             )
-        self.assertLessEqual(len(root_matches), 1, "Root/UI guard must not have duplicate owners")
+        self.assertEqual(len(root_matches), 1, "Root/UI guard must have exactly one owner")
         self.assertEqual(package_matches, [], "A package must not duplicate the root/UI guard")
         cfg = self.guard()
         self.assertEqual(cfg["id"], GUARD_ID)
-        if root_matches:
-            self.assertEqual(root_matches[0], cfg, "Installed root/UI guard must match the candidate")
+        self.assertEqual(root_matches[0], cfg, "Installed root/UI guard must match the fixture")
         PLATFORM_SCHEMA(deepcopy(cfg))
         self.assertTrue(cfg["initial_state"])
         self.assertEqual(cfg["action"], [{
