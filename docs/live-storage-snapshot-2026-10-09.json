@@ -1265,7 +1265,7 @@
       }
     },
     "automation.topeni_watchdog_dostupnosti_a_teplot_kotle_zivy": {
-      "config_hash": "pending_live_confirmation",
+      "config_hash": "d8b78c1da0b80b1f",
       "config": {
         "id": "1791542912666",
         "alias": "Topení – watchdog dostupnosti a teplot kotle (živý)",
