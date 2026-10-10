@@ -79,11 +79,12 @@
       "id": "1791376426962",
       "entity_id": "automation.kotel_v4_bezpecny_start_podle_politiky",
       "state": "on",
-      "config_hash": "277bad20fd6deaba",
+      "config_hash": "PENDING_DEPLOYMENT_20261010",
       "config": {
         "id": "1791376426962",
         "alias": "Kotel V4 – bezpečný start podle politiky",
-        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery se start odloží do alespoň 240 s stabilního NORMAL, aby se stihl obnovit PI feedback hlavic.",
+        "description": "Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery se start odloží do alespoň 240 s stabilního NORMAL, aby se stihl obnovit PI feedback hlavic. Oprava 2026-10-10: start navíc vyžaduje fault-clear ON, EMS connected a platnou teplotu bloku pod 72 °C před i po prodlevě; výpadek poruchové/EMS telemetrie čekání ruší. Po obnovení telemetrie či vychladnutí běží celá prodleva znovu. Tyto podmínky nepotvrzují fyzický průtok.",
+        "mode": "restart",
         "triggers": [
           {
             "trigger": "state",
@@ -141,6 +142,51 @@
             "trigger": "event",
             "event_type": "automation_reloaded",
             "id": "reload"
+          },
+          {
+            "trigger": "state",
+            "entity_id": [
+              "binary_sensor.heating_boiler_fault_clear",
+              "sensor.system_bus_status"
+            ],
+            "to": null,
+            "id": "ems_safety"
+          },
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 72,
+            "id": "heat_ready"
+          },
+          {
+            "trigger": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "above": 72,
+            "id": "heat_unsafe"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_heatblock",
+            "to": "unknown",
+            "id": "heat_unknown"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_heatblock",
+            "to": "unavailable",
+            "id": "heat_unavailable"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_heatblock",
+            "from": "unknown",
+            "id": "heat_known"
+          },
+          {
+            "trigger": "state",
+            "entity_id": "sensor.boiler_heatblock",
+            "from": "unavailable",
+            "id": "heat_available"
           }
         ],
         "conditions": [],
@@ -208,6 +254,21 @@
             "condition": "state",
             "entity_id": "binary_sensor.boiler_tapwateractive",
             "state": "off"
+          },
+          {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "sensor.system_bus_status",
+            "state": "connected"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 72
           },
           {
             "delay": {
@@ -279,14 +340,29 @@
             "state": "off"
           },
           {
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "on"
+          },
+          {
+            "condition": "state",
+            "entity_id": "sensor.system_bus_status",
+            "state": "connected"
+          },
+          {
+            "condition": "numeric_state",
+            "entity_id": "sensor.boiler_heatblock",
+            "below": 72
+          },
+          {
             "action": "switch.turn_on",
             "target": {
               "entity_id": "switch.kotel_rele_spinac"
             }
           }
-        ],
-        "mode": "restart"
-      }
+        ]
+      },
+      "deployment_status": "candidate_not_deployed"
     },
     {
       "id": "1791542912666",
