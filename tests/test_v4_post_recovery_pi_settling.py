@@ -108,10 +108,10 @@ class PostRecoveryCooldownTests(unittest.TestCase):
     def test_all_versioned_snapshots_include_same_delay(self):
         live_delay = next(x["delay"]["seconds"] for x in self.start["action"] if "delay" in x)
         inventory = next(x for x in self.json_snapshots[0]["objects"] if x["id"] == ACTIVE_ID)
-        self.assertEqual(inventory["config"]["actions"][12]["delay"]["seconds"], live_delay)
+        self.assertEqual(next(x["delay"]["seconds"] for x in inventory["config"]["actions"] if "delay" in x), live_delay)
         for snap in self.json_snapshots[1:]:
             d = snap["objects"][STORAGE_ID]["config"]
-            self.assertEqual(d["actions"][12]["delay"]["seconds"], live_delay)
+            self.assertEqual(next(x["delay"]["seconds"] for x in d["actions"] if "delay" in x), live_delay)
 
 
 if __name__ == "__main__":
