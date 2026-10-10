@@ -244,6 +244,28 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(second["status"], "VIOLATION")
         self.assertIn("S04", [x["invariant"] for x in second["violations"]])
 
+    def test_post_heat_overtemperature_warns_with_relay_and_burner_off(self):
+        # Regression for issue #140 / 2026-10-04: heatblock peaked at 81.6 C
+        # after both the space-heating relay and burner had already turned off.
+        result = self.evaluate(safe_sample(relay=False, gas=False, block=81.6))
+        self.assertEqual(result["status"], "WARNING")
+        s21 = [x for x in result["warnings"] if x["invariant"] == "S21"]
+        self.assertEqual(len(s21), 1)
+        self.assertEqual(s21[0]["severity"], "high")
+
+    def test_overtemperature_threshold_is_strictly_above_72(self):
+        result = self.evaluate(safe_sample(relay=False, gas=False, block=72.0))
+        self.assertEqual(result["status"], "OK")
+        self.assertNotIn("S21", [x["invariant"] for x in result["warnings"]])
+
+    def test_runtime_and_policy_invariant_catalogs_match(self):
+        mirror = __import__("json").loads(
+            (PROJECT_ROOT / "agent_platform/policies/safety-invariants.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(INVARIANTS, mirror)
+        self.assertEqual(INVARIANTS["version"], "1.1")
+        self.assertIn("S21", [x["id"] for x in INVARIANTS["invariants"]])
+
     def test_safe_idle_state_is_ok(self):
         result = self.evaluate(safe_sample())
         self.assertEqual(result["status"], "OK")
