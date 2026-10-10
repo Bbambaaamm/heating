@@ -33,16 +33,12 @@ condition:
   - condition: state
     entity_id: switch.kotel_rele_spinac
     state: "on"
-  - condition: not
-    conditions:
-      - condition: and
-        conditions:
-          - condition: state
-            entity_id: input_select.heating_flow_state_v4
-            state: "NORMAL"
-          - condition: state
-            entity_id: input_boolean.heating_flow_relief_lockout
-            state: "off"
+  # Native NOT/AND state conditions raise ConditionError for absent entities.
+  # is_state returns false instead, so a missing safety helper requires OFF.
+  - condition: template
+    value_template: >-
+      {{ not is_state('input_select.heating_flow_state_v4', 'NORMAL')
+      or not is_state('input_boolean.heating_flow_relief_lockout', 'off') }}
 action:
   - action: switch.turn_off
     target:

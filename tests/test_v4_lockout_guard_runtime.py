@@ -77,7 +77,7 @@ class V4RelayLockoutGuardRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cfg["id"], GUARD_ID)
         if root_matches:
             self.assertEqual(root_matches[0], cfg, "Installed root/UI guard must match the candidate")
-        PLATFORM_SCHEMA(cfg)
+        PLATFORM_SCHEMA(deepcopy(cfg))
         self.assertTrue(cfg["initial_state"])
         self.assertEqual(cfg["action"], [{
             "action": "switch.turn_off", "target": {"entity_id": RELAY}
