@@ -50,12 +50,19 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
         for path in sorted((ROOT / "docs").glob("runtime-automations-20261009-part*.json")):
             cls.snapshots.extend(json.loads(path.read_text(encoding="utf-8"))["objects"])
 
-    def test_all_39_runtime_automation_ids_unique(self):
-        self.assertEqual(len(self.automations), 39)
-        self.assertEqual(len(self.by_id), 39)
+    def test_all_40_runtime_automation_ids_unique(self):
+        self.assertEqual(len(self.automations), 40)
+        self.assertEqual(len(self.by_id), 40)
         self.assertEqual(len(self.snapshots), 28)
         self.assertEqual(len({s["id"] for s in self.snapshots}), 28)
-        self.assertEqual(len(set(self.by_id).difference(s["id"] for s in self.snapshots)), 11)
+        # Preserve the historical snapshot; only blueprint sources and the new
+        # shared presence source and independently tested guard are outside it.
+        blueprints = {str(a["id"]) for a in self.automations if "use_blueprint" in a}
+        self.assertEqual(len(blueprints), 10)
+        self.assertEqual(
+            set(self.by_id).difference(s["id"] for s in self.snapshots),
+            blueprints | {"1771525903912", "heating_v4_relay_lockout_guard"},
+        )
 
     def test_live_storage_objects_match_exact_api_snapshot(self):
         for snapshot in self.snapshots:
