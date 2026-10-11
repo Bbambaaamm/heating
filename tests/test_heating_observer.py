@@ -388,7 +388,7 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.runtime.queue.get_nowait()
             self.runtime.queue.task_done()
 
-    async def test_real_ha_loader_creates_read_only_agent_diagnostic_sensors(self):
+    async def load_sensor_platform(self):
         source = Path(__file__).resolve().parents[1] / "custom_components/heating_observer"
         target = Path(self.tmp.name) / "custom_components/heating_observer"
         shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
@@ -399,6 +399,104 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(await async_setup_component(self.hass, DOMAIN, {DOMAIN: self.cfg}))
         self.runtime = self.hass.data[DOMAIN]
         await self.drain()
+
+    async def test_large_opportunity_details_preserve_recorder_summary_and_live_data(self):
+        from homeassistant.components.recorder.db_schema import (
+            MAX_STATE_ATTRS_BYTES, StateAttributes,
+        )
+        from homeassistant.const import EVENT_STATE_CHANGED
+        from homeassistant.core import Event, State
+        from homeassistant.helpers.dispatcher import async_dispatcher_send
+        from custom_components.heating_observer.const import SIGNAL
+
+        await self.load_sensor_platform()
+        items = [
+            {"opportunity_id": f"synthetic-{i}", "status": "NEW",
+             "evidence": {"note": "Měření " * 500}}
+            for i in range(20)
+        ]
+        summary = {"count": 20, "by_status": {"NEW": 20},
+                   "by_category": {"synthetic": 20}, "items": items,
+                   "auto_pr_eligible": 0, "shadow_validate": 0}
+        self.runtime.cached_opportunities = deepcopy(summary)
+        async_dispatcher_send(self.hass, SIGNAL)
+        await self.hass.async_block_till_done()
+        state = self.hass.states.get("sensor.heating_agent_opportunities")
+        self.assertEqual(state.state, "20")
+        self.assertEqual(state.attributes["items"], items)
+        self.assertGreater(
+            len(json.dumps(dict(state.attributes), ensure_ascii=False).encode()),
+            MAX_STATE_ATTRS_BYTES,
+        )
+        event_data = {"entity_id": state.entity_id, "old_state": None,
+                      "new_state": state}
+        recorded = StateAttributes.shared_attrs_bytes_from_event(
+            Event(EVENT_STATE_CHANGED, event_data), None,
+        )
+        self.assertLess(len(recorded), MAX_STATE_ATTRS_BYTES)
+        attributes = json.loads(recorded)
+        self.assertEqual(attributes["count"], 20)
+        self.assertEqual(attributes["by_status"], {"NEW": 20})
+        self.assertEqual(attributes["by_category"], {"synthetic": 20})
+        self.assertEqual(attributes["auto_pr_eligible"], 0)
+        self.assertEqual(attributes["shadow_validate"], 0)
+        self.assertEqual(attributes["autonomy_policy"]["red"], "HUMAN_SAFETY_REVIEW")
+        self.assertFalse(attributes["actuator_control"])
+        self.assertNotIn("items", attributes)
+        self.assertEqual(self.runtime.cached_opportunities, summary)
+
+        # Reproduce the original loss through Core's actual size guard,
+        # using the same attributes without integration exclusion metadata.
+        legacy = State(state.entity_id, state.state, dict(state.attributes))
+        with self.assertLogs("homeassistant.components.recorder.db_schema", level="WARNING"):
+            dropped = StateAttributes.shared_attrs_bytes_from_event(
+                Event(EVENT_STATE_CHANGED, {**event_data, "new_state": legacy}), None,
+            )
+        self.assertEqual(dropped, b"{}")
+        self.assertEqual(self.calls, [])
+
+    async def test_recorder_keeps_thermal_warnings_quality_and_other_agent_details(self):
+        from homeassistant.components.recorder.db_schema import StateAttributes
+        from homeassistant.const import EVENT_STATE_CHANGED
+        from homeassistant.core import Event
+        from homeassistant.helpers.dispatcher import async_dispatcher_send
+        from custom_components.heating_observer.const import SIGNAL
+
+        await self.load_sensor_platform()
+        self.runtime.engine.current_warnings = ["block_above_75"]
+        self.runtime.engine.current_quality = ["stale_block"]
+        self.runtime.storage_error = "OSError"
+        self.runtime.cached_watchdog = {
+            "status": "UNHEALTHY", "problems": ["storage"],
+            "items": [{"diagnostic": "other-agent-detail"}],
+        }
+        async_dispatcher_send(self.hass, SIGNAL)
+        await self.hass.async_block_till_done()
+
+        def recorded_attributes(entity_id):
+            state = self.hass.states.get(entity_id)
+            return json.loads(StateAttributes.shared_attrs_bytes_from_event(
+                Event(EVENT_STATE_CHANGED, {
+                    "entity_id": entity_id, "old_state": None, "new_state": state,
+                }), None,
+            ))
+
+        status = self.hass.states.get("sensor.heating_observer_status")
+        self.assertEqual(status.state, "Chyba ukládání")
+        attributes = recorded_attributes(status.entity_id)
+        self.assertEqual(attributes["warning_hypotheses"], ["block_above_75"])
+        self.assertTrue(attributes["warning_descriptions"])
+        self.assertEqual(attributes["data_quality"], ["stale_block"])
+        self.assertEqual(attributes["storage_error"], "OSError")
+        self.assertFalse(attributes["actuator_control"])
+        watchdog = recorded_attributes("sensor.heating_agent_watchdog")
+        self.assertEqual(watchdog["problems"], ["storage"])
+        self.assertEqual(watchdog["items"], [{"diagnostic": "other-agent-detail"}])
+        self.assertFalse(watchdog["actuator_control"])
+        self.assertEqual(self.calls, [])
+
+    async def test_real_ha_loader_creates_read_only_agent_diagnostic_sensors(self):
+        await self.load_sensor_platform()
         expected = {
             "sensor.heating_observer_status": "shadow_only",
             "sensor.heating_observer_learning": "shadow_only",
