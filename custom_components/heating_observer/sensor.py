@@ -19,7 +19,10 @@ KINDS = (
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     runtime = hass.data[DOMAIN]
-    async_add_entities([ObserverSensor(runtime, kind) for kind in KINDS])
+    async_add_entities([
+        (OpportunitySensor if kind == "agent_opportunities" else ObserverSensor)(runtime, kind)
+        for kind in KINDS
+    ])
 
 
 class ObserverSensor(SensorEntity):
@@ -29,11 +32,6 @@ class ObserverSensor(SensorEntity):
 
     def __init__(self, runtime, kind):
         self.runtime, self.kind = runtime, kind
-        # Full proposal/evidence details stay in live state and the agent DB.
-        # Recorder retains the small summary rather than dropping every attribute.
-        self._unrecorded_attributes = (
-            frozenset({"items"}) if kind == "agent_opportunities" else frozenset()
-        )
         self.entity_id = f"sensor.heating_observer_{kind}" if kind in ("status", "learning") else f"sensor.heating_{kind}"
         self._attr_unique_id = f"heating_observer_{kind}"
         self._attr_name = {
@@ -226,3 +224,10 @@ class ObserverSensor(SensorEntity):
     @callback
     def _updated(self):
         self.async_write_ha_state()
+
+
+class OpportunitySensor(ObserverSensor):
+    """Keep proposal details live and in the agent DB, with a small HA history."""
+
+    # Core combines recorder metadata at subclass creation, not per instance.
+    _unrecorded_attributes = frozenset({"items"})
