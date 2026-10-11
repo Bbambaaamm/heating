@@ -34,6 +34,7 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "input_boolean.heating_restore_verified": "off",
             "input_boolean.heating_flow_paths_verified_v4": "off",
             "input_boolean.heating_flow_relief_mode": "off",
+            "input_boolean.heating_flow_relief_resume_armed": "off",
             CONFIRMED: "off",
             "binary_sensor.heating_boiler_fault_clear": "on",
             "sensor.system_bus_status": "connected",
@@ -89,23 +90,31 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
     def state(self, entity):
         return self.h.hass.states.get(entity).state
 
-    async def load_flow(self, *, original=False):
+    async def load_flow(self, *, original=False, guard_only=False):
         cfg = deepcopy(next(
             a for a in runtime.read("automations.yaml")
             if str(a["id"]) == "1790189620167"
         ))
         if original:
             cfg["condition"] = []
+        if original or guard_only:
+            cfg["action"][1]["then"][-1]["then"].pop()
+            cfg["action"][3]["then"].pop(19)
         # Scale only the inter-batch delay; conditions/triggers/services stay
         # the exact public source configuration.
         cfg["action"][3]["then"][16]["delay"] = {"milliseconds": 2}
+        cfg["action"][1]["then"][-1]["then"][5]["delay"] = {"milliseconds": 2}
         self.second_batch = cfg["action"][3]["then"][18]["target"]["entity_id"]
         await self.h.load_automations([cfg])
         self.automation_entity = self.h.hass.states.async_all("automation")[0].entity_id
 
-    async def start_and_block(self, *, original=False):
-        await self.load_flow(original=original)
-        self.h.hass.bus.async_fire("heating_flow_v4_force_emergency")
+    async def start_and_block(self, *, original=False, guard_only=False, startup=False):
+        if startup:
+            self.h.set(FLOW, "EMERGENCY_COOLING")
+        await self.load_flow(original=original, guard_only=guard_only)
+        self.h.hass.bus.async_fire(
+            "automation_reloaded" if startup else "heating_flow_v4_force_emergency"
+        )
         await asyncio.wait_for(self.entered.wait(), 3)
         self.assertEqual(self.state(FLOW), "EMERGENCY_COOLING")
         self.assertEqual(self.state(RELAY), "off")
@@ -150,6 +159,10 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 self.h.hass.states.get(f"climate.{zone}").attributes["temperature"], 29
             )
+        self.assertEqual(
+            self.state("input_boolean.heating_flow_paths_verified_v4"),
+            "on" if event == "paths_confirmed" else "off",
+        )
         self.assert_no_boiler_enable()
 
     async def test_periodic_progress_preserves_both_opening_batches(self):
@@ -157,6 +170,32 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_path_confirmation_preserves_both_opening_batches(self):
         await self.assert_progress_does_not_cancel("paths_confirmed")
+
+    async def test_guard_without_checkpoint_loses_busy_confirmation(self):
+        await self.start_and_block(guard_only=True)
+        self.h.set(CONFIRMED, "on")
+        await asyncio.sleep(0.04)
+        self.assertFalse(self.cancelled.is_set())
+        self.release.set()
+        await self.h.hass.async_block_till_done()
+        self.assertEqual(self.state(CONFIRMED), "on")
+        self.assertEqual(self.state("input_boolean.heating_flow_paths_verified_v4"), "off")
+        self.assert_no_boiler_enable()
+
+    async def test_startup_opening_preserves_confirmation_received_while_busy(self):
+        await self.start_and_block(startup=True)
+        self.h.set(CONFIRMED, "on")
+        self.h.hass.bus.async_fire("heating_flow_v4_reconcile")
+        await asyncio.sleep(0.04)
+        self.assertFalse(self.cancelled.is_set())
+        self.release.set()
+        await self.h.hass.async_block_till_done()
+        for zone in runtime.ZONES:
+            self.assertEqual(
+                self.h.hass.states.get(f"climate.{zone}").attributes["temperature"], 29
+            )
+        self.assertEqual(self.state("input_boolean.heating_flow_paths_verified_v4"), "on")
+        self.assert_no_boiler_enable()
 
     async def test_native_fault_still_preempts_busy_opening_and_keeps_relay_off(self):
         await self.start_and_block()
@@ -180,6 +219,7 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.h.set(CONFIRMED, "on")
         await self.h.hass.async_block_till_done()
+        self.assertEqual(self.state("input_boolean.heating_flow_paths_verified_v4"), "on")
         self.h.set("sensor.boiler_heatblock", "50")
         await self.h.hass.async_block_till_done()
         self.assertTrue(self.restore_called.is_set())

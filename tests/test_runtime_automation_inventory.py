@@ -40,6 +40,18 @@ def normalize(cfg):
 FLOW_BUSY_EMERGENCY_GUARD = "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
 
 
+FLOW_CONFIRMED_CHECKPOINT = {
+    "if": [{
+        "condition": "state",
+        "entity_id": "binary_sensor.heating_flow_relief_confirmed",
+        "state": "on",
+    }],
+    "then": [{
+        "action": "input_boolean.turn_on",
+        "target": {"entity_id": "input_boolean.heating_flow_paths_verified_v4"},
+    }],
+}
+
 class HeatingRuntimeSyncTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -76,11 +88,17 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
                 expected = deepcopy(snapshot["config"])
                 if snapshot["id"] == "1790189620167":
                     # Only this reviewed source delta is permitted; historical
-                    # snapshots and every other action/state remain unchanged.
+                    # snapshots and all other automation actions/states stay intact.
                     expected["conditions"] = [{
                         "condition": "template",
                         "value_template": FLOW_BUSY_EMERGENCY_GUARD,
                     }]
+                    expected["actions"][1]["then"][-1]["then"].append(
+                        deepcopy(FLOW_CONFIRMED_CHECKPOINT)
+                    )
+                    expected["actions"][3]["then"].insert(
+                        19, deepcopy(FLOW_CONFIRMED_CHECKPOINT)
+                    )
                 self.assertEqual(normalize(actual), normalize(expected))
                 self.assertEqual(actual["initial_state"], snapshot["state"] == "on")
 
