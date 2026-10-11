@@ -5,6 +5,7 @@ These tests never command a real boiler, MQTT or Zigbee device.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from pathlib import Path
 import unittest
@@ -35,6 +36,21 @@ def normalize(cfg):
     result.pop("initial_state", None)
     return result
 
+
+FLOW_BUSY_EMERGENCY_GUARD = "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
+
+
+FLOW_CONFIRMED_CHECKPOINT = {
+    "if": [{
+        "condition": "state",
+        "entity_id": "binary_sensor.heating_flow_relief_confirmed",
+        "state": "on",
+    }],
+    "then": [{
+        "action": "input_boolean.turn_on",
+        "target": {"entity_id": "input_boolean.heating_flow_paths_verified_v4"},
+    }],
+}
 
 class HeatingRuntimeSyncTests(unittest.TestCase):
     @classmethod
@@ -69,7 +85,21 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
             with self.subTest(id=snapshot["id"]):
                 self.assertIn(snapshot["id"], self.by_id)
                 actual = self.by_id[snapshot["id"]]
-                self.assertEqual(normalize(actual), normalize(snapshot["config"]))
+                expected = deepcopy(snapshot["config"])
+                if snapshot["id"] == "1790189620167":
+                    # Only this reviewed source delta is permitted; historical
+                    # snapshots and all other automation actions/states stay intact.
+                    expected["conditions"] = [{
+                        "condition": "template",
+                        "value_template": FLOW_BUSY_EMERGENCY_GUARD,
+                    }]
+                    expected["actions"][1]["then"][-1]["then"].append(
+                        deepcopy(FLOW_CONFIRMED_CHECKPOINT)
+                    )
+                    expected["actions"][3]["then"].insert(
+                        19, deepcopy(FLOW_CONFIRMED_CHECKPOINT)
+                    )
+                self.assertEqual(normalize(actual), normalize(expected))
                 self.assertEqual(actual["initial_state"], snapshot["state"] == "on")
 
     def test_disabled_legacy_owners_never_activate_on_restart(self):
