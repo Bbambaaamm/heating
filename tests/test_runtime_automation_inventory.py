@@ -5,6 +5,7 @@ These tests never command a real boiler, MQTT or Zigbee device.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from pathlib import Path
 import unittest
@@ -34,6 +35,9 @@ def normalize(cfg):
             result[target] = result.pop(source)
     result.pop("initial_state", None)
     return result
+
+
+FLOW_BUSY_EMERGENCY_GUARD = "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
 
 
 class HeatingRuntimeSyncTests(unittest.TestCase):
@@ -69,7 +73,15 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
             with self.subTest(id=snapshot["id"]):
                 self.assertIn(snapshot["id"], self.by_id)
                 actual = self.by_id[snapshot["id"]]
-                self.assertEqual(normalize(actual), normalize(snapshot["config"]))
+                expected = deepcopy(snapshot["config"])
+                if snapshot["id"] == "1790189620167":
+                    # Only this reviewed source delta is permitted; historical
+                    # snapshots and every other action/state remain unchanged.
+                    expected["conditions"] = [{
+                        "condition": "template",
+                        "value_template": FLOW_BUSY_EMERGENCY_GUARD,
+                    }]
+                self.assertEqual(normalize(actual), normalize(expected))
                 self.assertEqual(actual["initial_state"], snapshot["state"] == "on")
 
     def test_disabled_legacy_owners_never_activate_on_restart(self):

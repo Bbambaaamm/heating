@@ -1141,7 +1141,12 @@
       event_type: "heating_flow_v4_force_emergency"
       id: "force_emergency"
   condition:
-    []
+    # Benign progress events must not restart an in-flight opening batch.
+    # RESTORING handoffs and urgent safety triggers retain restart behavior.
+    -
+      condition: "template"
+      value_template: >-
+        {{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}
   action:
     -
       if:
