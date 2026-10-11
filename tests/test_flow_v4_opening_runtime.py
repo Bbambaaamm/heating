@@ -24,6 +24,8 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.h = runtime.HeatingRuntimeTests()
         await self.h.asyncSetUp()
         self.h.boiler_inputs(relay="on")
+        for zone in runtime.ZONES:
+            self.h.set(f"sensor.{zone}_pocet_kroku_motoru", "1000")
         for entity, state in {
             FLOW: "NORMAL",
             "input_boolean.heating_service_mode": "off",
