@@ -222,6 +222,8 @@ class FlowV4OpeningRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.state("input_boolean.heating_flow_paths_verified_v4"), "on")
         self.h.set("sensor.boiler_heatblock", "50")
         await self.h.hass.async_block_till_done()
+        await asyncio.wait_for(self.restore_called.wait(), 3)
+        await self.h.hass.async_block_till_done()
         self.assertTrue(self.restore_called.is_set())
         self.assertEqual(self.state(FLOW), "NORMAL")
         self.assert_no_boiler_enable()
