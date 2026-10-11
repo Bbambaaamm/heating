@@ -29,6 +29,11 @@ class ObserverSensor(SensorEntity):
 
     def __init__(self, runtime, kind):
         self.runtime, self.kind = runtime, kind
+        # Full proposal/evidence details stay in live state and the agent DB.
+        # Recorder retains the small summary rather than dropping every attribute.
+        self._unrecorded_attributes = (
+            frozenset({"items"}) if kind == "agent_opportunities" else frozenset()
+        )
         self.entity_id = f"sensor.heating_observer_{kind}" if kind in ("status", "learning") else f"sensor.heating_{kind}"
         self._attr_unique_id = f"heating_observer_{kind}"
         self._attr_name = {
