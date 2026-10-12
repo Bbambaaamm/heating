@@ -1,0 +1,634 @@
+- id: heating_hydraulic_support_start
+  alias: Topení – hydraulická podpora jediné žádající zóny
+  description: 'Hydraulická podpora V4: pouze ve Flow=NORMAL. Vybere zdravou podpůrnou zónu, která je
+    pod 24 °C; pokud jsou způsobilé obě, použije chladnější. Tím se pomocná místnost nepřetápí.'
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - trigger: numeric_state
+    entity_id: sensor.kotel_aktivni_zony_pocet
+    above: 0
+    below: 2
+    id: single_zone
+  - trigger: state
+    entity_id: binary_sensor.kotel_threshold_ok_avg_demand
+    to: 'on'
+    id: demand_ok
+  - trigger: time_pattern
+    minutes: /1
+    id: periodic
+  - trigger: event
+    event_type: heating_hydraulic_support_retry
+    id: retry
+  condition:
+  - condition: state
+    entity_id: input_boolean.topny_system_enable
+    state: 'on'
+  - condition: state
+    entity_id: input_select.heating_flow_state_v4
+    state: NORMAL
+  - condition: state
+    entity_id: input_boolean.heating_service_mode
+    state: 'off'
+  - condition: state
+    entity_id: input_select.topny_rezim
+    state:
+    - Auto
+    - Eco
+    - Boost
+  - condition: state
+    entity_id: binary_sensor.kotel_mode_off_block
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.kotel_threshold_ok_avg_demand
+    state: 'on'
+  - condition: numeric_state
+    entity_id: sensor.kotel_aktivni_zony_pocet
+    above: 0
+    below: 2
+  - condition: state
+    entity_id: input_select.topeni_hydraulicka_podpurna_zona
+    state: none
+  - condition: state
+    entity_id: input_boolean.heating_central_dispatch_enable
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.heating_dispatch_inputs_available
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.heating_startup_reconcile_guard
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+    state: 'off'
+  - condition: state
+    entity_id: timer.topeni_hydraulicka_podpora_cooldown
+    state: idle
+  - condition: template
+    value_template: '{{ confirmed_real_requester_count | int(0) == 1 }}'
+  action:
+  - variables:
+      support_zone: "{% set t1 = state_attr('climate.1p_chodba','current_temperature') %}\n{% set t2 =\
+        \ state_attr('climate.prizemi_chodba_zachod','current_temperature') %}\n{% set ok1 = is_state('binary_sensor.heating_valve_1p_chodba_alive','on')\n\
+        \   and is_state('binary_sensor.zona_1p_chodba_okno_otevrene','off')\n   and is_state('input_boolean.schedule_enable_1p_chodba','on')\n\
+        \   and is_state('input_boolean.1p_chodba_manual_override','off')\n   and (states('sensor.zona_1p_chodba_demand')\
+        \ | float(0)) < (states('input_number.kotel_min_zone_demand_pct') | float(70))\n   and states('climate.1p_chodba')\
+        \ not in ['unknown','unavailable','']\n   and is_number(t1) and (t1|float) < 24.0 %}\n{% set ok2\
+        \ = is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive','on')\n   and is_state('binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene','off')\n\
+        \   and is_state('input_boolean.schedule_enable_prizemi_chodba_zachod','on')\n   and is_state('input_boolean.prizemi_chodba_zachod_manual_override','off')\n\
+        \   and (states('sensor.zona_prizemi_chodba_zachod_demand') | float(0)) < (states('input_number.kotel_min_zone_demand_pct')\
+        \ | float(70))\n   and states('climate.prizemi_chodba_zachod') not in ['unknown','unavailable','']\n\
+        \   and is_number(t2) and (t2|float) < 24.0 %}\n{% if ok1 and ok2 %}\n  {{ 'climate.1p_chodba'\
+        \ if (t1|float) <= (t2|float) else 'climate.prizemi_chodba_zachod' }}\n{% elif ok1 %}\n  climate.1p_chodba\n\
+        {% elif ok2 %}\n  climate.prizemi_chodba_zachod\n{% else %}\n  none\n{% endif %}"
+  - condition: template
+    value_template: '{{ support_zone | trim != ''none'' }}'
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.topeni_hydraulicka_podpurna_zona
+    data:
+      option: '{{ support_zone | trim }}'
+  - action: script.heating_apply_zone_target
+    continue_on_error: true
+    data:
+      climate_entity: '{{ support_zone | trim }}'
+      requested_temp: 29
+      reason: hydraulic_support_single_requester
+  - wait_template: "{% set z = support_zone | trim %}\n{{ (states('sensor.kotel_aktivni_zony_pocet') |\
+      \ int(0)) >= 2\n   or not is_state('input_boolean.topny_system_enable','on')\n   or is_state('input_boolean.heating_service_mode','on')\n\
+      \   or states('input_select.topeni_hydraulicka_podpurna_zona') != z }}"
+    timeout: 00:05:00
+    continue_on_timeout: true
+  - variables:
+      support_zone_now: '{{ states(''input_select.topeni_hydraulicka_podpurna_zona'') }}'
+      support_id: '{{ states(''input_select.topeni_hydraulicka_podpurna_zona'').split(''.'')[1] if ''.''
+        in states(''input_select.topeni_hydraulicka_podpurna_zona'') else '''' }}'
+      support_confirmed: "{% set z = states('input_select.topeni_hydraulicka_podpurna_zona') %}\n{% set\
+        \ zid = z.split('.')[1] if '.' in z else '' %}\n{{ z in ['climate.1p_chodba','climate.prizemi_chodba_zachod']\n\
+        \   and (states('sensor.kotel_aktivni_zony_pocet') | int(0)) >= 2\n   and is_state('binary_sensor.'\
+        \ ~ zid ~ '_potrebne_teplo','on')\n   and (states('sensor.' ~ zid ~ '_pozadavek_na_vytapeni_pi')\
+        \ | float(0)) >= 5\n   and is_number(state_attr(z,'temperature'))\n   and ((state_attr(z,'temperature')\
+        \ | float(0)) - 29) | abs <= 0.1 }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ support_confirmed }}'
+      sequence:
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: 'Hydraulická podpora potvrzena: {{ support_zone_now }} je otevřená, původní hard-floor
+            zůstává 2 zóny a agregace nyní bezpečně vidí alespoň dvě zóny.'
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+    - conditions:
+      - condition: template
+        value_template: '{{ support_zone_now != (support_zone | trim) or not is_state(''input_boolean.topny_system_enable'',''on'')
+          or is_state(''input_boolean.heating_service_mode'',''on'') }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ states(''input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony'') | float(70)
+              }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+        data:
+          option: none
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_hydraulic_support_start
+          reason: support_aborted_without_cooldown
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: Podpora byla zrušena změnou systému nebo reconcilerem. Nejde o selhání TRV; cooldown
+            se nespouští.
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+      - stop: Podpora byla korektně zrušena bez penalizačního cooldownu.
+    default:
+    - if:
+      - condition: state
+        entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+        state: 'on'
+      then:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.kotel_min_zone_demand_pct
+        data:
+          value: '{{ states(''input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony'') | float(70)
+            }}'
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.topeni_hydraulicka_podpurna_zona
+      data:
+        option: none
+    - event: heating_reconcile_requested
+      event_data:
+        source: heating_hydraulic_support_start
+        reason: support_not_confirmed
+    - action: timer.start
+      target:
+        entity_id: timer.topeni_hydraulicka_podpora_cooldown
+      data:
+        duration: 00:15:00
+    - action: persistent_notification.create
+      data:
+        notification_id: heating_hydraulic_support_failed
+        title: Topení – hydraulická podpora nepotvrzena
+        message: Pomocná TRV zóna se do 5 minut nepotvrdila jako bezpečná hydraulická podpora a agregace
+          nedosáhla dvou započítaných zón. Původní práh byl obnoven a kotel zůstal blokovaný.
+  initial_state: true
+  variables:
+    confirmed_real_requester_count: "{% set ns = namespace(n=0) %}\n{% set mode = states('input_select.topny_rezim')\
+      \ %}\n{% set boost = states('binary_sensor.kotel_boost_active') %}\n{% set eco = states('input_number.eco_temp_default')\
+      \ | float(default=none) %}\n{% set offset = states('input_number.boost_comfort_offset_c') | float(default=none)\
+      \ %}\n{% set threshold = states('input_number.kotel_min_zone_demand_pct') | float(default=none)\
+      \ %}\n{% set members = state_attr('group.topne_zony', 'entity_id') %}\n{% set supported = ['climate.sklep_michal','climate.prizemi_michal','climate.prizemi_chodba_zachod','climate.1p_jidelna','climate.1p_kuchyn','climate.1p_koupelna','climate.1p_chodba','climate.2p_mama']\
+      \ %}\n{% set windows = state_attr('sensor.heating_schedule_windows','active_helpers') %}\n{% set\
+      \ policy_ok = mode in ['Auto','Eco','Boost'] and boost in ['on','off']\n  and is_number(eco) and\
+      \ is_number(offset) and is_number(threshold)\n  and 0 <= (threshold | float) <= 100\n  and members\
+      \ is iterable and members is not string and members is not mapping\n  and (members | list | count)\
+      \ > 0 and (members | unique | list | count) == (members | list | count)\n  and (members | reject('in',\
+      \ supported) | list | count) == 0\n  and is_state('sensor.heating_schedule_windows','ready')\n \
+      \ and windows is iterable and windows is not string and windows is not mapping %}\n{% if policy_ok\
+      \ %}\n  {% for climate in members %}\n    {% set zid = climate.split('.')[1] %}\n    {% set demand\
+      \ = states('sensor.zona_' ~ zid ~ '_demand') | float(default=none) %}\n    {% set room = state_attr(climate,'current_temperature')\
+      \ %}\n    {% set enabled = states('input_boolean.schedule_enable_' ~ zid) %}\n    {% set manual\
+      \ = states('input_boolean.' ~ zid ~ '_manual_override') %}\n    {% set kind = states('input_select.'\
+      \ ~ zid ~ '_manual_override_type') %}\n    {% set timer = states('timer.' ~ zid ~ '_manual_override')\
+      \ %}\n    {% set last = states('input_number.' ~ zid ~ '_last_comfort') | float(default=none) %}\n\
+      \    {% set effective_manual = manual == 'on' and\n      (kind == 'Do další změny rozvrhu' or (kind\
+      \ == 'Časovač' and timer == 'active')) %}\n    {% set decision_ok = enabled in ['on','off'] and\
+      \ manual in ['on','off']\n      and (manual == 'off' or kind in ['Do další změny rozvrhu','Časovač'])\n\
+      \      and (manual != 'on' or kind != 'Časovač' or timer in ['active','idle','paused']) %}\n   \
+      \ {% set normal = namespace(target=none) %}\n    {% if decision_ok %}\n      {% if enabled == 'off'\
+      \ %}{% set normal.target = eco %}\n      {% elif effective_manual %}{% set normal.target = last\
+      \ %}\n      {% elif boost == 'on' %}{% set normal.target = last + offset if is_number(last) else\
+      \ none %}\n      {% elif mode == 'Eco' %}{% set normal.target = eco %}\n      {% elif ('input_boolean.'\
+      \ ~ zid ~ '_schedule_active') in windows %}{% set normal.target = last %}\n      {% else %}{% set\
+      \ normal.target = eco %}{% endif %}\n    {% endif %}\n    {% set lo = state_attr(climate,'min_temp')\
+      \ %}\n    {% set hi = state_attr(climate,'max_temp') %}\n    {% if climate != states('input_select.topeni_hydraulicka_podpurna_zona')\
+      \ and states(climate) == 'heat'\n        and is_state('binary_sensor.zona_' ~ zid ~ '_aktivni','on')\n\
+      \        and is_state('binary_sensor.' ~ zid ~ '_potrebne_teplo','on')\n        and is_number(demand)\
+      \ and 0 <= (demand | float) <= 100\n        and (demand | float) >= (threshold | float)\n      \
+      \  and is_number(room) and is_number(normal.target)\n        and is_number(lo) and is_number(hi)\
+      \ and (lo | float) <= (hi | float) %}\n      {% set target = [[normal.target | float, lo | float]\
+      \ | max, hi | float] | min %}\n      {% if target > (room | float) %}{% set ns.n = ns.n + 1 %}{%\
+      \ endif %}\n    {% endif %}\n  {% endfor %}\n{% endif %}\n{{ ns.n }}"
+- id: heating_hydraulic_support_guard
+  alias: Topení – hlídání a návrat hydraulické podpory
+  description: 'Hydraulická podpora V4: platná jen ve Flow=NORMAL a jen dokud podpůrná místnost zůstává
+    pod 24 °C. Centrální apply-target zároveň nesmí aktivní podporu stáhnout pod 29 °C.'
+  mode: restart
+  trigger:
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: state
+    entity_id: input_select.topeni_hydraulicka_podpurna_zona
+    to: null
+    id: support_changed
+  - trigger: state
+    entity_id: sensor.kotel_aktivni_zony_pocet
+    to: null
+    id: count_changed
+  - trigger: state
+    entity_id:
+    - sensor.zona_sklep_michal_demand
+    - sensor.zona_prizemi_michal_demand
+    - sensor.zona_prizemi_chodba_zachod_demand
+    - sensor.zona_1p_jidelna_demand
+    - sensor.zona_1p_kuchyn_demand
+    - sensor.zona_1p_koupelna_demand
+    - sensor.zona_1p_chodba_demand
+    - sensor.zona_2p_mama_demand
+    to: null
+    id: zone_demand_changed
+  - trigger: state
+    entity_id:
+    - input_boolean.topny_system_enable
+    - input_boolean.heating_service_mode
+    - input_select.topny_rezim
+    - input_select.heating_flow_state_v4
+    to: null
+    id: system_changed
+  - trigger: state
+    entity_id:
+    - binary_sensor.heating_valve_1p_chodba_alive
+    - binary_sensor.heating_valve_prizemi_chodba_zachod_alive
+    - binary_sensor.zona_1p_chodba_okno_otevrene
+    - binary_sensor.zona_prizemi_chodba_zachod_okno_otevrene
+    - input_boolean.schedule_enable_1p_chodba
+    - input_boolean.schedule_enable_prizemi_chodba_zachod
+    - input_boolean.1p_chodba_manual_override
+    - input_boolean.prizemi_chodba_zachod_manual_override
+    to: null
+    id: support_eligibility
+  - trigger: state
+    entity_id:
+    - binary_sensor.1p_chodba_potrebne_teplo
+    - binary_sensor.prizemi_chodba_zachod_potrebne_teplo
+    - sensor.1p_chodba_pozadavek_na_vytapeni_pi
+    - sensor.prizemi_chodba_zachod_pozadavek_na_vytapeni_pi
+    - binary_sensor.sklep_michal_potrebne_teplo
+    - binary_sensor.prizemi_michal_potrebne_teplo
+    - binary_sensor.1p_jidelna_potrebne_teplo
+    - binary_sensor.1p_kuchyn_potrebne_teplo
+    - binary_sensor.1p_koupelna_potrebne_teplo
+    - binary_sensor.2p_mama_potrebne_teplo
+    to: null
+    id: support_feedback
+  - trigger: state
+    entity_id:
+    - climate.sklep_michal
+    - climate.prizemi_michal
+    - climate.prizemi_chodba_zachod
+    - climate.1p_jidelna
+    - climate.1p_kuchyn
+    - climate.1p_koupelna
+    - climate.1p_chodba
+    - climate.2p_mama
+    attribute: temperature
+    to: null
+    id: target_changed
+  - trigger: event
+    event_type: heating_reconcile_requested
+    id: reconcile
+  - trigger: time_pattern
+    minutes: /1
+    id: periodic
+  - trigger: state
+    entity_id:
+    - climate.sklep_michal
+    - climate.prizemi_michal
+    - climate.prizemi_chodba_zachod
+    - climate.1p_jidelna
+    - climate.1p_kuchyn
+    - climate.1p_koupelna
+    - climate.1p_chodba
+    - climate.2p_mama
+    attribute: current_temperature
+    id: support_room_temp
+  condition: []
+  action:
+  - delay: 00:00:02
+  - variables:
+      support_zone: '{{ states(''input_select.topeni_hydraulicka_podpurna_zona'') }}'
+      support_id: '{{ states(''input_select.topeni_hydraulicka_podpurna_zona'').split(''.'')[1] if ''.''
+        in states(''input_select.topeni_hydraulicka_podpurna_zona'') else '''' }}'
+      support_selected: '{{ states(''input_select.topeni_hydraulicka_podpurna_zona'') in [''climate.1p_chodba'',''climate.prizemi_chodba_zachod'']
+        }}'
+  - variables:
+      threshold_lowered: '{{ is_state(''input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah'',''on'')
+        }}'
+      saved_threshold: '{{ states(''input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony'')
+        | float(70) }}'
+      current_threshold: '{{ states(''input_number.kotel_min_zone_demand_pct'') | float(70) }}'
+      support_pi: '{{ states(''sensor.'' ~ support_id ~ ''_pozadavek_na_vytapeni_pi'') | float(0) if support_selected
+        else 0 }}'
+      support_needed_heat: '{{ support_selected and is_state(''binary_sensor.'' ~ support_id ~ ''_potrebne_teplo'',''on'')
+        }}'
+      candidate_healthy: '{{ support_selected and is_state(''input_select.heating_flow_state_v4'',''NORMAL'')
+        and states(support_zone) not in [''unknown'',''unavailable'',''''] and is_state(''binary_sensor.heating_valve_''
+        ~ support_id ~ ''_alive'',''on'') and is_state(''binary_sensor.zona_'' ~ support_id ~ ''_okno_otevrene'',''off'')
+        and is_state(''input_boolean.schedule_enable_'' ~ support_id,''on'') and is_state(''input_boolean.''
+        ~ support_id ~ ''_manual_override'',''off'') and is_number(state_attr(support_zone,''current_temperature''))
+        and (state_attr(support_zone,''current_temperature'')|float) < 24.0 }}'
+      target_is_support: '{{ support_selected and is_number(state_attr(support_zone,''temperature''))
+        and ((state_attr(support_zone,''temperature'') | float(0)) - 29) | abs <= 0.1 }}'
+      support_age_sec: '{{ (as_timestamp(now()) - as_timestamp(states.input_select.topeni_hydraulicka_podpurna_zona.last_changed))
+        | int(0) }}'
+      original_threshold: '{{ (states(''input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony'')
+        | float(70)) if is_state(''input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah'',''on'')
+        else (states(''input_number.kotel_min_zone_demand_pct'') | float(70)) }}'
+  - variables:
+      real_high_count: "{% set ns = namespace(n=0) %}\n{% set mode = states('input_select.topny_rezim')\
+        \ %}\n{% set boost = states('binary_sensor.kotel_boost_active') %}\n{% set eco = states('input_number.eco_temp_default')\
+        \ | float(default=none) %}\n{% set offset = states('input_number.boost_comfort_offset_c') | float(default=none)\
+        \ %}\n{% set threshold = original_threshold %}\n{% set members = state_attr('group.topne_zony',\
+        \ 'entity_id') %}\n{% set supported = ['climate.sklep_michal','climate.prizemi_michal','climate.prizemi_chodba_zachod','climate.1p_jidelna','climate.1p_kuchyn','climate.1p_koupelna','climate.1p_chodba','climate.2p_mama']\
+        \ %}\n{% set windows = state_attr('sensor.heating_schedule_windows','active_helpers') %}\n{% set\
+        \ policy_ok = mode in ['Auto','Eco','Boost'] and boost in ['on','off']\n  and is_number(eco) and\
+        \ is_number(offset) and is_number(threshold)\n  and 0 <= (threshold | float) <= 100\n  and members\
+        \ is iterable and members is not string and members is not mapping\n  and (members | list | count)\
+        \ > 0 and (members | unique | list | count) == (members | list | count)\n  and (members | reject('in',\
+        \ supported) | list | count) == 0\n  and is_state('sensor.heating_schedule_windows','ready')\n\
+        \  and windows is iterable and windows is not string and windows is not mapping %}\n{% if policy_ok\
+        \ %}\n  {% for climate in members %}\n    {% set zid = climate.split('.')[1] %}\n    {% set demand\
+        \ = states('sensor.zona_' ~ zid ~ '_demand') | float(default=none) %}\n    {% set room = state_attr(climate,'current_temperature')\
+        \ %}\n    {% set enabled = states('input_boolean.schedule_enable_' ~ zid) %}\n    {% set manual\
+        \ = states('input_boolean.' ~ zid ~ '_manual_override') %}\n    {% set kind = states('input_select.'\
+        \ ~ zid ~ '_manual_override_type') %}\n    {% set timer = states('timer.' ~ zid ~ '_manual_override')\
+        \ %}\n    {% set last = states('input_number.' ~ zid ~ '_last_comfort') | float(default=none)\
+        \ %}\n    {% set effective_manual = manual == 'on' and\n      (kind == 'Do další změny rozvrhu'\
+        \ or (kind == 'Časovač' and timer == 'active')) %}\n    {% set decision_ok = enabled in ['on','off']\
+        \ and manual in ['on','off']\n      and (manual == 'off' or kind in ['Do další změny rozvrhu','Časovač'])\n\
+        \      and (manual != 'on' or kind != 'Časovač' or timer in ['active','idle','paused']) %}\n \
+        \   {% set normal = namespace(target=none) %}\n    {% if decision_ok %}\n      {% if enabled ==\
+        \ 'off' %}{% set normal.target = eco %}\n      {% elif effective_manual %}{% set normal.target\
+        \ = last %}\n      {% elif boost == 'on' %}{% set normal.target = last + offset if is_number(last)\
+        \ else none %}\n      {% elif mode == 'Eco' %}{% set normal.target = eco %}\n      {% elif ('input_boolean.'\
+        \ ~ zid ~ '_schedule_active') in windows %}{% set normal.target = last %}\n      {% else %}{%\
+        \ set normal.target = eco %}{% endif %}\n    {% endif %}\n    {% set lo = state_attr(climate,'min_temp')\
+        \ %}\n    {% set hi = state_attr(climate,'max_temp') %}\n    {% if climate != support_zone and\
+        \ states(climate) == 'heat'\n        and is_state('binary_sensor.zona_' ~ zid ~ '_aktivni','on')\n\
+        \        and is_state('binary_sensor.' ~ zid ~ '_potrebne_teplo','on')\n        and is_number(demand)\
+        \ and 0 <= (demand | float) <= 100\n        and (demand | float) >= (threshold | float)\n    \
+        \    and is_number(room) and is_number(normal.target)\n        and is_number(lo) and is_number(hi)\
+        \ and (lo | float) <= (hi | float) %}\n      {% set target = [[normal.target | float, lo | float]\
+        \ | max, hi | float] | min %}\n      {% if target > (room | float) %}{% set ns.n = ns.n + 1 %}{%\
+        \ endif %}\n    {% endif %}\n  {% endfor %}\n{% endif %}\n{{ ns.n }}"
+      support_confirmed: '{{ support_selected and candidate_healthy and target_is_support and support_needed_heat
+        and (support_pi | float(0)) >= 5 }}'
+      desired_bridge_threshold: '{{ [[[support_pi | float(0), 5] | max, original_threshold | float(70)]
+        | min, 0] | max }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ not support_selected }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - stop: Hydraulická podpora není vybraná.
+    - conditions:
+      - condition: template
+        value_template: '{{ not is_state(''input_boolean.topny_system_enable'',''on'') or is_state(''input_boolean.heating_service_mode'',''on'')
+          or states(''input_select.topny_rezim'') == ''Off'' or not candidate_healthy }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+        data:
+          option: none
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_hydraulic_support_guard
+          reason: support_ineligible
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: 'Podpora ukončena: zóna není způsobilá nebo systém/režim ji nedovoluje.'
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+      - stop: Podpora ukončena – neplatné bezpečnostní podmínky.
+    - conditions:
+      - condition: template
+        value_template: '{{ (real_high_count | int(0)) == 0 and (support_age_sec | int(0)) < 30 }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: 'PI settling: po výběru podpory dočasně není silně žádající zóna. Po dobu max. 30 s
+            ponechávám podpůrnou TRV otevřenou, ale nesnižuji kotlový práh.'
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+      - stop: 30s stabilizační okno PI – podpora zůstává otevřená, práh zůstává bezpečný.
+    - conditions:
+      - condition: template
+        value_template: '{{ real_high_count | int(0) != 1 }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+        data:
+          option: none
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_hydraulic_support_guard
+          reason: real_requester_count_changed
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: Podpora ukončena; skutečných silně žádajících zón={{ real_high_count }}.
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+      - stop: Počet skutečných žádajících zón už není 1.
+    - conditions:
+      - condition: template
+        value_template: '{{ not target_is_support }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: script.heating_apply_zone_target
+        continue_on_error: true
+        data:
+          climate_entity: '{{ support_zone }}'
+          requested_temp: 29
+          reason: hydraulic_support_maintain
+      - stop: Centrální dispatch přepsal podporu – znovu otevírám, práh zůstává bezpečný.
+    - conditions:
+      - condition: template
+        value_template: '{{ (not support_confirmed) and (support_age_sec | int(0) >= 300) }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+        data:
+          option: none
+      - event: heating_reconcile_requested
+        event_data:
+          source: heating_hydraulic_support_guard
+          reason: support_confirmation_timeout
+      - action: timer.start
+        target:
+          entity_id: timer.topeni_hydraulicka_podpora_cooldown
+        data:
+          duration: 00:15:00
+      - action: persistent_notification.create
+        data:
+          notification_id: heating_hydraulic_support_timeout
+          title: Topení – hydraulická podpora nepotvrzena
+          message: Pomocná hlavice do 5 minut nepotvrdila Potřebné teplo + PI ≥ 5 %. Práh kotle nebyl
+            ponechán snížený a podpora byla ukončena.
+      - stop: Timeout potvrzení hydraulické podpory.
+    - conditions:
+      - condition: template
+        value_template: '{{ not support_confirmed }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          state: 'on'
+        then:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.kotel_min_zone_demand_pct
+          data:
+            value: '{{ saved_threshold }}'
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - stop: Čekám na potvrzení Potřebné teplo + PI pomocné zóny.
+    - conditions:
+      - condition: template
+        value_template: '{{ support_confirmed }}'
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ (desired_bridge_threshold | float(0)) < (original_threshold | float(70))
+              }}'
+          sequence:
+          - if:
+            - condition: state
+              entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+              state: 'off'
+            then:
+            - action: input_number.set_value
+              target:
+                entity_id: input_number.topeni_hydraulicka_podpora_puvodni_min_demand_zony
+              data:
+                value: '{{ current_threshold }}'
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.kotel_min_zone_demand_pct
+            data:
+              value: '{{ desired_bridge_threshold }}'
+        default:
+        - if:
+          - condition: state
+            entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+            state: 'on'
+          then:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.kotel_min_zone_demand_pct
+            data:
+              value: '{{ saved_threshold }}'
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.topeni_hydraulicka_podpora_docasny_pi_prah
+      - action: logbook.log
+        data:
+          name: Topení – hydraulická podpora
+          message: 'Podpora potvrzena: {{ support_zone }}, Potřebné teplo=ON, PI={{ support_pi }} %. Efektivní
+            práh={{ desired_bridge_threshold }} %, původní={{ original_threshold }} %.'
+          entity_id: input_select.topeni_hydraulicka_podpurna_zona
+  initial_state: true
