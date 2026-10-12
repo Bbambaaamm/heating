@@ -1,0 +1,237 @@
+# Standalone public-source candidate; never bulk-import automations.yaml.
+id: '1791376426962'
+alias: Kotel V4 – bezpečný start podle politiky
+description: 'Jediný vlastník normálního zapnutí kotlového relé. Zachovává 120s anti-cycling delay a navíc vyžaduje Flow V4=NORMAL, žádný recovery/lockout/servis a neaktivní TUV hydraulickou cestu před i po delay. Oprava 2026-10-09: změny atributů demand senzoru nesmějí restartovat 120s časovač; spouštět jen skutečný přechod ON/OFF. Na přechod unknown/unavailable se rovněž okamžitě ruší čekající start, bez restartu při změně atributů. Po Flow V4 recovery se start odloží do alespoň 240 s stabilního NORMAL, aby se stihl obnovit PI feedback hlavic. Oprava 2026-10-10: start navíc vyžaduje fault-clear ON, EMS connected a platnou teplotu bloku pod 72 °C před i po prodlevě; výpadek poruchové/EMS telemetrie čekání ruší. Po obnovení telemetrie či vychladnutí běží celá prodleva znovu. Tyto podmínky nepotvrzují fyzický průtok. Oprava 2026-10-12: započítat pouze zóny s explicitním Potřebné teplo ON, aktivní zónou a platnou poptávkou nad prahem. Přepočítat potvrzený počet a průměr před i po prodlevě;
+  minimum 2 zóny a 15 % zůstává. OFF/unknown/unavailable zpětná vazba zóny se nezapočítá. Potvrzení potřeby tepla není měření polohy ventilu ani fyzického průtoku.'
+mode: restart
+trigger:
+- trigger: state
+  entity_id:
+  - input_boolean.topny_system_enable
+  - input_select.topny_rezim
+  - binary_sensor.kotel_mode_off_block
+  - input_select.heating_flow_state_v4
+  - binary_sensor.boiler_ww3wayvalve
+  - binary_sensor.boiler_wwcharging
+  - binary_sensor.boiler_tapwateractive
+  id: policy
+- trigger: state
+  entity_id: binary_sensor.kotel_should_be_on
+  to: 'on'
+  id: demand_on
+- trigger: state
+  entity_id: binary_sensor.kotel_should_be_on
+  to: 'off'
+  id: demand_off
+- trigger: state
+  entity_id: binary_sensor.kotel_should_be_on
+  to: unavailable
+  id: demand_unavailable
+- trigger: state
+  entity_id: binary_sensor.kotel_should_be_on
+  to: unknown
+  id: demand_unknown
+- trigger: state
+  entity_id: sensor.kotel_effective_on_delay_sec
+  id: delay_change
+- trigger: state
+  entity_id: switch.kotel_rele_spinac
+  id: relay
+- trigger: homeassistant
+  event: start
+  id: start
+- trigger: event
+  event_type: automation_reloaded
+  id: reload
+- trigger: state
+  entity_id:
+  - binary_sensor.heating_boiler_fault_clear
+  - sensor.system_bus_status
+  to: null
+  id: ems_safety
+- trigger: numeric_state
+  entity_id: sensor.boiler_heatblock
+  below: 72
+  id: heat_ready
+- trigger: numeric_state
+  entity_id: sensor.boiler_heatblock
+  above: 72
+  id: heat_unsafe
+- trigger: state
+  entity_id: sensor.boiler_heatblock
+  to: unknown
+  id: heat_unknown
+- trigger: state
+  entity_id: sensor.boiler_heatblock
+  to: unavailable
+  id: heat_unavailable
+- trigger: state
+  entity_id: sensor.boiler_heatblock
+  from: unknown
+  id: heat_known
+- trigger: state
+  entity_id: sensor.boiler_heatblock
+  from: unavailable
+  id: heat_available
+- trigger: state
+  entity_id:
+  - input_number.kotel_min_zone_demand_pct
+  - sensor.kotel_effective_min_active_zones
+  - sensor.kotel_effective_min_avg_demand_pct
+  - binary_sensor.sklep_michal_potrebne_teplo
+  - binary_sensor.prizemi_michal_potrebne_teplo
+  - binary_sensor.prizemi_chodba_zachod_potrebne_teplo
+  - binary_sensor.1p_jidelna_potrebne_teplo
+  - binary_sensor.1p_kuchyn_potrebne_teplo
+  - binary_sensor.1p_koupelna_potrebne_teplo
+  - binary_sensor.1p_chodba_potrebne_teplo
+  - binary_sensor.2p_mama_potrebne_teplo
+  - binary_sensor.zona_sklep_michal_aktivni
+  - binary_sensor.zona_prizemi_michal_aktivni
+  - binary_sensor.zona_prizemi_chodba_zachod_aktivni
+  - binary_sensor.zona_1p_jidelna_aktivni
+  - binary_sensor.zona_1p_kuchyn_aktivni
+  - binary_sensor.zona_1p_koupelna_aktivni
+  - binary_sensor.zona_1p_chodba_aktivni
+  - binary_sensor.zona_2p_mama_aktivni
+  - sensor.zona_sklep_michal_demand
+  - sensor.zona_prizemi_michal_demand
+  - sensor.zona_prizemi_chodba_zachod_demand
+  - sensor.zona_1p_jidelna_demand
+  - sensor.zona_1p_kuchyn_demand
+  - sensor.zona_1p_koupelna_demand
+  - sensor.zona_1p_chodba_demand
+  - sensor.zona_2p_mama_demand
+  - climate.sklep_michal
+  - climate.prizemi_michal
+  - climate.prizemi_chodba_zachod
+  - climate.1p_jidelna
+  - climate.1p_kuchyn
+  - climate.1p_koupelna
+  - climate.1p_chodba
+  - climate.2p_mama
+  to: null
+  id: confirmed_zone_inputs
+- trigger: state
+  entity_id: group.topne_zony
+  to: null
+  id: zone_group_state
+- trigger: state
+  entity_id: group.topne_zony
+  attribute: entity_id
+  to: null
+  id: zone_group_members
+condition: []
+action:
+- variables:
+    confirmed_zone_policy_ok: "{% set members = state_attr('group.topne_zony', 'entity_id') %}\n{% set supported = ['climate.sklep_michal', 'climate.prizemi_michal', 'climate.prizemi_chodba_zachod', 'climate.1p_jidelna', 'climate.1p_kuchyn', 'climate.1p_koupelna', 'climate.1p_chodba', 'climate.2p_mama'] %}\n{% set min_d = states('input_number.kotel_min_zone_demand_pct') %}\n{% set min_z = states('sensor.kotel_effective_min_active_zones') %}\n{% set min_a = states('sensor.kotel_effective_min_avg_demand_pct') %}\n{% set ns = namespace(valid=has_value('group.topne_zony') and members is iterable and members is not string and members | count > 0 and is_number(min_d) and 0 <= min_d | float(-1) <= 100 and is_number(min_z) and min_z | float(-1) >= 0 and min_z | float(-1) == min_z | int(-2) and is_number(min_a) and min_a | float(-1) >= 0, demands=[]) %}\n{% if members is iterable and members is not string %}\n{% for member in members %}\n  {% if member not in supported %}\n    {% set ns.valid = false\
+      \ %}\n  {% endif %}\n{% endfor %}\n{% endif %}\n{% for c in expand('group.topne_zony') %}\n  {% set id = c.entity_id.split('.')[1] %}\n  {% set demand = states('sensor.zona_' ~ id ~ '_demand') %}\n  {% if c.entity_id in supported and c.state == 'heat'\n        and is_state('binary_sensor.zona_' ~ id ~ '_aktivni', 'on')\n        and is_state('binary_sensor.' ~ id ~ '_potrebne_teplo', 'on')\n        and is_number(demand) and 1 < demand | float(0) <= 100\n        and demand | float(0) >= min_d | float(101) %}\n    {% set ns.demands = ns.demands + [demand | float(0)] %}\n  {% endif %}\n{% endfor %}\n{{ ns.valid and ns.demands | count >= [min_z | int(99), 2] | max\n   and ns.demands | count > 0\n   and ns.demands | average(0) >= [min_a | float(999), 15] | max }}"
+- condition: template
+  value_template: '{{ confirmed_zone_policy_ok }}'
+- condition: state
+  entity_id: binary_sensor.kotel_should_be_on
+  state: 'on'
+- condition: state
+  entity_id: switch.kotel_rele_spinac
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.topny_system_enable
+  state: 'on'
+- condition: state
+  entity_id: input_select.topny_rezim
+  state:
+  - Auto
+  - Eco
+  - Boost
+- condition: state
+  entity_id: binary_sensor.kotel_mode_off_block
+  state: 'off'
+- condition: state
+  entity_id: input_select.heating_flow_state_v4
+  state: NORMAL
+- condition: state
+  entity_id: input_boolean.heating_service_mode
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.heating_flow_relief_lockout
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.heating_fault_recovery_pending
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_ww3wayvalve
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_wwcharging
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_tapwateractive
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.heating_boiler_fault_clear
+  state: 'on'
+- condition: state
+  entity_id: sensor.system_bus_status
+  state: connected
+- condition: numeric_state
+  entity_id: sensor.boiler_heatblock
+  below: 72
+- delay:
+    seconds: '{{ [states(''sensor.kotel_effective_on_delay_sec'') | int(120), 120, (240 - (as_timestamp(now()) - as_timestamp(states.input_select.heating_flow_state_v4.last_changed, as_timestamp(now())))) | int(0)] | max }}'
+- variables:
+    confirmed_zone_policy_ok: "{% set members = state_attr('group.topne_zony', 'entity_id') %}\n{% set supported = ['climate.sklep_michal', 'climate.prizemi_michal', 'climate.prizemi_chodba_zachod', 'climate.1p_jidelna', 'climate.1p_kuchyn', 'climate.1p_koupelna', 'climate.1p_chodba', 'climate.2p_mama'] %}\n{% set min_d = states('input_number.kotel_min_zone_demand_pct') %}\n{% set min_z = states('sensor.kotel_effective_min_active_zones') %}\n{% set min_a = states('sensor.kotel_effective_min_avg_demand_pct') %}\n{% set ns = namespace(valid=has_value('group.topne_zony') and members is iterable and members is not string and members | count > 0 and is_number(min_d) and 0 <= min_d | float(-1) <= 100 and is_number(min_z) and min_z | float(-1) >= 0 and min_z | float(-1) == min_z | int(-2) and is_number(min_a) and min_a | float(-1) >= 0, demands=[]) %}\n{% if members is iterable and members is not string %}\n{% for member in members %}\n  {% if member not in supported %}\n    {% set ns.valid = false\
+      \ %}\n  {% endif %}\n{% endfor %}\n{% endif %}\n{% for c in expand('group.topne_zony') %}\n  {% set id = c.entity_id.split('.')[1] %}\n  {% set demand = states('sensor.zona_' ~ id ~ '_demand') %}\n  {% if c.entity_id in supported and c.state == 'heat'\n        and is_state('binary_sensor.zona_' ~ id ~ '_aktivni', 'on')\n        and is_state('binary_sensor.' ~ id ~ '_potrebne_teplo', 'on')\n        and is_number(demand) and 1 < demand | float(0) <= 100\n        and demand | float(0) >= min_d | float(101) %}\n    {% set ns.demands = ns.demands + [demand | float(0)] %}\n  {% endif %}\n{% endfor %}\n{{ ns.valid and ns.demands | count >= [min_z | int(99), 2] | max\n   and ns.demands | count > 0\n   and ns.demands | average(0) >= [min_a | float(999), 15] | max }}"
+- condition: template
+  value_template: '{{ confirmed_zone_policy_ok }}'
+- condition: state
+  entity_id: binary_sensor.kotel_should_be_on
+  state: 'on'
+- condition: state
+  entity_id: switch.kotel_rele_spinac
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.topny_system_enable
+  state: 'on'
+- condition: state
+  entity_id: input_select.topny_rezim
+  state:
+  - Auto
+  - Eco
+  - Boost
+- condition: state
+  entity_id: binary_sensor.kotel_mode_off_block
+  state: 'off'
+- condition: state
+  entity_id: input_select.heating_flow_state_v4
+  state: NORMAL
+- condition: state
+  entity_id: input_boolean.heating_service_mode
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.heating_flow_relief_lockout
+  state: 'off'
+- condition: state
+  entity_id: input_boolean.heating_fault_recovery_pending
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_ww3wayvalve
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_wwcharging
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.boiler_tapwateractive
+  state: 'off'
+- condition: state
+  entity_id: binary_sensor.heating_boiler_fault_clear
+  state: 'on'
+- condition: state
+  entity_id: sensor.system_bus_status
+  state: connected
+- condition: numeric_state
+  entity_id: sensor.boiler_heatblock
+  below: 72
+- action: switch.turn_on
+  target:
+    entity_id: switch.kotel_rele_spinac
+initial_state: true
