@@ -1,12 +1,21 @@
 """Project-specific input mapping. None of these entities is written to."""
 
 DOMAIN = "heating_observer"
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 SIGNAL = "heating_observer_updated"
 ZONES = (
     "sklep_michal", "prizemi_michal", "prizemi_chodba_zachod", "1p_jidelna",
     "1p_kuchyn", "1p_koupelna", "1p_chodba", "2p_mama",
 )
+ZONE_GROUP = "group.topne_zony"
+ZONE_INPUTS = {
+    zone: {
+        "heat_needed": f"binary_sensor.{zone}_potrebne_teplo",
+        "zone_active": f"binary_sensor.zona_{zone}_aktivni",
+        "zone_demand": f"sensor.zona_{zone}_demand",
+    }
+    for zone in ZONES
+}
 INPUTS = {
     "block": "sensor.boiler_heatblock",
     "flow": "sensor.boiler_curflowtemp",
@@ -26,6 +35,7 @@ INPUTS = {
     "average_demand": "sensor.kotel_poptavka_prumer",
     "minimum_zones": "sensor.kotel_effective_min_active_zones",
     "minimum_demand": "sensor.kotel_effective_min_avg_demand_pct",
+    "minimum_zone_demand": "input_number.kotel_min_zone_demand_pct",
     "eco": "input_number.eco_temp_default",
     "boost": "binary_sensor.kotel_boost_active",
     "gas_heat_total_kwh": "sensor.boiler_gasmeterheat",
@@ -33,5 +43,15 @@ INPUTS = {
     "heat_energy_month_kwh": "sensor.heating_energy_monthly",
     "valves_unhealthy": "sensor.heating_valves_unhealthy_count",
 }
-CRITICAL = tuple(INPUTS[key] for key in ("block", "flow", "code", "gas", "pump", "relay", "master", "service", "mode", "dhw", "dhw_recharging", "dhw_valve"))
+# One existing listener captures native feedback and policy edges even while idle.
+CRITICAL = (
+    tuple(INPUTS[key] for key in (
+        "block", "flow", "code", "gas", "pump", "relay", "master", "service",
+        "mode", "dhw", "dhw_recharging", "dhw_valve", "policy", "active_zones",
+        "average_demand", "minimum_zones", "minimum_demand", "minimum_zone_demand",
+    ))
+    + (ZONE_GROUP,)
+    + tuple(f"climate.{zone}" for zone in ZONES)
+    + tuple(entity for inputs in ZONE_INPUTS.values() for entity in inputs.values())
+)
 FAULTS = {2964, 2965, 2966, 2967}
