@@ -238,6 +238,27 @@ class ConfirmedZoneStartRuntimeTests(original_start.LiveV4StartRuntimeTests):
             await asyncio.sleep(0.02)
         self.assertEqual(len(self.h.writes("switch", "turn_on")), 1)
 
+    async def test_benign_pi_state_changes_do_not_reset_start_delay(self):
+        await self.h.load_automations([self.live_start()])
+        self.h.set("binary_sensor.kotel_should_be_on", "on")
+        for value in (91, 92, 93, 94, 95):
+            self.h.set(DEMAND(Z0), str(value))
+            await asyncio.sleep(0.02)
+        self.assertEqual(len(self.h.writes("switch", "turn_on")), 1)
+
+    async def test_pi_crossing_eligibility_floor_restarts_full_delay(self):
+        await self.h.load_automations([self.live_start()])
+        self.h.set("binary_sensor.kotel_should_be_on", "on")
+        await asyncio.sleep(0.03)
+        self.h.set(DEMAND(Z0), "60")
+        await asyncio.sleep(0.09)
+        self.assertEqual(self.h.writes("switch", "turn_on"), [])
+        self.h.set(DEMAND(Z0), "90")
+        await asyncio.sleep(0.03)
+        self.assertEqual(self.h.writes("switch", "turn_on"), [])
+        await asyncio.sleep(0.09)
+        self.assertEqual(len(self.h.writes("switch", "turn_on")), 1)
+
     async def test_guard_and_start_do_not_chatter_after_feedback_loss(self):
         await self.h.load_automations([runtime.read(GUARD), self.live_start()])
         self.h.set("binary_sensor.kotel_should_be_on", "on")
@@ -268,4 +289,3 @@ class ConfirmedZoneStartRuntimeTests(original_start.LiveV4StartRuntimeTests):
         self.assertEqual([a for a in cfg["action"] if "action" in a],
                          [{"action":"switch.turn_on", "target":{"entity_id":RELAY}}])
         self.assertEqual(self.h.render(cfg["action"][0]["variables"]["confirmed_zone_policy_ok"]), True)
-
