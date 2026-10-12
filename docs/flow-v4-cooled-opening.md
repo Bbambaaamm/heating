@@ -5,7 +5,7 @@ opening sequence, including while relay-off acknowledgement is still in flight
 or before the second TRV batch completes. The existing progress guard protected
 `reconcile` and `paths_confirmed`, leaving this cooling transition unprotected.
 
-The standalone fixture `heating/control/flow_v4_cooled_opening.yaml` extends
+The standalone fixture `tests/fixtures/flow_v4_cooled_opening.yaml` extends
 that same top-level busy guard to `cooled`. Its conditions are evaluated before
 HA restarts the action sequence. Cooling still runs when the automation is idle;
 the existing reconcile event can observe a cooling transition skipped while
@@ -23,6 +23,7 @@ and services are simulated. A reported target or native heat demand is not proof
 of valve movement or physical flow; source/runtime tests do not establish an
 EMS fault's physical cause or replace independent service measurements.
 
+The fixture is kept outside the automatically loaded heating packages.
 This fixture is derived only from the already-public Flow V4 automation.
 The historical root `automations.yaml` remains unchanged: do not bulk-import
 that root over a live installation with later per-automation safety repairs.
