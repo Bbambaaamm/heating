@@ -7,24 +7,22 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
-from pathlib import Path
 import unittest
 
 import test_flow_v4_opening_runtime as opening
 import test_heating_runtime as runtime
 
-FIXTURE = "heating/control/flow_v4_cooled_opening.yaml"
+FIXTURE = "tests/fixtures/flow_v4_cooled_opening.yaml"
 OLD_EVENTS = "['reconcile', 'paths_confirmed']"
 NEW_EVENTS = "['reconcile', 'paths_confirmed', 'cooled']"
-Harness = opening.FlowV4OpeningRuntimeTests
 
 
 class FlowV4CooledRuntimeTests(unittest.IsolatedAsyncioTestCase):
-    asyncSetUp = Harness.asyncSetUp
-    asyncTearDown = Harness.asyncTearDown
-    state = Harness.state
-    start_and_block = Harness.start_and_block
-    assert_no_boiler_enable = Harness.assert_no_boiler_enable
+    asyncSetUp = opening.FlowV4OpeningRuntimeTests.asyncSetUp
+    asyncTearDown = opening.FlowV4OpeningRuntimeTests.asyncTearDown
+    state = opening.FlowV4OpeningRuntimeTests.state
+    start_and_block = opening.FlowV4OpeningRuntimeTests.start_and_block
+    assert_no_boiler_enable = opening.FlowV4OpeningRuntimeTests.assert_no_boiler_enable
 
     async def load_flow(self, *, original=False, guard_only=False):
         self.assertFalse(guard_only)
@@ -138,8 +136,8 @@ class FlowV4CooledRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     # Retest the unchanged native fault preemption and idle cooling handoff
     # against this exact standalone fixture rather than the historical root.
-    test_native_fault_still_preempts = Harness.test_native_fault_still_preempts_busy_opening_and_keeps_relay_off
-    test_idle_cooling_and_restoration_still_run = Harness.test_idle_progress_and_internal_restoring_handoff_still_run
+    test_native_fault_still_preempts = opening.FlowV4OpeningRuntimeTests.test_native_fault_still_preempts_busy_opening_and_keeps_relay_off
+    test_idle_cooling_and_restoration_still_run = opening.FlowV4OpeningRuntimeTests.test_idle_progress_and_internal_restoring_handoff_still_run
 
     async def test_hard_lockout_is_not_cleared_by_idle_cooling(self):
         self.release.set()
