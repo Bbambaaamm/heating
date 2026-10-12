@@ -312,3 +312,32 @@ probíhají v executor vlákně. [Události HA](https://developers.home-assistan
 
 Samostatný deník uchovává vybrané důkazy nezávisle na běžném promazávání
 Recorderu. [Retence Recorderu](https://www.home-assistant.io/integrations/recorder/).
+
+## 0.4.4: native zone feedback in the existing journal
+
+The existing Observer sample now includes each zone's independent HA
+`heat_needed` binary state, `zone_active`, and `zone_demand`, along with
+`minimum_zone_demand` and `zone_policy_group` membership. This preserves the
+inputs needed to reconstruct the confirmed-zone eligibility in PR161 rather
+than relying only on a climate PI attribute or aggregate count.
+
+The same state-change listener also watches these inputs, climate state and
+attributes, and policy thresholds. Their changes bypass the existing idle
+interval throttle; short native ON/OFF transitions can therefore be retained
+without starting another collector or changing the sampling interval. Group
+membership changes are captured even when the group's state stays ON.
+
+`zone_input_reported_at` and `zone_input_updated_at` are HA state-cache times.
+They do not prove a new Zigbee device report, motor movement, an open valve, or
+physical water flow. Missing, restored, unknown, unavailable, and invalid
+binary states remain null; OFF remains false. Non-finite demand stays null.
+`heat_needed_report_freshness_verified` remains false, and the existing unknown
+PI report timestamps are unchanged. Historical samples without these new
+fields remain readable; do not invent their missing feedback.
+
+This is passive evidence capture only. It adds no service calls, controls,
+alerts, replay confidence, second scheduler, or monitoring automation. Existing
+journal rotation, queue-overflow signalling, Recorder attribute exclusions,
+thermal warnings, and the actuation guards remain in place. Source release and
+CI success alone do not establish a live installation; verify the loaded
+version and subsequent writes after a real installation in a safe idle window.

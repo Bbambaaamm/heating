@@ -19,7 +19,7 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.util import dt as dt_util
 
 from .agents import DiagnosticAgent, KnowledgeAgent
-from .const import CRITICAL, DOMAIN, INPUTS, SIGNAL, VERSION, ZONES
+from .const import CRITICAL, DOMAIN, INPUTS, SIGNAL, VERSION, ZONE_GROUP, ZONE_INPUTS, ZONES
 from .cycle import RequestCycleBuilder
 from .database import AgentDatabase
 from .engine import Observer, number
@@ -219,6 +219,15 @@ class Runtime:
         gas_price_raw, _ = self._read("input_number.heating_gas_price_czk_kwh")
         sample["gas_price_czk_kwh"] = number(gas_price_raw)
 
+        group_raw, group_state = self._read(ZONE_GROUP)
+        members = group_state.attributes.get("entity_id") if group_raw is not None else None
+        sample["zone_policy_group"] = {
+            "state": group_raw,
+            "members": list(members) if isinstance(members, (list, tuple)) else None,
+            "state_reported_at": group_state.last_reported.timestamp() if group_state else None,
+            "state_updated_at": group_state.last_updated.timestamp() if group_state else None,
+        }
+
         for zone in ZONES:
             raw, state = self._read(f"climate.{zone}")
             attrs = state.attributes if state else {}
@@ -235,6 +244,19 @@ class Runtime:
                    "pi_report_age_sec": None,
                    "pi_report_time_quality": "unknown",
                    "in_window": f"input_boolean.{zone}_schedule_active" in active_helpers if active_helpers is not None else None}
+            row["zone_input_reported_at"] = {}
+            row["zone_input_updated_at"] = {}
+            for key, entity_id in ZONE_INPUTS[zone].items():
+                input_raw, input_state = self._read(entity_id)
+                row[key] = (
+                    number(input_raw) if key == "zone_demand"
+                    else True if input_raw == "on" else False if input_raw == "off" else None
+                )
+                row["zone_input_reported_at"][key] = input_state.last_reported.timestamp() if input_state else None
+                row["zone_input_updated_at"][key] = input_state.last_updated.timestamp() if input_state else None
+            # These are HA cache receipt times, not verified device report times.
+            row["heat_needed_source"] = "cached_ha_binary_sensor_state"
+            row["heat_needed_report_freshness_verified"] = False
             for key, entity_id in {
                 "comfort": f"input_number.{zone}_last_comfort",
                 "calendar": f"input_boolean.schedule_enable_{zone}",
