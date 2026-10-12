@@ -20,7 +20,7 @@ from homeassistant.helpers import device_registry, entity_registry
 from homeassistant.setup import async_setup_component
 
 from custom_components.heating_observer import CONFIG_SCHEMA, Runtime
-from custom_components.heating_observer.const import DOMAIN, INPUTS, ZONES
+from custom_components.heating_observer.const import CRITICAL, DOMAIN, INPUTS, ZONE_GROUP, ZONE_INPUTS, ZONES
 from custom_components.heating_observer.engine import Observer, number
 from custom_components.heating_observer.storage import Journal
 from custom_components.heating_observer.permissions import PermissionManifest
@@ -365,6 +365,143 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(row["pi_reported_at"])
         self.assertIsNone(row["pi_report_age_sec"])
         self.assertEqual(row["pi_report_time_quality"], "unknown")
+        self.assertEqual(self.calls, [])
+
+
+    async def test_native_feedback_and_cached_pi_are_recorded_independently(self):
+        zone = ZONES[0]
+        self.hass.states.async_set(f"climate.{zone}", "heat", {"pi_heating_demand": 100})
+        for key, value in (("heat_needed", "off"), ("zone_active", "on"), ("zone_demand", "100")):
+            self.hass.states.async_set(ZONE_INPUTS[zone][key], value)
+        self.hass.states.async_set(INPUTS["minimum_zone_demand"], "70")
+        self.hass.states.async_set(ZONE_GROUP, "on", {"entity_id": [f"climate.{zone}"]})
+        captured = self.runtime.snapshot("conflicting_cached_feedback")
+        row = captured["zones"][zone]
+        self.assertEqual(row["pi"], 100)
+        self.assertIs(row["heat_needed"], False)
+        self.assertIs(row["zone_active"], True)
+        self.assertEqual(row["zone_demand"], 100)
+        self.assertEqual(captured["minimum_zone_demand"], 70)
+        self.assertEqual(captured["zone_policy_group"]["members"], [f"climate.{zone}"])
+        self.assertFalse(row["heat_needed_report_freshness_verified"])
+        self.assertEqual(row["heat_needed_source"], "cached_ha_binary_sensor_state")
+        self.assertEqual(row["zone_input_reported_at"]["heat_needed"],
+                         self.hass.states.get(ZONE_INPUTS[zone]["heat_needed"]).last_reported.timestamp())
+        self.assertIsNone(row["pi_reported_at"])
+        self.assertEqual(self.calls, [])
+
+    async def test_unverified_native_feedback_is_null_and_never_inferred_from_pi(self):
+        zone = ZONES[0]
+        entity = ZONE_INPUTS[zone]["heat_needed"]
+        self.hass.states.async_set(f"climate.{zone}", "heat", {"pi_heating_demand": 100})
+        self.assertIsNone(self.runtime.snapshot("missing")["zones"][zone]["heat_needed"])
+        for value, attrs in (("unknown", {}), ("unavailable", {}), ("invalid", {}),
+                             ("on", {"restored": True})):
+            with self.subTest(value=value, attrs=attrs):
+                self.hass.states.async_set(entity, value, attrs)
+                row = self.runtime.snapshot("invalid_native")["zones"][zone]
+                self.assertIsNone(row["heat_needed"])
+                self.assertFalse(row["heat_needed_report_freshness_verified"])
+                self.assertEqual(row["pi"], 100)
+        self.hass.states.async_set(entity, "on")
+        self.assertIs(self.runtime.snapshot("on")["zones"][zone]["heat_needed"], True)
+        self.assertEqual(self.calls, [])
+
+    async def test_invalid_zone_policy_inputs_remain_serializable_unknowns(self):
+        zone = ZONES[0]
+        for value in ("nan", "inf", "-inf", "unavailable"):
+            with self.subTest(value=value):
+                self.hass.states.async_set(ZONE_INPUTS[zone]["zone_demand"], value)
+                self.hass.states.async_set(INPUTS["minimum_zone_demand"], value)
+                self.hass.states.async_set(ZONE_INPUTS[zone]["zone_active"], "unknown")
+                captured = self.runtime.snapshot("invalid_policy")
+                self.assertIsNone(captured["zones"][zone]["zone_demand"])
+                self.assertIsNone(captured["zones"][zone]["zone_active"])
+                self.assertIsNone(captured["minimum_zone_demand"])
+                json.dumps(captured, allow_nan=False)
+        self.assertIsNone(self.runtime.snapshot("missing_group")["zone_policy_group"]["members"])
+        for value, attrs in (("on", {"restored": True, "entity_id": ["climate.fake"]}),
+                             ("unavailable", {"entity_id": ["climate.fake"]}),
+                             ("on", {"entity_id": "climate.fake"})):
+            self.hass.states.async_set(ZONE_GROUP, value, attrs)
+            self.assertIsNone(self.runtime.snapshot("invalid_group")["zone_policy_group"]["members"])
+
+    async def test_native_on_off_edges_are_journaled_during_idle_throttle(self):
+        zone = ZONES[0]
+        entity = ZONE_INPUTS[zone]["heat_needed"]
+        self.hass.states.async_set(entity, "off")
+        await self.runtime.start()
+        await self.drain()
+        self.runtime.enqueue("interval")
+        await self.drain()
+        idle_time = self.runtime.last_idle_at
+        for value in ("on", "off"):
+            self.hass.states.async_set(entity, value)
+            await self.drain()
+        rows = [json.loads(line) for line in (self.journal.root / "samples.jsonl").read_text().splitlines()]
+        edges = [r for r in rows if r["reason"] == entity]
+        self.assertEqual([r["zones"][zone]["heat_needed"] for r in edges], [True, False])
+        self.assertEqual(self.runtime.last_idle_at, idle_time)
+        self.assertEqual(self.runtime.dropped, 0)
+        self.assertEqual(self.calls, [])
+
+    async def test_group_attribute_change_is_captured_without_state_transition(self):
+        members = [f"climate.{ZONES[0]}"]
+        self.hass.states.async_set(ZONE_GROUP, "on", {"entity_id": members})
+        await self.runtime.start()
+        await self.drain()
+        members = members + ["climate.unsupported_zone"]
+        self.hass.states.async_set(ZONE_GROUP, "on", {"entity_id": members})
+        await self.drain()
+        rows = [json.loads(line) for line in (self.journal.root / "samples.jsonl").read_text().splitlines()]
+        edge = [r for r in rows if r["reason"] == ZONE_GROUP][-1]
+        self.assertEqual(edge["zone_policy_group"]["state"], "on")
+        self.assertEqual(edge["zone_policy_group"]["members"], members)
+        self.assertEqual(self.calls, [])
+
+    async def test_threshold_changes_are_persisted_by_the_existing_listener(self):
+        await self.runtime.start()
+        await self.drain()
+        for key, value in (("minimum_zone_demand", "75"), ("minimum_zones", "3"),
+                           ("minimum_demand", "40")):
+            self.hass.states.async_set(INPUTS[key], value)
+            await self.drain()
+        rows = [json.loads(line) for line in (self.journal.root / "samples.jsonl").read_text().splitlines()]
+        for key, value in (("minimum_zone_demand", 75), ("minimum_zones", 3), ("minimum_demand", 40)):
+            edge = [r for r in rows if r["reason"] == INPUTS[key]][-1]
+            self.assertEqual(edge[key], value)
+        self.assertEqual(self.calls, [])
+
+    async def test_zone_climate_attribute_changes_do_not_upgrade_feedback_freshness(self):
+        zone = ZONES[0]
+        self.hass.states.async_set(ZONE_INPUTS[zone]["heat_needed"], "on")
+        before = self.runtime.snapshot("before")["zones"][zone]
+        await self.runtime.start()
+        await self.drain()
+        self.hass.states.async_set(f"climate.{zone}", "heat", {"pi_heating_demand": 25, "temperature": 22})
+        await self.drain()
+        rows = [json.loads(line) for line in (self.journal.root / "samples.jsonl").read_text().splitlines()]
+        after = [r["zones"][zone] for r in rows if r["reason"] == f"climate.{zone}"][-1]
+        self.assertEqual(after["pi"], 25)
+        self.assertEqual(after["zone_input_reported_at"]["heat_needed"],
+                         before["zone_input_reported_at"]["heat_needed"])
+        self.assertFalse(after["heat_needed_report_freshness_verified"])
+        self.assertIsNone(after["pi_reported_at"])
+        self.assertEqual(self.calls, [])
+
+    async def test_one_existing_listener_covers_all_zone_and_policy_inputs(self):
+        self.assertEqual(len(CRITICAL), len(set(CRITICAL)))
+        self.assertIn(ZONE_GROUP, CRITICAL)
+        for zone in ZONES:
+            self.assertIn(f"climate.{zone}", CRITICAL)
+            for entity in ZONE_INPUTS[zone].values():
+                self.assertIn(entity, CRITICAL)
+        for key in ("policy", "active_zones", "average_demand", "minimum_zone_demand",
+                    "minimum_zones", "minimum_demand"):
+            self.assertIn(INPUTS[key], CRITICAL)
+        await self.runtime.start()
+        await self.drain()
+        self.assertEqual(len(self.runtime.unsubs), 2)
         self.assertEqual(self.calls, [])
 
     async def test_storage_failure_is_visible_and_heating_is_untouched(self):
