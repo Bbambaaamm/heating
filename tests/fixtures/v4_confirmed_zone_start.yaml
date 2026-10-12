@@ -73,54 +73,14 @@ trigger:
   entity_id: sensor.boiler_heatblock
   from: unavailable
   id: heat_available
-- trigger: state
-  entity_id:
-  - input_number.kotel_min_zone_demand_pct
-  - sensor.kotel_effective_min_active_zones
-  - sensor.kotel_effective_min_avg_demand_pct
-  - binary_sensor.sklep_michal_potrebne_teplo
-  - binary_sensor.prizemi_michal_potrebne_teplo
-  - binary_sensor.prizemi_chodba_zachod_potrebne_teplo
-  - binary_sensor.1p_jidelna_potrebne_teplo
-  - binary_sensor.1p_kuchyn_potrebne_teplo
-  - binary_sensor.1p_koupelna_potrebne_teplo
-  - binary_sensor.1p_chodba_potrebne_teplo
-  - binary_sensor.2p_mama_potrebne_teplo
-  - binary_sensor.zona_sklep_michal_aktivni
-  - binary_sensor.zona_prizemi_michal_aktivni
-  - binary_sensor.zona_prizemi_chodba_zachod_aktivni
-  - binary_sensor.zona_1p_jidelna_aktivni
-  - binary_sensor.zona_1p_kuchyn_aktivni
-  - binary_sensor.zona_1p_koupelna_aktivni
-  - binary_sensor.zona_1p_chodba_aktivni
-  - binary_sensor.zona_2p_mama_aktivni
-  - sensor.zona_sklep_michal_demand
-  - sensor.zona_prizemi_michal_demand
-  - sensor.zona_prizemi_chodba_zachod_demand
-  - sensor.zona_1p_jidelna_demand
-  - sensor.zona_1p_kuchyn_demand
-  - sensor.zona_1p_koupelna_demand
-  - sensor.zona_1p_chodba_demand
-  - sensor.zona_2p_mama_demand
-  - climate.sklep_michal
-  - climate.prizemi_michal
-  - climate.prizemi_chodba_zachod
-  - climate.1p_jidelna
-  - climate.1p_kuchyn
-  - climate.1p_koupelna
-  - climate.1p_chodba
-  - climate.2p_mama
-  to: null
-  id: confirmed_zone_inputs
-- trigger: state
-  entity_id: group.topne_zony
-  to: null
-  id: zone_group_state
-- trigger: state
-  entity_id: group.topne_zony
-  attribute: entity_id
-  to: null
-  id: zone_group_members
+- trigger: template
+  value_template: "{% set members = state_attr('group.topne_zony', 'entity_id') %}\n{% set supported = ['climate.sklep_michal', 'climate.prizemi_michal', 'climate.prizemi_chodba_zachod', 'climate.1p_jidelna', 'climate.1p_kuchyn', 'climate.1p_koupelna', 'climate.1p_chodba', 'climate.2p_mama'] %}\n{% set min_d = states('input_number.kotel_min_zone_demand_pct') %}\n{% set min_z = states('sensor.kotel_effective_min_active_zones') %}\n{% set min_a = states('sensor.kotel_effective_min_avg_demand_pct') %}\n{% set ns = namespace(valid=has_value('group.topne_zony') and members is iterable and members is not string and members | count > 0 and is_number(min_d) and 0 <= min_d | float(-1) <= 100 and is_number(min_z) and min_z | float(-1) >= 0 and min_z | float(-1) == min_z | int(-2) and is_number(min_a) and min_a | float(-1) >= 0, demands=[]) %}\n{% if members is iterable and members is not string %}\n{% for member in members %}\n  {% if member not in supported %}\n    {% set ns.valid = false %}\n  {%\
+    \ endif %}\n{% endfor %}\n{% endif %}\n{% for c in expand('group.topne_zony') %}\n  {% set id = c.entity_id.split('.')[1] %}\n  {% set demand = states('sensor.zona_' ~ id ~ '_demand') %}\n  {% if c.entity_id in supported and c.state == 'heat'\n        and is_state('binary_sensor.zona_' ~ id ~ '_aktivni', 'on')\n        and is_state('binary_sensor.' ~ id ~ '_potrebne_teplo', 'on')\n        and is_number(demand) and 1 < demand | float(0) <= 100\n        and demand | float(0) >= min_d | float(101) %}\n    {% set ns.demands = ns.demands + [demand | float(0)] %}\n  {% endif %}\n{% endfor %}\n{{ ns.valid and ns.demands | count >= [min_z | int(99), 2] | max\n   and ns.demands | count > 0\n   and ns.demands | average(0) >= [min_a | float(999), 15] | max }}"
+  id: confirmed_policy_ready
+- trigger: template
+  value_template: "{% set members = state_attr('group.topne_zony', 'entity_id') %}\n{% set supported = ['climate.sklep_michal', 'climate.prizemi_michal', 'climate.prizemi_chodba_zachod', 'climate.1p_jidelna', 'climate.1p_kuchyn', 'climate.1p_koupelna', 'climate.1p_chodba', 'climate.2p_mama'] %}\n{% set min_d = states('input_number.kotel_min_zone_demand_pct') %}\n{% set min_z = states('sensor.kotel_effective_min_active_zones') %}\n{% set min_a = states('sensor.kotel_effective_min_avg_demand_pct') %}\n{% set ns = namespace(valid=has_value('group.topne_zony') and members is iterable and members is not string and members | count > 0 and is_number(min_d) and 0 <= min_d | float(-1) <= 100 and is_number(min_z) and min_z | float(-1) >= 0 and min_z | float(-1) == min_z | int(-2) and is_number(min_a) and min_a | float(-1) >= 0, demands=[]) %}\n{% if members is iterable and members is not string %}\n{% for member in members %}\n  {% if member not in supported %}\n    {% set ns.valid = false %}\n  {%\
+    \ endif %}\n{% endfor %}\n{% endif %}\n{% for c in expand('group.topne_zony') %}\n  {% set id = c.entity_id.split('.')[1] %}\n  {% set demand = states('sensor.zona_' ~ id ~ '_demand') %}\n  {% if c.entity_id in supported and c.state == 'heat'\n        and is_state('binary_sensor.zona_' ~ id ~ '_aktivni', 'on')\n        and is_state('binary_sensor.' ~ id ~ '_potrebne_teplo', 'on')\n        and is_number(demand) and 1 < demand | float(0) <= 100\n        and demand | float(0) >= min_d | float(101) %}\n    {% set ns.demands = ns.demands + [demand | float(0)] %}\n  {% endif %}\n{% endfor %}\n{{ not (ns.valid and ns.demands | count >= [min_z | int(99), 2] | max\n   and ns.demands | count > 0\n   and ns.demands | average(0) >= [min_a | float(999), 15] | max) }}"
+  id: confirmed_policy_blocked
 condition: []
 action:
 - variables:
