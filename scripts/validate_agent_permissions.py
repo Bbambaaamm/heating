@@ -48,9 +48,9 @@ def main() -> int:
     if invariants != mirror_invariants:
         fail("runtime and architecture safety invariant sets differ")
     ids = [row.get("id") for row in invariants.get("invariants", [])]
-    expected = [f"S{i:02d}" for i in range(1, 21)]
+    expected = [f"S{i:02d}" for i in range(1, 22)]
     if ids != expected:
-        fail(f"safety invariant IDs must be exactly S01-S20 in order; got {ids}")
+        fail(f"safety invariant IDs must be exactly S01-S21 in order; got {ids}")
 
     red = set(policy.get("path_policy", {}).get("red", []))
     required_red = {"heating/control/**", "heating/safety/**", "automations.yaml", "scripts.yaml"}
@@ -58,7 +58,7 @@ def main() -> int:
     if missing:
         fail(f"RED path policy missing protected paths: {missing}")
 
-    print("PASS: Heating Agent permission manifest and S01-S20 safety invariants are fail-closed.")
+    print("PASS: Heating Agent permission manifest and S01-S21 safety invariants are fail-closed.")
     return 0
 
 

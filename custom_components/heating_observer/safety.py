@@ -39,6 +39,7 @@ class SafetySentinel:
         master = sample.get("master")
         mode = sample.get("mode")
         code = number(sample.get("code"))
+        block = number(sample.get("block"))
         active_fault = code is not None and int(code) in FAULTS
 
         def violation(invariant: str, message: str, severity: str = "critical"):
@@ -78,6 +79,16 @@ class SafetySentinel:
 
         if gas is True and relay is False and not self._dhw(sample):
             warning("S06", "burner is ON without space-heating relay request and outside DHW context", "medium")
+
+        # Project escalation threshold, not a claim about the boiler's certified
+        # safety limit. It intentionally does not depend on relay/gas: residual
+        # heat can peak after both have already turned off (issue #140).
+        if block is not None and block > 72:
+            warning(
+                "S21",
+                f"boiler heatblock {block:.1f} °C exceeds the 72 °C project escalation threshold",
+                "high",
+            )
 
         if self._dhw(sample):
             notes.append({"invariant": "S07", "message": "DHW context present; space-heating hydraulic inference excluded"})

@@ -86,9 +86,14 @@ Ani po splnění tohoto gate není kandidát aktivní pravidlo: vždy
 
 ### Safety Sentinel
 
-`safety-sentinel-v1` je read-only. Vyhodnocuje strojový katalog S01–S20
+`safety-sentinel-v1` je read-only. Vyhodnocuje strojový katalog S01–S21
 v `custom_components/heating_observer/safety_invariants.json`. V0.3 nemá
 shutdown endpoint ani žádnou HA service-call capability.
+
+S21 je high-severity read-only varování pro `sensor.boiler_heatblock > 72 °C`.
+Je záměrně nezávislé na stavu relé i hořáku, aby zachytilo zbytkový tepelný
+vrchol po jejich vypnutí (incident #140). Hodnota 72 °C je projektová
+eskalační mez, nikoli tvrzení o certifikované bezpečnostní mezi kotle.
 
 ### Permission manifest
 
