@@ -86,7 +86,7 @@ Ani po splnění tohoto gate není kandidát aktivní pravidlo: vždy
 
 ### Safety Sentinel
 
-`safety-sentinel-v1` je read-only. Vyhodnocuje strojový katalog S01–S20
+`safety-sentinel-v1` je read-only. Vyhodnocuje strojový katalog S01–S21
 v `custom_components/heating_observer/safety_invariants.json`. V0.3 nemá
 shutdown endpoint ani žádnou HA service-call capability.
 
@@ -99,7 +99,7 @@ Je `default_deny`, runtime deployment je vypnutý a žádný agent nemá
 CI kontrola `scripts/validate_agent_permissions.py` navíc odmítne:
 - child capability mimo parent;
 - zapnutý runtime deployment;
-- nekompletní S01–S20;
+- nekompletní S01–S21;
 - odstranění RED ochrany pro `heating/control/**`, `heating/safety/**`,
   `automations.yaml` nebo `scripts.yaml`.
 

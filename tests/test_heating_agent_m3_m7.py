@@ -244,6 +244,11 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(second["status"], "VIOLATION")
         self.assertIn("S04", [x["invariant"] for x in second["violations"]])
 
+    def test_overtemperature_is_violation_even_with_relay_and_burner_off(self):
+        result = self.evaluate(safe_sample(relay=False, gas=False, block=81.6))
+        self.assertEqual(result["status"], "VIOLATION")
+        self.assertIn("S21", [x["invariant"] for x in result["violations"]])
+
     def test_safe_idle_state_is_ok(self):
         result = self.evaluate(safe_sample())
         self.assertEqual(result["status"], "OK")
