@@ -1,0 +1,78 @@
+{# Pure reducer. Phase: [schema,relay,gas,burns,last_off,heartbeat,onsets3,last_onsets3,cluster_first].
+Episode: [schema,start,gas_off,warning_onsets3,eligible,first_fault].
+Stats: [schema,eligible_clean,faults,censored,[[warn_clean,timely_fault,late_or_missed] x3]].
+Rules are frozen hypotheses, never actuator permissions. #}
+{% set phase=phase if phase is sequence and phase is not string and phase|length==9 else [1,-1,-1,-1,0,0,[0,0,0],[0,0,0],0] %}
+{% set episode=episode if episode is sequence and episode is not string and episode|length==6 else [] %}
+{% set stats=stats if stats is sequence and stats is not string and stats|length==5 else [1,0,0,0,[[0,0,0],[0,0,0],[0,0,0]]] %}
+{% set t=s.t|int %}
+{% set ns=namespace(r=phase[1],g=phase[2],n=phase[3],off=phase[4],a=phase[6],w=phase[7],f=phase[8],ep=episode,st=stats,events=[],finish='',quality=s.quality|list) %}
+{% set gap=phase[5]>0 and (t-phase[5]>45 or t<phase[5]) %}
+{% if reset or gap %}
+  {% if ns.ep %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}{% set ns.finish='capture_interrupted' %}{% endif %}
+  {% set ns.n=-1 %}{% set ns.a=[0,0,0] %}{% set ns.w=[0,0,0] %}{% set ns.off=0 %}
+  {% set ns.events=ns.events+[dict(kind='shadow_baseline',reason='restart' if reset else 'capture_gap')] %}
+{% endif %}
+{% if s.r==0 %}
+  {% set ns.n=0 %}
+{% elif s.r==1 and ns.r==0 and not reset and not gap %}
+  {% set ns.n=0 %}
+  {% set ns.a=[0,0,0] %}{% set ns.w=[0,0,0] %}
+{% elif s.r not in [0,1] %}
+  {% set ns.n=-1 %}
+{% endif %}
+{% set start=s.g==1 and ns.g==0 and not reset and not gap %}
+{% set internal=start and s.r==1 and ns.r==1 and ns.n>=1 %}
+{% if s.g==0 and ns.g==1 %}{% set ns.off=t %}{% if ns.ep %}{% set ns.ep=[1,ns.ep[1],t,ns.ep[3],ns.ep[4],ns.ep[5]] %}{% endif %}{% endif %}
+{% set censor_quality=s.quality|reject('equalto','active_fault')|list if s.fault_edge else s.quality %}
+{% if ns.ep and not ns.ep[5] and (censor_quality|length>0 or s.master!=1 or s.service!=0 or s.r!=1) %}
+  {% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}
+{% endif %}
+{% if ns.ep and not ns.finish and start %}{% set ns.finish='next_burner_start' %}
+{% elif ns.ep and not ns.finish and ns.ep[2]>0 and s.g==0 and t-ns.ep[2]>=300 %}{% set ns.finish='postrun_300s' %}
+{% elif ns.ep and not ns.finish and t-ns.ep[1]>7200 %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],false,ns.ep[5]] %}{% set ns.finish='duration_cap' %}{% endif %}
+{# A fault observed at a closing boundary belongs to the preceding tracked episode. #}
+{% set new_cluster=s.fault_edge and (ns.f==0 or t-ns.f>600) %}
+{% if s.fault_edge %}
+  {% if new_cluster %}{% set ns.f=t %}{% endif %}
+  {% if ns.ep and not ns.ep[5] %}{% set ns.ep=[1,ns.ep[1],ns.ep[2],ns.ep[3],ns.ep[4],ns.f] %}{% endif %}
+  {% set leads=namespace(v=[]) %}{% for w in (ns.ep[3] if ns.ep else ns.w) %}{% set leads.v=leads.v+[ns.f-w if w>0 and w<ns.f else none] %}{% endfor %}
+  {% set ns.events=ns.events+[dict(kind='shadow_fault_first' if new_cluster else 'shadow_fault_update',source=s.fault_source,first_fault_at=ns.f,leads_s=leads.v,tracked_internal_restart=ns.ep|length>0,eligible=ns.ep[4] if ns.ep else false)] %}
+{% endif %}
+{% if ns.finish and ns.ep %}
+  {% set score=namespace(rows=[],leads=[]) %}
+  {% for i in range(3) %}
+    {% set row=ns.st[4][i] %}{% set w=ns.ep[3][i] %}{% set lead=ns.ep[5]-w if ns.ep[5]>0 and w>0 and w<ns.ep[5] else none %}
+    {% set score.leads=score.leads+[lead] %}
+    {% set score.rows=score.rows+[[row[0]+(1 if ns.ep[4] and not ns.ep[5] and w>0 else 0),row[1]+(1 if ns.ep[4] and ns.ep[5]>0 and lead is not none and lead>=60 else 0),row[2]+(1 if ns.ep[4] and ns.ep[5]>0 and (lead is none or lead<60) else 0)]] %}
+  {% endfor %}
+  {% set outcome='censored' if not ns.ep[4] else 'fault' if ns.ep[5]>0 else 'observed_no_fault' %}
+  {% set ns.st=[1,ns.st[1]+(1 if outcome=='observed_no_fault' else 0),ns.st[2]+(1 if outcome=='fault' else 0),ns.st[3]+(1 if outcome=='censored' else 0),score.rows] %}
+  {% set ns.events=ns.events+[dict(kind='shadow_episode_closed',outcome=outcome,reason=ns.finish,start=ns.ep[1],first_fault_at=ns.ep[5],warning_onsets=ns.ep[3],leads_s=score.leads,stats=ns.st)] %}
+  {% set ns.ep=[] %}
+{% endif %}
+{% if start %}
+  {% if internal %}
+    {% set good=s.quality|length==0 and s.master==1 and s.service==0 and not s.fault_edge and (ns.f==0 or t-ns.f>600) %}
+    {% set ns.ep=[1,t,0,ns.a,good,0] %}
+    {% set ns.events=ns.events+[dict(kind='shadow_internal_restart',eligible=good,warning_onsets=ns.a,pause_s=t-ns.off if ns.off>0 else none)] %}
+  {% else %}
+    {% set ns.events=ns.events+[dict(kind='shadow_other_start',classification='request_start' if s.r==1 and ns.n==0 else 'unknown_request_history')] %}
+  {% endif %}
+  {% if s.r==1 and ns.n>=0 %}{% set ns.n=ns.n+1 %}{% endif %}
+{% endif %}
+{% if s.g not in [0,1] %}{% set ns.n=-1 %}{% endif %}
+{% set pause=s.r==1 and s.g==0 and ns.n>=1 and s.master==1 and s.service==0 and s.quality|length==0 and not s.fault_edge and (ns.f==0 or t-ns.f>600) %}
+{% set one=pause and s.c10<3 %}{% set two=pause and s.c20<2 %}
+{% set a1=(ns.a[0] or t) if one else 0 %}{% set a2=(ns.a[1] or t) if two else 0 %}
+{% set three=one and ns.a[0]>0 and t-ns.a[0]>=30 %}
+{% set a3=(ns.a[2] or t) if three else 0 %}
+{% set fresh=[a1,a2,a3] %}
+{% for i in range(3) %}
+  {% if fresh[i]>0 and ns.a[i]==0 %}{% set ns.events=ns.events+[dict(kind='shadow_warning_on',rule=i+1,onset=fresh[i])] %}
+  {% elif fresh[i]==0 and ns.a[i]>0 %}{% set ns.events=ns.events+[dict(kind='shadow_warning_off',rule=i+1,onset=ns.a[i],duration_s=t-ns.a[i])] %}{% endif %}
+{% endfor %}
+{% if pause %}{% set ns.w=fresh %}
+{% elif not internal and not ns.ep %}{% set ns.w=[0,0,0] %}{% endif %}
+{% set next_phase=[1,s.r,s.g,ns.n,ns.off,t,fresh,ns.w,ns.f] %}
+{{ dict(phase=next_phase,episode=ns.ep,stats=ns.st,events=ns.events)|to_json|from_json }}
