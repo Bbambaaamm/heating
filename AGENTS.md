@@ -21,3 +21,15 @@
 - Údaj PI demand nebo otevření hlavice nepotvrzuje skutečný průtok; zastaralý/nepodporovaný senzor `boiler_pc0flow = 0` sám průtok ani nepotvrzuje, ani nevylučuje.
 - Zápis tohoto pravidla do Gitu **neznamená jeho nasazení do Home Assistantu**. Změny aktivního bezpečnostního řízení vyžadují samostatnou kontrolu, testy a bezpečnostní schválení.
 - Analytická část / Safety Sentinel nesmí vyjímat hořák bez topného relé z upozornění pouze podle TUV příznaků. Jakoukoli změnu jeho implementace nejdříve prověřit testy a odborným review.
+
+## Trvalé pravidlo oprávnění AI / agentů (potvrzeno uživatelem 2026-10-13)
+
+- **Přístup asistenta a autonomních agentů k živému Home Assistantu, EMS-ESP a kotli je výhradně READ-ONLY.** Uživatel nechce, aby AI někdy ovládala kotel nebo upravovala jeho nastavení.
+- **ZÁKAZ pro AI:** `ha_call_service`, `ha_bulk_control`, zápisy do `switch.kotel_rele_spinac`, `switch.boiler_*`, `number.boiler_*`, `select.boiler_*`, `text.boiler_*`, reset kotle, `climate.set_temperature`/set_hvac_mode a jakékoli jiné příkazy, které by měnily chování topení, hlavic či kotle. Platí i pro „testy“, nouzové manuální zásahy a skripty zprostředkovávající takové povely.
+- **ZÁKAZ pro AI:** přímé vytvoření, úprava, aktivace, reload nebo nasazení živých HA automatizací, skriptů a helperů, které řídí topení; žádné restartování HA nebo EMS kvůli řízení kotle.
+- Povolené jsou pouze čtecí operace: stav, atributy, historie, logy, diagnostika, existující trace a pasivní analýza.
+- Návrhy změn do Gitu jsou možné pouze **bez nasazení do živého HA** a musí respektovat bezpečnostní review. GitHub commit ani PR nesmí spustit deployment ovládání kotle.
+- Ovládání běžnou **existující deterministickou automatizací HA** není samo o sobě povel asistenta; agent nesmí tuto automatizaci autonomně měnit ani spouštět.
+- Pokud úloha potřebuje aktivní zásah (včetně bezpečného vypnutí), asistent pouze popíše riziko a doporučí vhodný postup člověku/servisu; **sám žádný povel nevydá**.
+- Minulý incident je důvodem této hranice: v září 2026 byly doloženy změny řídicích automatizací HA, včetně nasazení servisní ochrany (PR #78). Absence důkazu změny interních parametrů Bosch **není** důkaz, že k žádnému řízení nikdy nedošlo.
+- Identifikace zařízení (bez opakovaného dotazování uživatele): **Bosch Condens 2300i W, GC2300iW 24 P 23**, EMS-ESP; přesnou variantu lze ověřovat v existující dokumentaci. Kotel TUV v domě neposkytuje, teplá voda v koupelnách je ze samostatných karem.
