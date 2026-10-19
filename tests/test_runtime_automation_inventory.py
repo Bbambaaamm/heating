@@ -99,8 +99,48 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
                     expected["actions"][3]["then"].insert(
                         19, deepcopy(FLOW_CONFIRMED_CHECKPOINT)
                     )
+                    # Grace period guards against the real 2026-10-19 race:
+                    # zone targets restored before the 2964 code cleared.
+                    expected["description"] += " Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic."
+                    expected["actions"][6]["then"].insert(
+                        6,
+                        {
+                            "if": [{
+                                "condition": "state",
+                                "entity_id": "binary_sensor.heating_boiler_fault_clear",
+                                "state": "off",
+                            }],
+                            "then": [{
+                                "wait_for_trigger": [{
+                                    "trigger": "state",
+                                    "entity_id": "binary_sensor.heating_boiler_fault_clear",
+                                    "to": "on",
+                                }],
+                                "timeout": "00:03:00",
+                                "continue_on_timeout": True,
+                            }],
+                        },
+                    )
                 self.assertEqual(normalize(actual), normalize(expected))
                 self.assertEqual(actual["initial_state"], snapshot["state"] == "on")
+
+    def test_restoring_waits_for_fault_clear_before_lockout(self):
+        actions = self.by_id["1790189620167"]["action"][6]["then"]
+        self.assertEqual(actions[6]["if"], [{
+            "condition": "state",
+            "entity_id": "binary_sensor.heating_boiler_fault_clear",
+            "state": "off",
+        }])
+        self.assertEqual(actions[6]["then"], [{
+            "wait_for_trigger": [{
+                "trigger": "state",
+                "entity_id": "binary_sensor.heating_boiler_fault_clear",
+                "to": "on",
+            }],
+            "timeout": "00:03:00",
+            "continue_on_timeout": True,
+        }])
+        self.assertIn("choose", actions[7])
 
     def test_disabled_legacy_owners_never_activate_on_restart(self):
         ids = {
