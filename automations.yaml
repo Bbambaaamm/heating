@@ -1060,7 +1060,7 @@
 -
   id: "1790189620167"
   alias: "Topení – Flow-relief V4 state-machine"
-  description: "Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest."
+  description: "Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest. Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic."
   mode: "restart"
   trigger:
     -
@@ -1673,6 +1673,21 @@
                 -
                   trigger: "state"
                   entity_id: "input_boolean.heating_restore_verified"
+                  to: "on"
+              timeout: "00:03:00"
+              continue_on_timeout: true
+        -
+          if:
+            -
+              condition: "state"
+              entity_id: "binary_sensor.heating_boiler_fault_clear"
+              state: "off"
+          then:
+            -
+              wait_for_trigger:
+                -
+                  trigger: "state"
+                  entity_id: "binary_sensor.heating_boiler_fault_clear"
                   to: "on"
               timeout: "00:03:00"
               continue_on_timeout: true
