@@ -43,10 +43,25 @@ preemption, unverified paths, failed restoration and retention of an existing
 hardlock. They do not validate physical relay contacts, real flow or the cause
 of burner-on while relay-off. No direct EMS command path is added.
 
-## Deployment boundary
+## Production deployment, 21 October 2026
 
-This Git change is not a live Home Assistant deployment. Changing source does
-not itself migrate the existing HARD_LOCKOUT. Before production promotion,
-review the safety delta and use the documented project change-control process.
-The existing hardlock must be handled as a separate reviewed recovery operation;
-this patch is not a command to force a burner start.
+The user explicitly approved deployment and requested acknowledgement of the
+stuck historical lock. At 11:32–11:33 Europe/Prague, the two automation objects
+were updated through the HA config API with optimistic config hashes. The
+live `cooled` busy-emergency guard was preserved and synchronized into source;
+no other automation object was overwritten. Both objects were read back and
+matched the intended configurations. They are enabled and loaded.
+
+At 11:34:51 the historical HA lock helper was acknowledged after reading current
+fault-clear ON, EMS connected, burner/relay OFF, block 30.8 C, restoration
+acknowledged and the existing session path acknowledgement. At 11:35:00 the
+native minute reconciliation completed RESTORING, restored the original master
+preference to ON, and entered NORMAL. The separate relay-start policy retained
+its 240-second post-recovery delay and all normal gates. No relay-ON command was
+issued manually and no Bosch/EMS setting or fault reset was written.
+
+The session path acknowledgement is the existing software signal; it does not
+prove physical water flow. Deployment does not establish the physical cause of
+the morning burner-on/relay-off indication. This acknowledgement concerns the
+identified historical false latch, not a standing automatic hardlock bypass.
+See `flow-v4-deployment-2026-10-21.json` for config hashes and verification.

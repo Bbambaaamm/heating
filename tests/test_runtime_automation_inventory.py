@@ -37,7 +37,7 @@ def normalize(cfg):
     return result
 
 
-FLOW_BUSY_EMERGENCY_GUARD = "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
+FLOW_BUSY_EMERGENCY_GUARD = "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed', 'cooled'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
 
 
 FLOW_CONFIRMED_CHECKPOINT = {

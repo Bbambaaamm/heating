@@ -163,13 +163,12 @@ class FlowV4CooledRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
 
 class FlowV4CooledSourceBoundaryTests(unittest.TestCase):
-    def test_fixture_only_extends_busy_progress_guard(self):
+    def test_fixture_matches_deployed_source_with_cooled_busy_guard(self):
         fixture = deepcopy(runtime.read(FIXTURE)[0])
         public = next(a for a in runtime.read("automations.yaml")
                       if str(a["id"]) == "1790189620167")
         text = fixture["condition"][0]["value_template"]
         self.assertEqual(text.count(NEW_EVENTS), 1)
-        fixture["condition"][0]["value_template"] = text.replace(NEW_EVENTS, OLD_EVENTS)
         self.assertEqual(fixture, public)
 
     def test_progress_guard_uses_busy_count_and_keeps_restart_mode(self):
