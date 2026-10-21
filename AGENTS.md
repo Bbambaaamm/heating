@@ -17,6 +17,8 @@
 
 ## Bezpečnost a změnové řízení
 
+- **Obnova po přechodné překážce nesmí zůstat trvale zamčená pouze historickým stavem.** V `RESTORING` se čeká na explicitní hořák OFF, platnou teplotu pod mezí obnovy, fault-clear a připojené EMS. Timeout těchto přechodných podmínek zachová relé OFF a opakovatelnou obnovu; sám nesmí vytvořit nový `HARD_LOCKOUT`. Nečinnou obnovu znovu vyhodnotí minutový impuls, který nesmí přerušit běžící sekvenci ani znovu přepisovat již potvrzené cíle hlavic. Neověřené cesty, neúspěšná obnova hlavic a existující hardlock tím nejsou automaticky odblokovány.
+
 - Žádné obcházení HARD_LOCKOUT, reset poruch nebo přepínání relé proti ochranám. **Hořák nespouštět bez ověřené hydraulické cesty.**
 - Údaj PI demand nebo otevření hlavice nepotvrzuje skutečný průtok; zastaralý/nepodporovaný senzor `boiler_pc0flow = 0` sám průtok ani nepotvrzuje, ani nevylučuje.
 - Zápis tohoto pravidla do Gitu **neznamená jeho nasazení do Home Assistantu**. Změny aktivního bezpečnostního řízení vyžadují samostatnou kontrolu, testy a bezpečnostní schválení.

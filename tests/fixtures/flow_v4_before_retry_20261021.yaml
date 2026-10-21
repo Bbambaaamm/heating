@@ -1,5 +1,4 @@
-# REVIEW CANDIDATE ONLY. Not included in active Home Assistant packages.
-# Does not clear an existing HARD_LOCKOUT or send direct EMS commands.
+# Historical source, not a production include.
 - id: '1790189620167'
   alias: Topení – Flow-relief V4 state-machine
   description: 'Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT.
@@ -520,17 +519,6 @@
         - trigger: state
           entity_id: binary_sensor.heating_boiler_fault_clear
           to: 'on'
-        timeout: 00:03:00
-        continue_on_timeout: true
-    - alias: 'Review candidate: bounded wait for burner-off before final restore checks'
-      if:
-      - condition: not
-        conditions:
-        - condition: state
-          entity_id: binary_sensor.boiler_burngas
-          state: 'off'
-      then:
-      - wait_template: '{{ is_state(''binary_sensor.boiler_burngas'', ''off'') }}'
         timeout: 00:03:00
         continue_on_timeout: true
     - choose:

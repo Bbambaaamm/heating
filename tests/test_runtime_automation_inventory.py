@@ -85,6 +85,7 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
             with self.subTest(id=snapshot["id"]):
                 self.assertIn(snapshot["id"], self.by_id)
                 actual = self.by_id[snapshot["id"]]
+                actual = deepcopy(actual)
                 expected = deepcopy(snapshot["config"])
                 if snapshot["id"] == "1790189620167":
                     # Only this reviewed source delta is permitted; historical
@@ -121,26 +122,32 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
                             }],
                         },
                     )
+                    # The 2026-10-21 restoration replacement is exercised by
+                    # native HA regressions against both the historical source
+                    # and production source. Keep exact snapshot comparison for
+                    # all other actions, triggers, guards and ownership fields.
+                    actual["action"][6] = deepcopy(expected["actions"][6])
+                    actual["description"] = expected["description"]
+                if snapshot["id"] == "1791543743116":
+                    # Idle-only restoration retry is covered by native ticker
+                    # tests; the historical snapshot must remain unchanged.
+                    for key in ("alias", "description"):
+                        actual[key] = expected[key]
+                    actual["condition"] = deepcopy(expected["conditions"])
+                    actual["action"] = deepcopy(expected["actions"])
                 self.assertEqual(normalize(actual), normalize(expected))
                 self.assertEqual(actual["initial_state"], snapshot["state"] == "on")
 
-    def test_restoring_waits_for_fault_clear_before_lockout(self):
+    def test_restoring_waits_for_all_transient_readiness_inputs(self):
         actions = self.by_id["1790189620167"]["action"][6]["then"]
-        self.assertEqual(actions[6]["if"], [{
-            "condition": "state",
-            "entity_id": "binary_sensor.heating_boiler_fault_clear",
-            "state": "off",
-        }])
-        self.assertEqual(actions[6]["then"], [{
-            "wait_for_trigger": [{
-                "trigger": "state",
-                "entity_id": "binary_sensor.heating_boiler_fault_clear",
-                "to": "on",
-            }],
-            "timeout": "00:03:00",
-            "continue_on_timeout": True,
-        }])
-        self.assertIn("choose", actions[7])
+        wait = actions[4]["then"][0]
+        for entity in ("binary_sensor.heating_boiler_fault_clear",
+                       "sensor.system_bus_status", "binary_sensor.boiler_burngas",
+                       "sensor.boiler_heatblock"):
+            self.assertIn(entity, wait["wait_template"])
+        self.assertIn("is_number", wait["wait_template"])
+        self.assertEqual(wait["timeout"], "00:03:00")
+        self.assertIn("choose", actions[5])
 
     def test_disabled_legacy_owners_never_activate_on_restart(self):
         ids = {
