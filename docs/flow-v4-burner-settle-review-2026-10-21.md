@@ -65,3 +65,13 @@ prove physical water flow. Deployment does not establish the physical cause of
 the morning burner-on/relay-off indication. This acknowledgement concerns the
 identified historical false latch, not a standing automatic hardlock bypass.
 See `flow-v4-deployment-2026-10-21.json` for config hashes and verification.
+
+## New boiler fault during observation
+
+The normal policy switched the relay ON at 11:38:59. EMS reported burner ON at
+11:39:19. At 11:39:29 EMS reported a **new 2964**; burner and relay switched OFF,
+and native Flow V4 entered EMERGENCY_COOLING. Fault-clear returned ON at 11:39:59.
+The historical hardlock helper remained OFF. This is a fresh boiler-reported
+fault, not recurrence of the old stored hardlock. Sustained heating has not been
+verified. No further lock acknowledgement, boiler fault reset or forced relay
+start was performed. Existing native emergency/recovery control remains active.

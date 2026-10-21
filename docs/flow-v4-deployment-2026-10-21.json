@@ -28,5 +28,16 @@
     "ems": "connected",
     "direct_ems_writes": false,
     "relay_manually_forced_on": false
+  },
+  "post_recovery_observation": {
+    "relay_on_at": "2026-10-21T11:38:59.610828+02:00",
+    "ems_burner_on_at": "2026-10-21T11:39:19.514591+02:00",
+    "new_boiler_fault": 2964,
+    "fault_at": "2026-10-21T11:39:29.530075+02:00",
+    "relay_off_at": "2026-10-21T11:39:29.715066+02:00",
+    "flow_state": "EMERGENCY_COOLING",
+    "lockout": "off",
+    "fault_clear_again_at": "2026-10-21T11:39:59.514660+02:00",
+    "sustained_heating_verified": false
   }
 }
