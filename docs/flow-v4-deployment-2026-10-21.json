@@ -1,0 +1,32 @@
+{
+  "source_commit": "047fb5183000c5235af4c77356b1266c0ed96e66",
+  "flow": {
+    "id": "automation.topeni_flow_relief_pred_restartem_horaku",
+    "before_hash": "a04f2bc63fac92b0",
+    "after_hash": "33898f58d781005f",
+    "preserved_busy_guard": [
+      {
+        "condition": "template",
+        "value_template": "{{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed', 'cooled'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}"
+      }
+    ]
+  },
+  "ticker": {
+    "id": "automation.topeni_v4_periodicka_kontrola_pouze_nouzoveho_chlazeni",
+    "before_hash": "6f13b284c33f7c80",
+    "after_hash": "01bc679b32515dcd"
+  },
+  "readback_matched": true,
+  "recovery": {
+    "lockout_cleared_at": "2026-10-21T11:34:51+02:00",
+    "normal_at": "2026-10-21T11:35:00+02:00",
+    "master": "on",
+    "relay_at_recovery": "off",
+    "burner_at_recovery": "off",
+    "fault_clear": "on",
+    "heatblock_c": 30.8,
+    "ems": "connected",
+    "direct_ems_writes": false,
+    "relay_manually_forced_on": false
+  }
+}

@@ -1060,7 +1060,7 @@
 -
   id: "1790189620167"
   alias: "Topení – Flow-relief V4 state-machine"
-  description: "Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest. Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic."
+  description: "Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest. Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic. Oprava 2026-10-21: přechodná překážka při RESTORING ponechá relé OFF a opakuje kontrolu po odeznění; nevytváří trvalý lockout. Ověřené cíle hlavic se při opakované kontrole znovu nepřepisují."
   mode: "restart"
   trigger:
     -
@@ -1146,7 +1146,7 @@
     -
       condition: "template"
       value_template: >-
-        {{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}
+        {{ not ((trigger.id | default('')) in ['reconcile', 'paths_confirmed', 'cooled'] and is_state('input_select.heating_flow_state_v4', 'EMERGENCY_COOLING') and (this.attributes.current | default(0) | int(0)) > 0) }}
   action:
     -
       if:
@@ -1629,190 +1629,194 @@
           else:
             -
               stop: "Emergency cooling pokračuje."
-    -
-      if:
-        -
-          condition: "state"
-          entity_id: "input_select.heating_flow_state_v4"
-          state: "RESTORING"
+    - if:
+      - condition: state
+        entity_id: input_select.heating_flow_state_v4
+        state: RESTORING
       then:
-        -
-          action: "input_boolean.turn_off"
-          target:
-            entity_id: "input_boolean.topny_system_enable"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.topny_system_enable
+        continue_on_error: true
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kotel_rele_spinac
+        continue_on_error: true
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_service_mode
+        continue_on_error: true
+      - alias: Obnovit hlavice jen dokud jejich návrat není potvrzený
+        if:
+        - condition: not
+          conditions:
+          - condition: state
+            entity_id: input_boolean.heating_restore_verified
+            state: 'on'
+        then:
+        - action: script.heating_restore_schedule_after_service
           continue_on_error: true
-        -
-          action: "switch.turn_off"
-          target:
-            entity_id: "switch.kotel_rele_spinac"
-          continue_on_error: true
-        -
-          action: "input_boolean.turn_off"
-          target:
-            entity_id: "input_boolean.heating_service_mode"
-          continue_on_error: true
-        -
-          action: "input_boolean.turn_off"
-          target:
-            entity_id: "input_boolean.heating_restore_verified"
-        -
-          action: "script.heating_restore_schedule_after_service"
-          continue_on_error: true
-        -
-          if:
-            -
-              condition: "not"
-              conditions:
-                -
-                  condition: "state"
-                  entity_id: "input_boolean.heating_restore_verified"
-                  state: "on"
+        - if:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_boolean.heating_restore_verified
+              state: 'on'
           then:
-            -
-              wait_for_trigger:
-                -
-                  trigger: "state"
-                  entity_id: "input_boolean.heating_restore_verified"
-                  to: "on"
-              timeout: "00:03:00"
-              continue_on_timeout: true
-        -
-          if:
-            -
-              condition: "state"
-              entity_id: "binary_sensor.heating_boiler_fault_clear"
-              state: "off"
-          then:
-            -
-              wait_for_trigger:
-                -
-                  trigger: "state"
-                  entity_id: "binary_sensor.heating_boiler_fault_clear"
-                  to: "on"
-              timeout: "00:03:00"
-              continue_on_timeout: true
-        -
-          choose:
-            -
-              conditions:
-                -
-                  condition: "state"
-                  entity_id: "input_boolean.heating_restore_verified"
-                  state: "on"
-                -
-                  condition: "state"
-                  entity_id: "input_boolean.heating_flow_relief_lockout"
-                  state: "off"
-                -
-                  condition: "state"
-                  entity_id: "input_boolean.heating_flow_paths_verified_v4"
-                  state: "on"
-                -
-                  condition: "state"
-                  entity_id: "binary_sensor.heating_boiler_fault_clear"
-                  state: "on"
-                -
-                  condition: "state"
-                  entity_id: "sensor.system_bus_status"
-                  state: "connected"
-                -
-                  condition: "state"
-                  entity_id: "binary_sensor.boiler_burngas"
-                  state: "off"
-                -
-                  condition: "numeric_state"
-                  entity_id: "sensor.boiler_heatblock"
-                  below: 60
+          - wait_for_trigger:
+            - trigger: state
+              entity_id: input_boolean.heating_restore_verified
+              to: 'on'
+            timeout: 00:03:00
+            continue_on_timeout: true
+      - alias: Čekání na telemetrii a odeznění přechodné překážky
+        if:
+        - condition: state
+          entity_id: input_boolean.heating_restore_verified
+          state: 'on'
+        - condition: state
+          entity_id: input_boolean.heating_flow_relief_lockout
+          state: 'off'
+        - condition: state
+          entity_id: input_boolean.heating_flow_paths_verified_v4
+          state: 'on'
+        then:
+        - wait_template: '{{ is_state(''binary_sensor.heating_boiler_fault_clear'', ''on'') and is_state(''sensor.system_bus_status'',
+            ''connected'') and is_state(''binary_sensor.boiler_burngas'', ''off'') and is_number(states(''sensor.boiler_heatblock''))
+            and states(''sensor.boiler_heatblock'') | float(999) < 60 and is_state(''switch.kotel_rele_spinac'', ''off'')
+            and is_state(''input_boolean.heating_service_mode'', ''off'') }}'
+          timeout: 00:03:00
+          continue_on_timeout: true
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_boolean.heating_restore_verified
+            state: 'on'
+          - condition: state
+            entity_id: input_boolean.heating_flow_relief_lockout
+            state: 'off'
+          - condition: state
+            entity_id: input_boolean.heating_flow_paths_verified_v4
+            state: 'on'
+          - condition: state
+            entity_id: binary_sensor.heating_boiler_fault_clear
+            state: 'on'
+          - condition: state
+            entity_id: sensor.system_bus_status
+            state: connected
+          - condition: state
+            entity_id: binary_sensor.boiler_burngas
+            state: 'off'
+          - condition: numeric_state
+            entity_id: sensor.boiler_heatblock
+            below: 60
+          - condition: state
+            entity_id: switch.kotel_rele_spinac
+            state: 'off'
+          - condition: state
+            entity_id: input_boolean.heating_service_mode
+            state: 'off'
+          sequence:
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: heating_flow_v4_recovery_wait
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.heating_fault_recovery_pending
+          - choose:
+            - conditions:
+              - condition: state
+                entity_id: input_boolean.heating_flow_relief_resume_armed
+                state: 'on'
               sequence:
-                -
-                  action: "input_boolean.turn_off"
-                  target:
-                    entity_id: "input_boolean.heating_fault_recovery_pending"
-                -
-                  choose:
-                    -
-                      conditions:
-                        -
-                          condition: "state"
-                          entity_id: "input_boolean.heating_flow_relief_resume_armed"
-                          state: "on"
-                      sequence:
-                        -
-                          action: "input_boolean.turn_on"
-                          target:
-                            entity_id: "input_boolean.topny_system_enable"
-                  default:
-                    -
-                      action: "input_boolean.turn_off"
-                      target:
-                        entity_id: "input_boolean.topny_system_enable"
-                -
-                  action: "persistent_notification.dismiss"
-                  data:
-                    notification_id: "heating_flow_v4_active"
-                -
-                  action: "persistent_notification.create"
-                  data:
-                    notification_id: "heating_flow_v4_recovered"
-                    title: "Topení – recovery dokončena"
-                    message: "Kotel vychladl, všech 8 zón potvrdilo normální cíle a bezpečnostní podmínky jsou splněné. Původní povolení topení bylo obnoveno."
-                -
-                  action: "logbook.log"
-                  data:
-                    name: "Topení – Flow V4"
-                    entity_id: "input_boolean.heating_restore_verified"
-                    message: "RESTORING dokončen: cíle zón ověřeny, fault-clear OK, EMS OK, cesty potvrzeny. Návrat do NORMAL."
-                -
-                  action: "input_select.select_option"
-                  target:
-                    entity_id: "input_select.heating_flow_state_v4"
-                  data:
-                    option: "NORMAL"
-                -
-                  action: "input_boolean.turn_off"
-                  target:
-                    entity_id: "input_boolean.heating_flow_paths_verified_v4"
-          default:
-            -
-              action: "input_boolean.turn_off"
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.topny_system_enable
+            default:
+            - action: input_boolean.turn_off
               target:
-                entity_id: "input_boolean.heating_fault_recovery_pending"
-            -
-              action: "input_boolean.turn_on"
-              target:
-                entity_id: "input_boolean.heating_flow_relief_lockout"
-            -
-              action: "input_boolean.turn_off"
-              target:
-                entity_id: "input_boolean.topny_system_enable"
-              continue_on_error: true
-            -
-              action: "switch.turn_off"
-              target:
-                entity_id: "switch.kotel_rele_spinac"
-              continue_on_error: true
-            -
-              action: "persistent_notification.dismiss"
-              data:
-                notification_id: "heating_flow_v4_active"
-            -
-              action: "persistent_notification.create"
-              data:
-                notification_id: "heating_flow_v4_hard_lockout"
-                title: "Topení – HARD LOCKOUT"
-                message: "Hlavice byly vráceny na normální cíle, ale některá bezpečnostní podmínka pro restart kotle neprošla (cesty / fault-clear / EMS / restore). Kotel zůstává OFF."
-            -
-              action: "logbook.log"
-              data:
-                name: "Topení – Flow V4"
-                entity_id: "input_boolean.heating_flow_relief_lockout"
-                message: "RESTORING skončil HARD_LOCKOUT. Zóny jsou normalizované, kotel zůstává OFF."
-            -
-              action: "input_select.select_option"
-              target:
-                entity_id: "input_select.heating_flow_state_v4"
-              data:
-                option: "HARD_LOCKOUT"
+                entity_id: input_boolean.topny_system_enable
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: heating_flow_v4_active
+          - action: persistent_notification.create
+            data:
+              notification_id: heating_flow_v4_recovered
+              title: Topení – recovery dokončena
+              message: Kotel vychladl, všech 8 zón potvrdilo normální cíle a bezpečnostní podmínky jsou splněné. Původní
+                povolení topení bylo obnoveno.
+          - action: logbook.log
+            data:
+              name: Topení – Flow V4
+              entity_id: input_boolean.heating_restore_verified
+              message: 'RESTORING dokončen: cíle zón ověřeny, fault-clear OK, EMS OK, cesty potvrzeny. Návrat do NORMAL.'
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.heating_flow_state_v4
+            data:
+              option: NORMAL
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.heating_flow_paths_verified_v4
+        - conditions:
+          - condition: state
+            entity_id: input_boolean.heating_restore_verified
+            state: 'on'
+          - condition: state
+            entity_id: input_boolean.heating_flow_relief_lockout
+            state: 'off'
+          - condition: state
+            entity_id: input_boolean.heating_flow_paths_verified_v4
+            state: 'on'
+          sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.heating_fault_recovery_pending
+          - action: persistent_notification.create
+            data:
+              notification_id: heating_flow_v4_recovery_wait
+              title: Topení – čekání na podmínky obnovy
+              message: Obnova hlavic a cesty jsou potvrzené. Relé zůstává OFF; obnova se znovu ověří nejpozději při
+                dalším minutovém impulsu. Hořák={{ states('binary_sensor.boiler_burngas') }}, fault-clear={{ states('binary_sensor.heating_boiler_fault_clear')
+                }}, EMS={{ states('sensor.system_bus_status') }}, blok={{ states('sensor.boiler_heatblock') }} °C. Přechodná
+                překážka nevytváří trvalý HARD_LOCKOUT.
+        default:
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: heating_flow_v4_recovery_wait
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.heating_fault_recovery_pending
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.heating_flow_relief_lockout
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.topny_system_enable
+          continue_on_error: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.kotel_rele_spinac
+          continue_on_error: true
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: heating_flow_v4_active
+        - action: persistent_notification.create
+          data:
+            notification_id: heating_flow_v4_hard_lockout
+            title: Topení – HARD LOCKOUT
+            message: Hlavice byly vráceny na normální cíle, ale některá bezpečnostní podmínka pro restart kotle neprošla
+              (cesty / fault-clear / EMS / restore). Kotel zůstává OFF.
+        - action: logbook.log
+          data:
+            name: Topení – Flow V4
+            entity_id: input_boolean.heating_flow_relief_lockout
+            message: RESTORING skončil HARD_LOCKOUT. Zóny jsou normalizované, kotel zůstává OFF.
+        - action: input_select.select_option
+          target:
+            entity_id: input_select.heating_flow_state_v4
+          data:
+            option: HARD_LOCKOUT
     -
       if:
         -
@@ -3182,26 +3186,34 @@
                 title: "Kotel – vysoká teplota, čerpadlo OFF"
                 message: "Kotel {{ states('sensor.boiler_heatblock') }} °C, čerpadlo OFF, hořák {{ states('binary_sensor.boiler_burngas') }}, EMS {{ states('sensor.boiler_servicecodenumber') }}. Neobcházej ochranu; zkontroluj kotel a zajisti servis čerpadla/průtoku."
   initial_state: true
--
-  id: "1791543743116"
-  alias: "Topení V4 – periodická kontrola pouze nouzového chlazení"
-  description: "Samostatný minutový kontrolní impuls pouze během EMERGENCY_COOLING. Nenarušuje vícefázový RESTORING Flow V4 (který má mode restart); při aktivní ochraně pravidelně vyvolá reconcile, aby po potvrzení průtokových cest či timeoutu mohl nastat další krok. Bez přímého ovládání kotle a bez obcházení lockoutu."
-  mode: "single"
+- id: '1791543743116'
+  alias: Topení V4 – periodická kontrola chlazení a obnovy
+  description: Minutový reconcile pro nouzové chlazení a nečinný RESTORING. Běžící obnova se nepřerušuje. Přechodné
+    překážky se znovu ověří bez vypnutí ochran a bez přímého sepnutí relé.
+  mode: single
   trigger:
-    -
-      trigger: "time_pattern"
-      minutes: "/1"
+  - trigger: time_pattern
+    minutes: /1
   condition:
-    -
-      condition: "state"
-      entity_id: "input_select.heating_flow_state_v4"
-      state: "EMERGENCY_COOLING"
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_select.heating_flow_state_v4
+      state: EMERGENCY_COOLING
+    - condition: and
+      conditions:
+      - condition: state
+        entity_id: input_select.heating_flow_state_v4
+        state: RESTORING
+      - condition: template
+        value_template: '{{ state_attr(''automation.topeni_flow_relief_pred_restartem_horaku'', ''current'') | int(0)
+          == 0 }}'
   action:
-    -
-      event: "heating_flow_v4_reconcile"
-      event_data:
-        source: "emergency_only_periodic_tick"
+  - event: heating_flow_v4_reconcile
+    event_data:
+      source: recovery_periodic_tick
   initial_state: true
+
 -
   id: "1791544279063"
   alias: "Topení V4 – watchdog dlouhé obnovy"
