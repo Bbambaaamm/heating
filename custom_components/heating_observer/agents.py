@@ -76,7 +76,7 @@ class DiagnosticAgent:
         if quality:
             facts.append("Část předporuchových dat měla quality flags: " + ", ".join(quality) + ".")
         if dhw_seen:
-            facts.append("V předporuchovém okně byl zaznamenán TUV kontext.")
+            facts.append("EMS v předporuchovém okně hlásilo interní TUV příznak; tento kotel však v dané instalaci TUV nedodává (koupelny mají samostatné karmy). Nejde o potvrzení ohřevu TUV ani o vysvětlení startu hořáku.")
 
         hypotheses = []
 
