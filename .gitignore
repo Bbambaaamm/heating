@@ -59,3 +59,4 @@ analysis/*
 !docs/heating-observer.md
 !docs/heating-observer-card.yaml
 !scripts/replay_heating_observer.py
+!scripts/lockout_limit_10m.py

@@ -169,7 +169,9 @@ class FlowV4CooledSourceBoundaryTests(unittest.TestCase):
                       if str(a["id"]) == "1790189620167")
         text = fixture["condition"][0]["value_template"]
         self.assertEqual(text.count(NEW_EVENTS), 1)
-        self.assertEqual(fixture, public)
+        # The historical fixture predates the explicitly requested 10-minute cap.
+        from scripts.lockout_limit_10m import patch_flow
+        self.assertEqual(patch_flow(fixture), public)
 
     def test_progress_guard_uses_busy_count_and_keeps_restart_mode(self):
         fixture = runtime.read(FIXTURE)[0]

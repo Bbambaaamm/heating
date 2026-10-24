@@ -17,6 +17,10 @@
 
 ## Bezpečnost a změnové řízení
 
+- **Trvalé zadání uživatele 2026-10-24: Git a HA mají být 1:1.** Každou schválenou změnu živé konfigurace topení uložit také do `Bbambaaamm/heating` a dokončit její začlenění do `main`; pouhý lokální commit ani nezkontrolovaná větev nestačí. Uživatel výslovně schválil odesílání změn do tohoto repozitáře jako součást synchronizace. Po nasazení znovu načíst změněné objekty z HA a porovnat je se zdrojem, včetně helperů a zapnutí automatizací. Nesoulad nebo blokované odeslání vždy uvést a netvrdit úplnou shodu bez kontroly. Synchronizují se konfigurace; průběžné provozní hodnoty nejsou zdrojovou konfigurací. Tento souhlas neopravňuje k zápisům do interních parametrů kotle ani k publikování přístupových údajů.
+
+- **Výslovná změna uživatele 2026-10-24:** softwarový zámek trvá nejvýše 10 minut a potom se vždy automaticky zruší. Časovač se přechodem mezi stavy neprodlužuje. Zrušení historického zámku není povel k zapálení: běžný vlastník relé zachovává kontrolu aktuální poruchy, EMS, teploty a požadavků zón. Aktivní nouzové chlazení pokračuje do vychladnutí. Toto výslovné zadání nahrazuje dřívější zákaz automatického zrušení historického HARD_LOCKOUT; zákaz EMS zápisů a přímého nuceného sepnutí relé dál platí.
+
 - **Obnova po přechodné překážce nesmí zůstat trvale zamčená pouze historickým stavem.** V `RESTORING` se čeká na explicitní hořák OFF, platnou teplotu pod mezí obnovy, fault-clear a připojené EMS. Timeout těchto přechodných podmínek zachová relé OFF a opakovatelnou obnovu; sám nesmí vytvořit nový `HARD_LOCKOUT`. Nečinnou obnovu znovu vyhodnotí minutový impuls, který nesmí přerušit běžící sekvenci ani znovu přepisovat již potvrzené cíle hlavic. Neověřené cesty, neúspěšná obnova hlavic a existující hardlock tím nejsou automaticky odblokovány.
 
 - Žádné obcházení HARD_LOCKOUT, reset poruch nebo přepínání relé proti ochranám. **Hořák nespouštět bez ověřené hydraulické cesty.**

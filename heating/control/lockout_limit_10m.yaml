@@ -1,0 +1,169 @@
+timer:
+  heating_lockout_limit_10m:
+    name: Heating lockout limit 10m
+    duration: 00:10:00
+    restore: true
+automation:
+- id: heating_lockout_limit_10m_v1
+  alias: Topení – automatické zrušení zámku do 10 minut
+  description: Deset minut od prvního zablokování. Přechody stavů časovač neprodlužují. Obnovený aktivní časovač pokračuje;
+    při startu/reloadu s blokací a neaktivním časovačem se zámek zruší hned. Vypršení nezávisí na fault-clear. Relé zapíná
+    výhradně původní regulace se všemi svými kontrolami.
+  mode: queued
+  max: 20
+  initial_state: true
+  trigger:
+  - trigger: state
+    entity_id: input_boolean.heating_flow_relief_lockout
+    to: 'on'
+    id: blocked
+  - trigger: state
+    entity_id: input_boolean.heating_flow_relief_lockout
+    to: 'off'
+    id: clear
+  - trigger: state
+    entity_id: input_select.heating_flow_state_v4
+    to: EMERGENCY_COOLING
+    id: blocked
+  - trigger: state
+    entity_id: input_select.heating_flow_state_v4
+    to: RESTORING
+    id: blocked
+  - trigger: state
+    entity_id: input_select.heating_flow_state_v4
+    to: HARD_LOCKOUT
+    id: blocked
+  - trigger: state
+    entity_id: input_select.heating_flow_state_v4
+    to: NORMAL
+    id: clear
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.heating_lockout_limit_10m
+    id: expired
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: event
+    event_type: automation_reloaded
+    id: reload
+  condition: []
+  action:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: expired
+      - condition: or
+        conditions:
+        - condition: state
+          entity_id: input_boolean.heating_flow_relief_lockout
+          state: 'on'
+        - condition: state
+          entity_id: input_select.heating_flow_state_v4
+          state:
+          - EMERGENCY_COOLING
+          - RESTORING
+          - HARD_LOCKOUT
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_flow_relief_lockout
+      - if:
+        - condition: or
+          conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.heating_flow_state_v4
+              state: EMERGENCY_COOLING
+          - condition: numeric_state
+            entity_id: automation.topeni_flow_relief_pred_restartem_horaku
+            attribute: current
+            below: 1
+        then:
+        - event: heating_flow_v4_lockout_expired
+    - conditions:
+      - condition: trigger
+        id:
+        - startup
+        - reload
+      - condition: or
+        conditions:
+        - condition: state
+          entity_id: input_boolean.heating_flow_relief_lockout
+          state: 'on'
+        - condition: state
+          entity_id: input_select.heating_flow_state_v4
+          state:
+          - EMERGENCY_COOLING
+          - RESTORING
+          - HARD_LOCKOUT
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: timer.heating_lockout_limit_10m
+          state: active
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_flow_relief_lockout
+      - if:
+        - condition: or
+          conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.heating_flow_state_v4
+              state: EMERGENCY_COOLING
+          - condition: numeric_state
+            entity_id: automation.topeni_flow_relief_pred_restartem_horaku
+            attribute: current
+            below: 1
+        then:
+        - event: heating_flow_v4_lockout_expired
+    - conditions:
+      - condition: trigger
+        id: blocked
+      - condition: or
+        conditions:
+        - condition: state
+          entity_id: input_boolean.heating_flow_relief_lockout
+          state: 'on'
+        - condition: state
+          entity_id: input_select.heating_flow_state_v4
+          state:
+          - EMERGENCY_COOLING
+          - RESTORING
+          - HARD_LOCKOUT
+      - condition: state
+        entity_id: timer.heating_lockout_limit_10m
+        state: idle
+      sequence:
+      - action: timer.start
+        target:
+          entity_id: timer.heating_lockout_limit_10m
+        data:
+          duration: 00:10:00
+    default:
+    - if:
+      - condition: not
+        conditions:
+        - condition: or
+          conditions:
+          - condition: state
+            entity_id: input_boolean.heating_flow_relief_lockout
+            state: 'on'
+          - condition: state
+            entity_id: input_select.heating_flow_state_v4
+            state:
+            - EMERGENCY_COOLING
+            - RESTORING
+            - HARD_LOCKOUT
+      - condition: state
+        entity_id: timer.heating_lockout_limit_10m
+        state: active
+      then:
+      - action: timer.cancel
+        target:
+          entity_id: timer.heating_lockout_limit_10m

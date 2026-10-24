@@ -1060,7 +1060,7 @@
 -
   id: "1790189620167"
   alias: "Topení – Flow-relief V4 state-machine"
-  description: "Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest. Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic. Oprava 2026-10-21: přechodná překážka při RESTORING ponechá relé OFF a opakuje kontrolu po odeznění; nevytváří trvalý lockout. Ověřené cíle hlavic se při opakované kontrole znovu nepřepisují."
+  description: 'Jediný vlastník nouzového chlazení a recovery. Stavy: NORMAL → EMERGENCY_COOLING → RESTORING → NORMAL/HARD_LOCKOUT. V emergency drží kotel OFF, otevírá hlavice jednou ve dvou dávkách, po vychladnutí pod 60 °C vždy vrátí hlavice do normálních cílů. Kotel se znovu povolí jen při ověřených průtokových cestách, fault-clear, EMS connected a pokud byl před incidentem povolený. Restart HA zachovává fyzický stav a pokračuje v recovery. Interní přechody používají explicitní event; změna state helperu nikdy sama nerestartuje bezpečnostní sekvenci. Startup reconciliation umí vstoupit do emergency i z již aktivního fault/heat stavu. Oprava 2026-10-09: po ochlazeni nepokračuj do RESTORING bez potvrzenych cest pred uplynutim celeho 120s testu. Zabraní falesnemu HARD_LOCKOUT pri rychlem ochlazeni; chybejici průtok po timeoutu dál zůstane blokovaný. Oprava 2026-10-09 #2: minutový poll přesunut do samostatné emergency-only automatizace, aby nemohl zrušit RESTORING; úspěšná obnova čistí dočasné potvrzení hydraulických cest. Oprava 2026-10-19: V RESTORING počká až 3 min na přechod boiler fault-clear do ON, než vyhodnotí HARD_LOCKOUT; řeší závod při odeznění kódu 2964 a vrácení hlavic. Oprava 2026-10-21: přechodná překážka při RESTORING ponechá relé OFF a opakuje kontrolu po odeznění; nevytváří trvalý lockout. Ověřené cíle hlavic se při opakované kontrole znovu nepřepisují. Oprava 2026-10-24: softwarový zámek vždy vyprší do 10 minut; aktivní přehřátí/porucha zůstávají nezávislou překážkou normálního startu.'
   mode: "restart"
   trigger:
     -
@@ -1140,6 +1140,9 @@
       trigger: "event"
       event_type: "heating_flow_v4_force_emergency"
       id: "force_emergency"
+    - trigger: event
+      event_type: heating_flow_v4_lockout_expired
+      id: lockout_expired
   condition:
     # Benign progress events must not restart an in-flight opening batch.
     # RESTORING handoffs and urgent safety triggers retain restart behavior.
@@ -1512,6 +1515,92 @@
             message: "Kotel je bezpečně vypnutý. Hlavice jsou dočasně otevřené pro odvod tepla. Po poklesu bloku pod 60 °C V4 automaticky vrátí všechny zóny do normálního režimu."
         -
           stop: "Nouzové chlazení spuštěno."
+    - alias: Zámek vždy končí nejpozději po 10 minutách
+      if:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: lockout_expired
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: input_select.heating_flow_state_v4
+            state:
+            - EMERGENCY_COOLING
+            - RESTORING
+            - HARD_LOCKOUT
+          - condition: template
+            value_template: '{{ is_state(''timer.heating_lockout_limit_10m'', ''idle'') and (state_attr(''input_datetime.heating_flow_relief_started_at'',
+              ''timestamp'') | float(0)) > 0 and as_timestamp(now()) - (state_attr(''input_datetime.heating_flow_relief_started_at'',
+              ''timestamp'') | float(0)) >= 600 }}'
+      then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_flow_relief_lockout
+      - if:
+        - condition: state
+          entity_id: input_select.heating_flow_state_v4
+          state: EMERGENCY_COOLING
+        - condition: not
+          conditions:
+          - condition: and
+            conditions:
+            - condition: numeric_state
+              entity_id: sensor.boiler_heatblock
+              below: 60
+            - condition: state
+              entity_id: binary_sensor.boiler_burngas
+              state: 'off'
+            - condition: state
+              entity_id: sensor.system_bus_status
+              state: connected
+        then:
+        - stop: Časový zámek zrušen. Aktivní chlazení pokračuje do vychladnutí; časovač se neobnovuje.
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_fault_recovery_pending
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.heating_flow_relief_mode
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.heating_flow_state_v4
+        data:
+          option: NORMAL
+      - if:
+        - condition: not
+          conditions:
+          - condition: state
+            entity_id: input_boolean.heating_restore_verified
+            state: 'on'
+        - condition: state
+          entity_id: input_boolean.heating_service_mode
+          state: 'off'
+        then:
+        - action: script.heating_restore_schedule_after_service
+          continue_on_error: true
+      - if:
+        - condition: state
+          entity_id: input_boolean.heating_flow_relief_resume_armed
+          state: 'on'
+        - condition: state
+          entity_id: input_boolean.heating_service_mode
+          state: 'off'
+        - condition: state
+          entity_id: input_boolean.heating_restore_verified
+          state: 'on'
+        then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.topny_system_enable
+      - action: logbook.log
+        data:
+          name: Topení – konec časového zámku
+          entity_id: input_boolean.heating_flow_relief_lockout
+          message: Softwarový zámek automaticky zrušen po nejvýše 10 minutách. Kotel nebyl resetován ani nuceně zapnut; relé dále
+            řídí běžná regulace s kontrolou teploty, poruchy, EMS a požadavků zón.
+        continue_on_error: true
+      - stop: Časový zámek zrušen; pokračuje běžná regulace.
     -
       if:
         -

@@ -1,0 +1,22 @@
+{
+  "deployed_at": "2026-10-24T07:39:00+02:00",
+  "authorization": "User explicitly requested maximum 10 minutes and automatic release every time.",
+  "prior_flow_hash": "33898f58d781005f",
+  "flow_hash": "4c14ac71c6aa4fd1",
+  "manager_hash": "dbbb39e65a037af0",
+  "timer": {
+    "entity_id": "timer.heating_lockout_limit_10m",
+    "duration_seconds": 600,
+    "restore": true
+  },
+  "readback_matches_source": true,
+  "live": {
+    "flow": "NORMAL",
+    "lockout": "off",
+    "master": "on",
+    "relay": "on",
+    "burngas": "on",
+    "block_c": 42.4
+  },
+  "boiler_parameter_writes": 0
+}
