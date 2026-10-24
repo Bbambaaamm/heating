@@ -181,6 +181,7 @@ class LockoutLimitRuntimeTests(unittest.IsolatedAsyncioTestCase):
         timer=runtime.read('heating/control/lockout_limit_10m.yaml')['timer']['heating_lockout_limit_10m']
         self.assertEqual(timer['duration'],'00:10:00')
         self.assertIs(timer['restore'],True)
+        self.assertEqual(timer['icon'],'mdi:timer-lock-outline')
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 timer:
   heating_lockout_limit_10m:
     name: Heating lockout limit 10m
+    icon: mdi:timer-lock-outline
     duration: 00:10:00
     restore: true
 automation:
