@@ -38,15 +38,15 @@
     },
     {
       "id": "S06",
-      "severity": "medium",
-      "description": "Hořák ON bez relay requestu a mimo TUV je unattributed heat.",
+      "severity": "high",
+      "description": "Na této instalaci kotel nezajišťuje TUV. Hořák ON bez požadavku topného relé je nevysvětlený start i při EMS TUV příznacích; vyžaduje diagnostiku.",
       "kind": "state",
       "rule": "gas_without_request_is_unattributed"
     },
     {
       "id": "S07",
       "severity": "medium",
-      "description": "TUV kontext vylučuje hydraulické závěry o prostorovém vytápění.",
+      "description": "EMS TUV příznaky označují hlášený interní stav regulátoru, nikoli fyzický odběr TUV (vodu zajišťují samostatné karmy). Přepnutí hydraulické cesty je nutné ověřit samostatně.",
       "kind": "context",
       "rule": "dhw_excludes_space_heat_inference"
     },
@@ -141,5 +141,11 @@
       "kind": "permission",
       "rule": "child_capabilities_subset_parent"
     }
-  ]
+  ],
+  "site_facts": {
+    "boiler_serves_dhw": false,
+    "domestic_hot_water_source": "samostatné karmy v koupelnách",
+    "confirmed_by_user_on": "2026-10-13",
+    "interpretation": "EMS wwcharging/tapwateractive/ww3wayvalve are controller signals, not evidence that the boiler supplies domestic hot water. Burner ON while heating relay OFF must be investigated, even with these signals."
+  }
 }

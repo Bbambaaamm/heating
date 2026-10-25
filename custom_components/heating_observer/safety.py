@@ -76,11 +76,33 @@ class SafetySentinel:
             if missing:
                 warning("S05", "critical telemetry incomplete during active heating: " + ", ".join(sorted(set(missing))))
 
-        if gas is True and relay is False and not self._dhw(sample):
-            warning("S06", "burner is ON without space-heating relay request and outside DHW context", "medium")
+        # This specific installation has NO boiler-supplied domestic hot water.
+        # EMS DHW signals describe its internal state, not evidence of hot-water use.
+        site_facts = self.invariants.get("site_facts", {})
+        no_boiler_dhw = site_facts.get("boiler_serves_dhw") is False
+        ems_dhw_signal = self._dhw(sample)
 
-        if self._dhw(sample):
-            notes.append({"invariant": "S07", "message": "DHW context present; space-heating hydraulic inference excluded"})
+        if gas is True and relay is False and (no_boiler_dhw or not ems_dhw_signal):
+            warning(
+                "S06",
+                "burner ON with space-heating relay OFF: unexplained boiler start; "
+                "EMS DHW flags do not establish legitimate DHW use at this site"
+                if no_boiler_dhw else
+                "burner ON without space-heating request or EMS DHW indication",
+                "high" if no_boiler_dhw else "medium",
+            )
+
+        if ems_dhw_signal:
+            notes.append({
+                "invariant": "S07",
+                "message": (
+                    "EMS reports internal DHW state but this boiler supplies no DHW "
+                    "to the site; verify controller, 3-way valve and hydraulics, "
+                    "do not attribute start to hot-water use"
+                    if no_boiler_dhw else
+                    "EMS DHW context present; space-heating hydraulic inference excluded"
+                ),
+            })
 
         if runtime.get("actuator_control") is not False:
             violation("S08", "agent actuator_control is not explicitly false")
