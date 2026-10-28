@@ -75,7 +75,10 @@ class V4RelayLockoutGuardRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(package_matches, [], "A package must not duplicate the root/UI guard")
         cfg = self.guard()
         self.assertEqual(cfg["id"], GUARD_ID)
-        self.assertEqual(root_matches[0], cfg, "Installed root/UI guard must match the fixture")
+        # This fixture preserves the historical lockout-only regression.
+        # The current root adds thermal/zone gates, covered by
+        # test_v4_single_zone_policy_runtime against the actual root pair.
+        self.assertEqual(root_matches[0]["action"], cfg["action"])
         PLATFORM_SCHEMA(deepcopy(cfg))
         self.assertTrue(cfg["initial_state"])
         self.assertEqual(cfg["action"], [{

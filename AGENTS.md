@@ -17,6 +17,8 @@
 
 ## Bezpečnost a změnové řízení
 
+- **Potvrzená politika uživatele: jedna aktivní žádající zóna smí být legitimním požadavkem na topení.** Start a nezávislý OFF guard musí respektovat stejný efektivní helper počtu zón; při hodnotě 1 nesmí druhý vlastník skrytě vynucovat 2. Zachovat ostatní aktuální kontroly poruchy, EMS, teploty a obnovy. Počet zón není důkaz fyzického průtoku. Změnu obou stran ověřovat společným runtime testem proti root zdrojům, ne pouze samostatnými historickými kandidátními fixtures.
+
 - **Trvalé zadání uživatele 2026-10-24: Git a HA mají být 1:1.** Každou schválenou změnu živé konfigurace topení uložit také do `Bbambaaamm/heating` a dokončit její začlenění do `main`; pouhý lokální commit ani nezkontrolovaná větev nestačí. Uživatel výslovně schválil odesílání změn do tohoto repozitáře jako součást synchronizace. Po nasazení znovu načíst změněné objekty z HA a porovnat je se zdrojem, včetně helperů a zapnutí automatizací. Nesoulad nebo blokované odeslání vždy uvést a netvrdit úplnou shodu bez kontroly. Synchronizují se konfigurace; průběžné provozní hodnoty nejsou zdrojovou konfigurací. Tento souhlas neopravňuje k zápisům do interních parametrů kotle ani k publikování přístupových údajů.
 
 - **Výslovná změna uživatele 2026-10-24:** softwarový zámek trvá nejvýše 10 minut a potom se vždy automaticky zruší. Časovač se přechodem mezi stavy neprodlužuje. Zrušení historického zámku není povel k zapálení: běžný vlastník relé zachovává kontrolu aktuální poruchy, EMS, teploty a požadavků zón. Aktivní nouzové chlazení pokračuje do vychladnutí. Toto výslovné zadání nahrazuje dřívější zákaz automatického zrušení historického HARD_LOCKOUT; zákaz EMS zápisů a přímého nuceného sepnutí relé dál platí.

@@ -87,6 +87,11 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
                 actual = deepcopy(self.by_id[snapshot["id"]])
                 actual = deepcopy(actual)
                 expected = deepcopy(snapshot["config"])
+                if snapshot["id"] == "1791376426962":
+                    # Keep October 9 immutable. The unchanged live start was
+                    # read again on October 28 while fixing its OFF peer.
+                    reviewed = json.loads((ROOT / "docs/v4-relay-policy-config-2026-10-28.json").read_text())
+                    expected = reviewed["objects"]["automation.kotel_v4_bezpecny_start_podle_politiky"]["config"]
                 if snapshot["id"] == "1790189620167":
                     # Preserve the old snapshot boundary around the new timeout
                     # branch; its behavior has independent native HA regressions.

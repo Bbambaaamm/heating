@@ -282,8 +282,12 @@ class ConfirmedZoneStartRuntimeTests(original_start.LiveV4StartRuntimeTests):
         cfg = runtime.read(START)
         stripped = [s for s in cfg["action"] if "variables" not in s
                     and s.get("value_template") != "{{ confirmed_zone_policy_ok }}"]
-        self.assertEqual(stripped, old["action"])
-        self.assertEqual(cfg["trigger"][:len(old["trigger"])], old["trigger"])
+        old_stripped = [s for s in old["action"] if "variables" not in s
+                        and s.get("value_template") != "{{ confirmed_zone_policy_ok }}"]
+        self.assertEqual(stripped, old_stripped)
+        base_triggers = lambda row: [t for t in row["trigger"]
+                                    if t.get("id") not in ("confirmed_policy_ready", "confirmed_policy_blocked")]
+        self.assertEqual(base_triggers(cfg), base_triggers(old))
         self.assertEqual(cfg["mode"], "restart")
         self.assertEqual(cfg["condition"], old["condition"])
         self.assertEqual([a for a in cfg["action"] if "action" in a],

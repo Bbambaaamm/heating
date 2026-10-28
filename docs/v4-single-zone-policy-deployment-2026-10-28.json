@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-28",
+  "deployed_at": "2026-10-28T12:39:31+01:00",
+  "scope": "existing OFF guard policy variable and description only",
+  "tests": {
+    "protective_checks": "PASS",
+    "homeassistant_2026_5_1": {
+      "tests": 437,
+      "status": "PASS",
+      "clean_install_version_verified": true
+    },
+    "homeassistant_2026_9_2": {
+      "tests": 437,
+      "status": "PASS"
+    }
+  },
+  "objects": {
+    "automation.kotel_v4_bezpecny_start_podle_politiky": {
+      "config_hash": "a2ba1090b6ef13a8",
+      "state": "on",
+      "config_matches_reviewed_source": true,
+      "live_changed": false
+    },
+    "automation.topeni_v4_nezavisla_blokace_rele_pri_lockoutu": {
+      "config_hash": "a768084afb759037",
+      "state": "on",
+      "config_matches_reviewed_source": true,
+      "live_changed": true
+    }
+  },
+  "limits": [
+    "This is parity evidence for the two named automation objects, not all HA configuration.",
+    "heating/policy/policy_effective.yaml in Git still clamps the effective minimum to two; current HA reports one in Auto. Full current YAML could not be read through the available HA tools; this gap remains open before step 1 is closed.",
+    "No physical contact or hydraulic flow test was performed."
+  ]
+}

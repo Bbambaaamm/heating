@@ -30,8 +30,9 @@ class V4RelayThermalGuardRuntimeTests(original.V4RelayLockoutGuardRuntimeTests):
         root = runtime.read("configuration.yaml")
         matches = [a for a in root["automation"] if str(a.get("id")) == original.GUARD_ID]
         self.assertEqual(len(matches), 1)
-        # A candidate fixture must not imply that the published root is deployed.
-        self.assertEqual(matches[0], runtime.read(original.GUARD_FIXTURE))
+        # Keep this historical thermal fixture independent of the now-current
+        # root confirmed-zone policy; production is tested as its own pair.
+        self.assertEqual(matches[0]["action"], runtime.read(original.GUARD_FIXTURE)["action"])
         self.assertEqual(cfg["id"], matches[0]["id"])
         self.assertEqual(cfg["action"], matches[0]["action"])
         self.assertEqual(cfg["action"], [{"action":"switch.turn_off", "target":{"entity_id":RELAY}}])

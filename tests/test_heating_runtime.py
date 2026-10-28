@@ -201,6 +201,16 @@ class HeatingRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.hass.states.async_all("automation")), len(automations))
 
     def boiler_inputs(self, requested=True, relay="off"):
+        # Active start also validates individual heat-needed feedback. Seed
+        # explicit fake feedback rather than relying on an aggregate demand.
+        self.set("group.topne_zony", "on", entity_id=[f"climate.{z}" for z in ZONES])
+        self.set("input_number.kotel_min_zone_demand_pct", "5")
+        self.set("sensor.kotel_effective_min_active_zones", "2")
+        self.set("sensor.kotel_effective_min_avg_demand_pct", "15")
+        for index, zone in enumerate(ZONES):
+            self.set(f"binary_sensor.zona_{zone}_aktivni", "on")
+            self.set(f"binary_sensor.{zone}_potrebne_teplo", "on" if index < 2 else "off")
+            self.set(f"sensor.zona_{zone}_demand", "90" if index < 2 else "0")
         for entity, value in {
             "binary_sensor.kotel_threshold_all_ok": "on" if requested else "off",
             "binary_sensor.kotel_should_be_on": "on" if requested else "off",
