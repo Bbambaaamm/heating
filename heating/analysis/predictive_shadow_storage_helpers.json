@@ -1,0 +1,22 @@
+{
+  "storage": "UI-managed; configuration export only, not a YAML package",
+  "helpers": [
+    {
+      "helper_type": "input_datetime",
+      "id": "predictive_heating_last_attempt",
+      "entity_id": "input_datetime.predictive_heating_last_attempt",
+      "name": "Predikce – poslední pokus",
+      "has_date": true,
+      "has_time": true
+    },
+    {
+      "helper_type": "input_text",
+      "id": "predictive_heating_run_status",
+      "entity_id": "input_text.predictive_heating_run_status",
+      "name": "Predikce – úplnost přepočtu",
+      "min": 0,
+      "max": 255,
+      "mode": "text"
+    }
+  ]
+}
