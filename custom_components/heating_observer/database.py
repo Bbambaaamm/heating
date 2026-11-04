@@ -346,6 +346,13 @@ class AgentDatabase:
                     "dhw": sample.get("dhw"),
                     "dhw_recharging": sample.get("dhw_recharging"),
                     "dhw_valve": sample.get("dhw_valve"),
+                    "tapwater_active": sample.get("tapwater_active"),
+                    "ww_activated": sample.get("ww_activated"),
+                    "flow_state_v4": sample.get("flow_state_v4"),
+                    "diagnostic_context_reported_at": {k: sample.get("reported_at", {}).get(k)
+                        for k in ("tapwater_active", "ww_activated", "flow_state_v4")},
+                    "diagnostic_context_changed_at": {k: sample.get("changed_at", {}).get(k)
+                        for k in ("tapwater_active", "ww_activated", "flow_state_v4")},
                     "boiler_block_temperature": sample.get("block"),
                     "flow_temperature": sample.get("flow"),
                     "burner_power": sample.get("power"),

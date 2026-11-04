@@ -49,6 +49,13 @@ diagnostická větev nezávisí na způsobilosti cyklu pro učení ani na master
 Hrany proudu a změny dostupnosti/jednotek se zaznamenávají okamžitě; běžné
 kolísání mezi kladnými hodnotami používá existující periodický odběr vzorků,
 aby každá změna proudu nevytvářela další úplný snímek všech zón.
+Klidový odběr vzorků je omezen nejvýše 30 sekundami a polovinou nastavené
+mezery telemetrie (zaokrouhleno skutečným intervalem odběru). Původních 60 s
+mohlo při 45s limitu přerušit diagnostiku i za běžícího monitoru. Tato změna
+zvyšuje počet klidových záznamů; provozní velikost DB je třeba dále sledovat.
+Zachycují se také `binary_sensor.boiler_tapwateractive`,
+`switch.boiler_wwactivated` a `input_select.heating_flow_state_v4`, včetně
+zdrojových časů změny a přijetí. První dva vstupy jsou pouze čteny.
 
 - Pozorovaná hrana gas OFF→ON nebo proudu 0→kladný vytvoří podklad zapálení.
   Jde o hlášený signál; kladný proud sám není měřením fyzického kontaktu relé.
@@ -57,6 +64,8 @@ aby každá změna proudu nevytvářela další úplný snímek všech zón.
   Čítač může přijít před hranou i po ní; podklad si ponechá časy a původní stav
   relé u hrany. Nová hrana stejného signálu vytváří nový start. Okno 120 s je
   pracovní předpoklad časové korelace, nikoli důkaz společné fyzické příčiny.
+  Pozorované zhasnutí odděluje starty: nová ionizační hrana po gas OFF/proudu
+  nula se nesloučí s dřívějším startem při relé ON.
 - Čítač bez přiřaditelné hrany zaznamená neatributovaný přírůstek s neznámým
   relé v okamžiku zapálení. Příchod zprávy při relé OFF nedokazuje, že při OFF
   také vznikl start. Celkový čítač a podčítače heat/WW se nesčítají.

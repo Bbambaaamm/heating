@@ -179,14 +179,14 @@ class Runtime:
         now = dt_util.utcnow().timestamp()
         sample = {"t": now, "schema": 1, "version": VERSION, "reason": reason,
                   "revision": self.config["site_revision"], "ages": {}, "zones": {},
-                  "reported_at": {}, "gap": self.capture_gap,
+                  "reported_at": {}, "changed_at": {}, "gap": self.capture_gap,
                   "pi_report_freshness_verified": False}
         self.capture_gap = False
         for key, entity_id in INPUTS.items():
             raw, state = self._read(entity_id)
-            if key in ("gas", "pump", "relay", "master", "service", "policy", "boost", "dhw", "dhw_recharging", "dhw_valve"):
+            if key in ("gas", "pump", "relay", "master", "service", "policy", "boost", "dhw", "dhw_recharging", "dhw_valve", "tapwater_active", "ww_activated"):
                 value = True if raw == "on" else False if raw == "off" else None
-            elif key == "mode":
+            elif key in ("mode", "flow_state_v4"):
                 value = raw
             else:
                 value = number(raw)
@@ -195,6 +195,7 @@ class Runtime:
                 sample[key] = None
             reported = state.last_reported.timestamp() if state else None
             sample["reported_at"][key] = reported
+            sample["changed_at"][key] = state.last_changed.timestamp() if state else None
             if key in ("block", "flow"):
                 sample["ages"][key] = now - reported if raw is not None and reported else None
                 if state and state.attributes.get("unit_of_measurement") not in ("°C", "C"):
@@ -276,7 +277,10 @@ class Runtime:
             return
         sample = self.snapshot(reason)
         if reason == "interval" and not (sample.get("gas") or sample.get("relay") or sample.get("pump") or self.engine.data["active"]):
-            if sample["t"] - self.last_idle_at < 60:
+            # Retained idle observations must stay inside the diagnostic
+            # continuity budget: a 60s throttle would hide edges with a 45s gap.
+            idle_seconds = min(30, self.config["telemetry_gap_seconds"] / 2)
+            if sample["t"] - self.last_idle_at < idle_seconds:
                 self.capture_gap |= sample["gap"]
                 return
             self.last_idle_at = sample["t"]

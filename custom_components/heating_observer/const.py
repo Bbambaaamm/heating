@@ -30,6 +30,9 @@ INPUTS = {
     "dhw": "binary_sensor.boiler_wwcharging",
     "dhw_recharging": "binary_sensor.boiler_wwrecharging",
     "dhw_valve": "binary_sensor.boiler_ww3wayvalve",
+    "tapwater_active": "binary_sensor.boiler_tapwateractive",
+    "ww_activated": "switch.boiler_wwactivated",
+    "flow_state_v4": "input_select.heating_flow_state_v4",
     "relay": "switch.kotel_rele_spinac",
     "master": "input_boolean.topny_system_enable",
     "service": "input_boolean.heating_service_mode",
@@ -53,6 +56,7 @@ CRITICAL = (
         "block", "flow", "code", "gas", "pump", "relay", "master", "service",
         "ion_current", "burn_starts", "heat_starts", "ww_starts",
         "mode", "dhw", "dhw_recharging", "dhw_valve", "policy", "active_zones",
+        "tapwater_active", "ww_activated", "flow_state_v4",
         "average_demand", "minimum_zones", "minimum_demand", "minimum_zone_demand",
     ))
     + (ZONE_GROUP,)

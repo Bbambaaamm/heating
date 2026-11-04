@@ -74,6 +74,37 @@ class IgnitionEvidenceTests(unittest.TestCase):
         s=sample(40); s['burn_starts']=102; self.d.feed(s)
         self.assertTrue(all('burn_starts' in r['counter_deltas'] for r in self.d.report()['recent']))
 
+    def test_new_ion_edge_after_observed_shutdown_cannot_join_old_relay_on_burn(self):
+        first=sample(10); first.update(gas=True,relay=True)
+        self.d.feed(first)
+        self.d.feed(sample(20))  # Explicit gas OFF and ion zero.
+        next_burn=sample(30); next_burn['ion_current']=54.9
+        self.d.feed(next_burn)
+        report=self.d.report()
+        self.assertEqual(report['observed_starts'],2)
+        self.assertEqual(report['relay_off_starts'],1)
+        self.assertEqual([r['classification'] for r in report['recent']],
+                         ['relay_on','unexplained_relay_off'])
+
+    def test_required_ems_and_flow_context_includes_source_timestamps(self):
+        s=sample(10); s.update(gas=True,tapwater_active=True,ww_activated=False,flow_state_v4='NORMAL',
+                              reported_at={'ww_activated':1800000001},changed_at={'ww_activated':1790000000})
+        self.d.feed(s)
+        record=self.d.report()['recent'][0]
+        self.assertTrue(record['at_start']['tapwater_active'])
+        self.assertFalse(record['at_start']['ww_activated'])
+        self.assertEqual(record['at_start']['flow_state_v4'],'NORMAL')
+        self.assertEqual(record['at_start_reported_at']['ww_activated'],1800000001)
+        self.assertEqual(record['at_start_changed_at']['ww_activated'],1790000000)
+
+    def test_delayed_positive_current_at_gas_off_is_not_a_new_start(self):
+        first=sample(10); first.update(gas=True,relay=True)
+        self.d.feed(first)
+        delayed=sample(20); delayed['ion_current']=54.9
+        self.d.feed(delayed)
+        self.assertEqual(self.d.report()['observed_starts'],1)
+        self.assertEqual(self.d.report()['relay_off_starts'],0)
+
     def test_restart_reconnect_and_gaps_do_not_manufacture_starts(self):
         s=sample(10); s.update(gas=True, ion_current=54)
         for first in (True, None):
@@ -125,7 +156,8 @@ class IgnitionEvidenceTests(unittest.TestCase):
         self.assertEqual(Observer('test',saved).report()['ignition_evidence']['observed_starts'],0)
 
     def test_input_listeners_include_all_new_channels(self):
-        for key in ('ion_current','burn_starts','heat_starts','ww_starts'):
+        for key in ('ion_current','burn_starts','heat_starts','ww_starts',
+                    'tapwater_active','ww_activated','flow_state_v4'):
             self.assertIn(INPUTS[key],CRITICAL)
 
     def test_counters_after_gap_cannot_corroborate_an_earlier_start(self):

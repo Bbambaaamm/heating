@@ -8,7 +8,8 @@ from uuid import uuid4
 
 COUNTERS = ("burn_starts", "heat_starts", "ww_starts")
 CONTEXT = ("relay", "gas", "ion_current", "pump", "block", "flow", "code",
-           "dhw", "dhw_recharging", "dhw_valve", *COUNTERS)
+           "dhw", "dhw_recharging", "dhw_valve", "tapwater_active", "ww_activated",
+           "flow_state_v4", *COUNTERS)
 
 
 def numeric(value):
@@ -38,6 +39,7 @@ class IgnitionEvidence:
         self.telemetry_gap = telemetry_gap
         self.correlate_after = None
         self.pending_counters = []
+        self.burn_ended_at = None
 
     def feed(self, sample):
         t = sample["t"]
@@ -46,6 +48,7 @@ class IgnitionEvidence:
         if (prev is None or sample.get("gap") or not 0 < t - prev["t"] <= self.telemetry_gap):
             self.correlate_after = t
             self.pending_counters.clear()
+            self.burn_ended_at = None
             return []
         events = []
         changed = {}
@@ -53,6 +56,8 @@ class IgnitionEvidence:
         if prev.get("gas") is False and sample.get("gas") is True:
             edges.append("gas")
         old_ion, ion = numeric(prev.get("ion_current")), numeric(sample.get("ion_current"))
+        if sample.get("gas") is False and (ion == 0 or (prev.get("gas") is True and ion is None)):
+            self.burn_ended_at = t
         if (old_ion == 0 and ion is not None and ion > 0
                 and not (prev.get("gas") is True and sample.get("gas") is True)):
             edges.append("ion_current")
@@ -64,6 +69,7 @@ class IgnitionEvidence:
             record = recent[-1] if recent else None
             if (not record or record["kind"] != "ignition"
                     or record["t"] < self.correlate_after
+                    or (self.burn_ended_at is not None and record["t"] <= self.burn_ended_at)
                     or not 0 <= t - record["t"] <= 120
                     or channel in record["signals"]):
                 self.data["sequence"] += 1
@@ -76,6 +82,8 @@ class IgnitionEvidence:
                     "classification": "unexplained_relay_off" if off else "relay_on" if relay is True else "relay_unknown",
                     "signals": [], "counter_deltas": {},
                     "at_start": {k: sample.get(k) for k in CONTEXT},
+                    "at_start_reported_at": {k: sample.get("reported_at", {}).get(k) for k in CONTEXT},
+                    "at_start_changed_at": {k: sample.get("changed_at", {}).get(k) for k in CONTEXT},
                     "physical_contact_verified": False, "root_cause": "UNKNOWN",
                 }
                 recent.append(record)
@@ -90,6 +98,7 @@ class IgnitionEvidence:
         if sample.get("gas") is True and ion is not None and ion > 0:
             record = self.data["recent"][-1] if self.data["recent"] else None
             if (record and self.correlate_after <= record["t"] <= t
+                    and (self.burn_ended_at is None or record["t"] > self.burn_ended_at)
                     and t - record["t"] <= 120 and "ion_current" not in record["signals"]):
                 record["signals"].append("ion_current")
                 record["last_context"] = {k: sample.get(k) for k in CONTEXT}
