@@ -76,11 +76,11 @@ class SafetySentinel:
             if missing:
                 warning("S05", "critical telemetry incomplete during active heating: " + ", ".join(sorted(set(missing))))
 
-        if gas is True and relay is False and not self._dhw(sample):
-            warning("S06", "burner is ON without space-heating relay request and outside DHW context", "medium")
+        if gas is True and relay is False:
+            warning("S06", "unexplained reported burner ON with heating relay OFF; EMS WW flags do not establish a legitimate demand or physical relay contact state", "medium")
 
         if self._dhw(sample):
-            notes.append({"invariant": "S07", "message": "DHW context present; space-heating hydraulic inference excluded"})
+            notes.append({"invariant": "S07", "message": "EMS WW context observed; this installation has no boiler DHW supply. Demand, physical flow and root cause remain unconfirmed."})
 
         if runtime.get("actuator_control") is not False:
             violation("S08", "agent actuator_control is not explicitly false")

@@ -349,6 +349,8 @@ class AgentDatabase:
                     "boiler_block_temperature": sample.get("block"),
                     "flow_temperature": sample.get("flow"),
                     "burner_power": sample.get("power"),
+                    "ion_current_ua": sample.get("ion_current"),
+                    "hardware_start_counters": {k: sample.get(k) for k in ("burn_starts", "heat_starts", "ww_starts")},
                     "service_code": sample.get("code"),
                     "zones": sample.get("zones", {}),
                     "quality": self._quality(sample),
@@ -444,6 +446,13 @@ class AgentDatabase:
 
             incident_ids: dict[str, str] = {}
             for event in observer_events:
+                if event.get("kind") in ("ignition_evidence", "ignition_counter_unattributed"):
+                    self._event(
+                        db, "heating." + event["kind"] + ".v1", float(event["t"]),
+                        "heating_observer", event,
+                        correlation_id=(event.get("ignition") or {}).get("id"),
+                        causation_id=snapshot_event_id,
+                    )
                 if event.get("kind") != "incident_open":
                     continue
                 incident_id = event.get("incident_id") or str(uuid4())

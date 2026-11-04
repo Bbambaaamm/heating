@@ -1,0 +1,199 @@
+{
+  "success": true,
+  "action": "get",
+  "automation_id": "automation.predictive_heating_shadow_prepocet",
+  "config": {
+    "id": "predictive_heating_shadow_recalc",
+    "alias": "Predictive Heating – Shadow přepočet",
+    "description": "Shadow-only predikce předtápění. Čte Scheduler, teploty a hodinovou předpověď; zapisuje pouze stavové helpery a heartbeat. Nikdy neovládá hlavice, central dispatch ani relé kotle.",
+    "triggers": [
+      {
+        "trigger": "homeassistant",
+        "event": "start"
+      },
+      {
+        "trigger": "time_pattern",
+        "minutes": "/5"
+      },
+      {
+        "trigger": "state",
+        "entity_id": [
+          "input_boolean.predictive_heating_enable",
+          "input_boolean.predictive_heating_shadow_mode"
+        ],
+        "to": "on"
+      },
+      {
+        "trigger": "state",
+        "entity_id": [
+          "input_boolean.sklep_michal_schedule_active",
+          "input_boolean.prizemi_michal_schedule_active",
+          "input_boolean.prizemi_chodba_zachod_schedule_active",
+          "input_boolean.1p_jidelna_schedule_active",
+          "input_boolean.1p_kuchyn_schedule_active",
+          "input_boolean.1p_koupelna_schedule_active",
+          "input_boolean.1p_chodba_schedule_active",
+          "input_boolean.2p_mama_schedule_active"
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "condition": "state",
+        "entity_id": "input_boolean.predictive_heating_enable",
+        "state": "on"
+      },
+      {
+        "condition": "state",
+        "entity_id": "input_boolean.predictive_heating_shadow_mode",
+        "state": "on"
+      }
+    ],
+    "actions": [
+      {
+        "action": "weather.get_forecasts",
+        "target": {
+          "entity_id": "weather.forecast_domov"
+        },
+        "data": {
+          "type": "hourly"
+        },
+        "response_variable": "ph_hourly"
+      },
+      {
+        "repeat": {
+          "for_each": "{{ zones }}",
+          "sequence": [
+            {
+              "variables": {
+                "zone": "{{ repeat.item.z }}",
+                "temp_sensor": "{{ repeat.item.temp }}",
+                "schedule_helper": "{{ repeat.item.schedule }}",
+                "status_helper": "{{ repeat.item.status }}",
+                "comfort_helper": "{{ 'input_number.' ~ repeat.item.z ~ '_last_comfort' }}",
+                "enable_helper": "{{ 'input_boolean.schedule_enable_' ~ repeat.item.z }}"
+              }
+            },
+            {
+              "variables": {
+                "rate_cph": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_learned_rate') | float(repeat.item.rate | float(1.5)) }}",
+                "bias_min": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_bias_min') | float(0) }}",
+                "learning_samples": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_samples') | int(0) }}",
+                "delivery_score": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_delivery_score') | float(0) }}",
+                "previous_error": "{% set n=states('input_number.ph_' ~ repeat.item.z ~ '_samples')|int(0) %}\n{% set e=states('input_number.ph_' ~ repeat.item.z ~ '_last_error')|float(default=none) %}\n{% if n > 0 and e is number %}{{ ('+' if e > 0 else '') ~ (e|round(1)|string|replace('.',',')) ~ ' °C' }}{% else %}—{% endif %}",
+                "mae_text": "{% set n=states('input_number.ph_' ~ repeat.item.z ~ '_samples')|int(0) %}\n{% set m=states('input_number.ph_' ~ repeat.item.z ~ '_mae')|float(default=none) %}\n{% if n > 0 and m is number %}{{ (m|round(2)|string|replace('.',',')) ~ ' °C' }}{% else %}—{% endif %}",
+                "coast_gain": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_coast_gain')|float(0) }}",
+                "coast_samples": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_coast_samples')|int(0) }}"
+              }
+            },
+            {
+              "variables": {
+                "next_comfort_ts": "{% set schedule=repeat.item.schedule %}\n{% set ns=namespace(ts=none) %}\n{% for s in states.switch %}\n  {% set entities=state_attr(s.entity_id,'entities') or [] %}\n  {% set next_slot=state_attr(s.entity_id,'next_slot') %}\n  {% set acts=state_attr(s.entity_id,'actions') or [] %}\n  {% set nt=state_attr(s.entity_id,'next_trigger') %}\n  {% if s.state == 'on' and schedule in entities and next_slot is number and nt and next_slot < acts|length and acts[next_slot].service == 'input_boolean.turn_on' %}\n    {% set cand=as_timestamp(nt,none) %}\n    {% if cand is not none and cand > as_timestamp(now()) and (ns.ts is none or cand < ns.ts) %}{% set ns.ts=cand %}{% endif %}\n  {% endif %}\n{% endfor %}\n{{ ns.ts if ns.ts is not none else 'none' }}"
+              }
+            },
+            {
+              "variables": {
+                "forecast_temp": "{% set target_ts=next_comfort_ts|float(default=none) %}\n{% set fc=(ph_hourly.get('weather.forecast_domov',{}).get('forecast',[]) if ph_hourly is mapping else []) %}\n{% set ns=namespace(diff=999999999,temp=none) %}\n{% if target_ts is not none %}\n  {% for f in fc %}\n    {% set ft=as_timestamp(f.datetime,none) %}\n    {% if ft is not none and (ft-target_ts)|abs < ns.diff %}\n      {% set ns.diff=(ft-target_ts)|abs %}{% set ns.temp=f.temperature|float(default=none) %}\n    {% endif %}\n  {% endfor %}\n{% endif %}\n{{ ns.temp if ns.temp is not none else state_attr('weather.forecast_domov','temperature')|float(10) }}",
+                "forecast_wind": "{% set target_ts=next_comfort_ts|float(default=none) %}\n{% set fc=(ph_hourly.get('weather.forecast_domov',{}).get('forecast',[]) if ph_hourly is mapping else []) %}\n{% set ns=namespace(diff=999999999,val=none) %}\n{% if target_ts is not none %}\n  {% for f in fc %}\n    {% set ft=as_timestamp(f.datetime,none) %}\n    {% if ft is not none and (ft-target_ts)|abs < ns.diff %}\n      {% set ns.diff=(ft-target_ts)|abs %}{% set ns.val=f.wind_speed|float(default=none) %}\n    {% endif %}\n  {% endfor %}\n{% endif %}\n{{ ns.val if ns.val is not none else state_attr('weather.forecast_domov','wind_speed')|float(0) }}",
+                "forecast_cloud": "{% set target_ts=next_comfort_ts|float(default=none) %}\n{% set fc=(ph_hourly.get('weather.forecast_domov',{}).get('forecast',[]) if ph_hourly is mapping else []) %}\n{% set ns=namespace(diff=999999999,val=none) %}\n{% if target_ts is not none %}\n  {% for f in fc %}\n    {% set ft=as_timestamp(f.datetime,none) %}\n    {% if ft is not none and (ft-target_ts)|abs < ns.diff %}\n      {% set ns.diff=(ft-target_ts)|abs %}{% set ns.val=f.cloud_coverage|float(default=none) %}\n    {% endif %}\n  {% endfor %}\n{% endif %}\n{{ ns.val if ns.val is not none else state_attr('weather.forecast_domov','cloud_coverage')|float(50) }}"
+              }
+            },
+            {
+              "variables": {
+                "lead_minutes": "{% set current=states(temp_sensor)|float(default=none) %}\n{% set target=states(comfort_helper)|float(default=none) %}\n{% set out=forecast_temp|float(10) %}\n{% set wind=forecast_wind|float(0) %}\n{% set cloud=forecast_cloud|float(50) %}\n{% set rate=rate_cph|float(1.5) %}\n{% set bias=bias_min|float(0) %}\n{% set samples=learning_samples|int(0) %}\n{% set delivery=delivery_score|float(0) %}\n{% if current is none or target is none or target > 27 or target <= current + 0.2 or rate <= 0 %}\n0\n{% else %}\n  {% set gap=target-current %}\n  {% set base=(gap/rate*60) %}\n  {% set cold=1.30 if out < 0 else 1.20 if out < 5 else 1.10 if out < 10 else 1.0 %}\n  {% set windf=0.12 if wind >= 25 else 0.07 if wind >= 15 else 0.03 if wind >= 8 else 0 %}\n  {% set sunf=-0.05 if cloud < 25 and out > 5 else 0 %}\n  {% set deliveryf=0.10 if samples >= 2 and delivery < 40 else 0.05 if samples >= 2 and delivery < 60 else 0 %}\n  {% set raw=base*(cold+windf+sunf+deliveryf)+10+bias %}\n  {{ [[raw|round(0),0]|max,180]|min }}\n{% endif %}"
+              }
+            },
+            {
+              "variables": {
+                "coast_text": "{% if coast_samples|int > 0 %}\n{% set stop=(states(comfort_helper)|float(0))-(coast_gain|float) %}\ndojezd {{ coast_gain|round(2)|string|replace('.',',') }} °C · Shadow stop ~{{ stop|round(1)|string|replace('.',',') }} °C\n{% else %}dojezd se učí{% endif %}"
+              }
+            },
+            {
+              "variables": {
+                "status_text": "{% set current=states(temp_sensor)|float(default=none) %}\n{% set target=states(comfort_helper)|float(default=none) %}\n{% set nts=next_comfort_ts|float(default=none) %}\n{% set lead=lead_minutes|float(0) %}\n{% if not is_state(enable_helper,'on') %}\nrozvrh vypnutý · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% elif is_state(schedule_helper,'on') %}\nkomfort aktivní {{ (target|string|replace('.',',')) ~ ' °C' if target is not none else '' }} · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% elif current is none or target is none %}\nchybí teplotní data · model chyba {{ previous_error }}\n{% elif target > 27 %}\nmodel blokován: komfort {{ target|string|replace('.',',') }} °C\n{% elif nts is none %}\nčekám na další okno · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% else %}\n  {% set start=nts-lead*60 %}\ncíl {{ nts|timestamp_custom('%H:%M',true) }} / {{ target|string|replace('.',',') }} °C · start {{ start|timestamp_custom('%H:%M',true) }} · {{ lead|round(0)|int }} min · model chyba {{ previous_error }} · MAE {{ mae_text }} · {{ coast_text|trim }}\n{% endif %}"
+              }
+            },
+            {
+              "action": "input_text.set_value",
+              "data": {
+                "entity_id": "{{ status_helper }}",
+                "value": "{{ status_text | trim }}"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "action": "input_datetime.set_datetime",
+        "target": {
+          "entity_id": "input_datetime.predictive_heating_heartbeat"
+        },
+        "data": {
+          "datetime": "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        }
+      }
+    ],
+    "mode": "restart",
+    "variables": {
+      "zones": [
+        {
+          "z": "sklep_michal",
+          "temp": "sensor.sklep_michal_aktualni_teplota",
+          "schedule": "input_boolean.sklep_michal_schedule_active",
+          "status": "input_text.ph_sklep_michal_status",
+          "rate": 7.35
+        },
+        {
+          "z": "prizemi_michal",
+          "temp": "sensor.prizemi_michal_aktualni_teplota",
+          "schedule": "input_boolean.prizemi_michal_schedule_active",
+          "status": "input_text.ph_prizemi_michal_status",
+          "rate": 6.75
+        },
+        {
+          "z": "prizemi_chodba_zachod",
+          "temp": "sensor.prizemi_chodba_zachod_aktualni_teplota",
+          "schedule": "input_boolean.prizemi_chodba_zachod_schedule_active",
+          "status": "input_text.ph_prizemi_chodba_zachod_status",
+          "rate": 1.7
+        },
+        {
+          "z": "1p_jidelna",
+          "temp": "sensor.1_patro_jidelna_aktualni_teplota",
+          "schedule": "input_boolean.1p_jidelna_schedule_active",
+          "status": "input_text.ph_1p_jidelna_status",
+          "rate": 4.46
+        },
+        {
+          "z": "1p_kuchyn",
+          "temp": "sensor.1_patro_kuchyn_aktualni_teplota",
+          "schedule": "input_boolean.1p_kuchyn_schedule_active",
+          "status": "input_text.ph_1p_kuchyn_status",
+          "rate": 2.1
+        },
+        {
+          "z": "1p_koupelna",
+          "temp": "sensor.1_patro_koupelna_aktualni_teplota",
+          "schedule": "input_boolean.1p_koupelna_schedule_active",
+          "status": "input_text.ph_1p_koupelna_status",
+          "rate": 1.38
+        },
+        {
+          "z": "1p_chodba",
+          "temp": "sensor.1_patro_chodba_aktualni_teplota",
+          "schedule": "input_boolean.1p_chodba_schedule_active",
+          "status": "input_text.ph_1p_chodba_status",
+          "rate": 2.61
+        },
+        {
+          "z": "2p_mama",
+          "temp": "sensor.2_patro_mama_aktualni_teplota",
+          "schedule": "input_boolean.2p_mama_schedule_active",
+          "status": "input_text.ph_2p_mama_status",
+          "rate": 5.1
+        }
+      ]
+    }
+  },
+  "config_hash": "d87ddfd4b30c6174"
+}

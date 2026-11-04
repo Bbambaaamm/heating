@@ -8,6 +8,27 @@ Verze 0.1.0 je první pozorovací část návrhu prevence nedostatečného odbě
 Aktivní příprava odběrné větve a řízené dochlazení nejsou touto změnou zapnuty.
 Stávající regulace a poruchové ochrany dále řídí soustavu.
 
+## Verze 0.4.5 — připravená oprava hodnocení a diagnostiky zapálení
+
+Tato verze je návrh k review, nikoli potvrzení nasazení. Postup, rozsah a
+vrácení změn popisuje `docs/shadow-repairs-2026-11-04.md`. Kandidátní oprava
+predikce je mimo načítané balíčky, v `docs/candidates/`.
+
+- Intelligence i Composite Flow-Risk vyžadují včasné zachycení všech
+  validačních poruch a nejvýše 10 % varovaných normálních kontrol (nejméně
+  10 kontrol). Jde o podmínku předání k lidskému review, nikoli statistický
+  důkaz účinnosti nebo povolení aktivní regulace. Výběr pravidla dál používá
+  pouze evidence split; neúspěch holdoutu nevybírá náhradního vítěze.
+- `sensor.heating_agent_ignition` počítá pozorované hrany signálů zapálení při
+  explicitně hlášeném relé OFF. Atributy rozlišují gas/ionizační signál a
+  časově přiřazené hardwarové čítače; samotný růst teploty start nevytváří.
+  Počty začínají instalací této diagnostiky, nejde o historický dopočet.
+- EMS WW příznaky zůstávají diagnostickým kontextem. Safety Sentinel kvůli
+  nim nevynechává varování S06. Instalace nezajišťuje TUV z kotle.
+- Detailní záznamy se ukládají do stávajícího journalu a append-only DB;
+  posledních 50 záznamů je dostupných v atributu `recent`, který HA recorder
+  neukládá. Existující data učení ani `site_revision` se nemažou.
+
 
 ## Verze 0.4.1 — Composite Flow-Risk shadow replay
 

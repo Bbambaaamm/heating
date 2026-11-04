@@ -11,6 +11,8 @@ import math
 import statistics
 from typing import Any
 
+from .ignition import IgnitionEvidence
+
 FAULTS = {2964, 2965, 2966, 2967}
 MODEL_SCHEMA = 1
 CATALOG = "proxy-grid-v1"
@@ -97,6 +99,8 @@ class Observer:
             "episodes": [], "active": None,
         }
         self.previous: dict | None = None
+        self.ignition = IgnitionEvidence(self.data.get("ignition_evidence"), telemetry_gap=telemetry_gap)
+        self.data["ignition_evidence"] = self.ignition.data
         self.request_burns = 0
         self.request_known = False
         self.request_started_at = None
@@ -259,6 +263,7 @@ class Observer:
         if t is None:
             raise ValueError("A finite UTC timestamp is required")
         s["t"] = t
+        self.pending.extend(self.ignition.feed(s))
         previous = self.previous
         if previous and t < previous["t"]:
             s["gap"] = True
@@ -414,6 +419,7 @@ class Observer:
         overshoots = [e["observed_overshoot_k"] for e in episodes
                       if e["observed_overshoot_k"] is not None]
         return {"mode": "shadow_only", "catalog": CATALOG, "revision": self.revision,
+                "ignition_evidence": self.ignition.report(),
                 "generation": self.data["generation"], "episodes_retained": len(episodes),
                 "fault_transitions_lifetime": self.data["fault_transitions"],
                 "fault_clusters_scored": len(faults), "observed_no_fault_scored": len(clean),

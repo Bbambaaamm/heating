@@ -199,6 +199,20 @@ class ReplayAndIntelligenceTests(unittest.TestCase):
         self.assertFalse(candidate["deployment_allowed"])
         self.assertTrue(candidate["requires_human_review"])
 
+    def test_composite_with_only_late_detections_is_not_promising(self):
+        episodes=[composite_episode(i,fault=True) for i in range(4)]
+        for item in episodes:
+            for feature in item["shadow_fault_window"]:
+                feature["start"]=item["fault_at"]-10
+                feature["end"]=item["fault_at"]-1
+        episodes.extend(composite_episode(i,fault=False,matching=False) for i in range(4,44))
+        report=ReplayValidationAgent(self.permissions).run(
+            episodes,revision="test",generation=44,lead_budget=60)
+        composite=report["composite_flow_risk"]
+        self.assertEqual(composite["status"],"CANDIDATE_NEEDS_REFINEMENT")
+        self.assertIn("validation:not_all_faults_detected_in_time",composite["review_failures"])
+        self.assertFalse(composite["deployment_allowed"])
+
 
 class SafetyTests(unittest.TestCase):
     def setUp(self):
@@ -247,6 +261,16 @@ class SafetyTests(unittest.TestCase):
     def test_safe_idle_state_is_ok(self):
         result = self.evaluate(safe_sample())
         self.assertEqual(result["status"], "OK")
+
+    def test_ems_ww_flags_never_exempt_burner_without_relay(self):
+        for flags in ({}, {"dhw": True}, {"dhw_recharging": True}, {"dhw_valve": True},
+                      {"dhw": True, "dhw_recharging": True, "dhw_valve": True}):
+            with self.subTest(flags=flags):
+                result = self.evaluate(safe_sample(gas=True, relay=False, **flags))
+                self.assertIn("S06", [x["invariant"] for x in result["warnings"]])
+                self.assertEqual(result["status"], "WARNING")
+                self.assertFalse(result["actuator_control"])
+                self.assertFalse(result["operating_policy_changed"])
 
 
 class GateTests(unittest.TestCase):

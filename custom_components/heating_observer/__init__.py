@@ -191,6 +191,8 @@ class Runtime:
             else:
                 value = number(raw)
             sample[key] = value
+            if key == "ion_current" and state and state.attributes.get("unit_of_measurement") not in ("µA", "μA", "uA"):
+                sample[key] = None
             reported = state.last_reported.timestamp() if state else None
             sample["reported_at"][key] = reported
             if key in ("block", "flow"):
@@ -287,6 +289,17 @@ class Runtime:
 
     @callback
     def _changed(self, event):
+        if event.data["entity_id"] == INPUTS["ion_current"]:
+            old, new = event.data.get("old_state"), event.data.get("new_state")
+            # Capture edges and availability/unit changes immediately, while
+            # ordinary positive-current jitter uses existing periodic samples.
+            # Do not duplicate full zone snapshots at every ion-current tick.
+            if old is not None and new is not None:
+                before, after = number(old.state), number(new.state)
+                if (before is not None and after is not None and before > 0 and after > 0
+                        and all(s.attributes.get("unit_of_measurement") in ("µA", "μA", "uA")
+                                and not s.attributes.get("restored") for s in (old, new))):
+                    return
         self.enqueue(event.data["entity_id"])
 
     @callback
@@ -329,6 +342,10 @@ class Runtime:
             except Exception as error:
                 self.agent_storage_error = type(error).__name__
                 _LOGGER.exception("Heating agent database cache cannot be loaded")
+        # Re-evaluate retained episodes with the installed review policy. A
+        # cached candidate from an older release must not survive unchanged
+        # merely because the learning generation has not advanced yet.
+        self.last_replay_generation = -1
         self.worker = self.hass.async_create_background_task(self._consume(), DOMAIN)
         self.unsubs.append(async_track_state_change_event(self.hass, CRITICAL, self._changed))
         self.unsubs.append(async_track_time_interval(self.hass, self._interval, timedelta(seconds=self.config["sample_seconds"])))

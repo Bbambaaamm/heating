@@ -39,16 +39,16 @@
     {
       "id": "S06",
       "severity": "medium",
-      "description": "Hořák ON bez relay requestu a mimo TUV je unattributed heat.",
+      "description": "Hlášený hořák ON při relé OFF je nevysvětlený chod i při EMS WW příznacích; stav kontaktu není fyzicky ověřen.",
       "kind": "state",
       "rule": "gas_without_request_is_unattributed"
     },
     {
       "id": "S07",
       "severity": "medium",
-      "description": "TUV kontext vylučuje hydraulické závěry o prostorovém vytápění.",
+      "description": "EMS WW příznaky nepotvrzují legitimní požadavek TUV ani fyzický průtok; instalace TUV z kotle neodebírá.",
       "kind": "context",
-      "rule": "dhw_excludes_space_heat_inference"
+      "rule": "ems_ww_is_unexplained_context_not_demand_proof"
     },
     {
       "id": "S08",
