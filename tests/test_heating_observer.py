@@ -264,7 +264,7 @@ class ObserverEngineTests(unittest.TestCase):
         self.assertEqual(
             sorted(p.stem for p in root.glob("*.py")),
             ["__init__", "agents", "const", "cycle", "database", "engine", "gates",
-             "intelligence", "optimization", "permissions", "replay", "safety", "sensor",
+             "ignition", "intelligence", "optimization", "permissions", "replay", "safety", "sensor",
              "storage", "watchdog"],
         )
 
@@ -285,8 +285,8 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.calls = []
         self.hass.bus.async_listen("call_service", lambda event: self.calls.append(event.data))
         for key, entity in INPUTS.items():
-            value = ("off" if key in ("gas", "pump", "relay", "service", "boost", "dhw", "dhw_recharging", "dhw_valve") else
-                     "on" if key in ("master", "policy") else "Auto" if key == "mode" else
+            value = ("off" if key in ("gas", "pump", "relay", "service", "boost", "dhw", "dhw_recharging", "dhw_valve", "tapwater_active", "ww_activated") else
+                     "on" if key in ("master", "policy") else "Auto" if key == "mode" else "NORMAL" if key == "flow_state_v4" else
                      "203" if key == "code" else "25")
             self.hass.states.async_set(entity, value, {"unit_of_measurement": "°C"} if key in ("block", "flow") else {})
         for zone in ZONES:
@@ -332,6 +332,99 @@ class ObserverRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await self.drain()
         self.assertIn("invalid_block", self.engine.current_quality)
         self.assertIsNone(self.engine.previous["block"])
+        self.assertEqual(self.calls, [])
+
+    async def test_startup_recomputes_legacy_candidate_without_new_learning_generation(self):
+        from custom_components.heating_observer.database import AgentDatabase
+        db=AgentDatabase(Path(self.tmp.name)/"agent.sqlite3",self.cfg["site_revision"])
+        db.initialize()
+        db.write_analysis_bundle(created_at=datetime.now(UTC).timestamp()-60,
+            replay={"replay_id":"legacy","generation":self.engine.data["generation"]},
+            intelligence={"candidate_id":"legacy-candidate","status":"PROPOSED_FOR_HUMAN_REVIEW"})
+        self.runtime.database=db
+        await self.runtime.start()
+        await self.drain()
+        self.assertEqual(self.runtime.cached_intelligence["status"],"INSUFFICIENT_EVIDENCE")
+        self.assertNotEqual(self.runtime.cached_replay["replay_id"],"legacy")
+        self.assertEqual(db.latest_analysis()["intelligence"]["status"],"INSUFFICIENT_EVIDENCE")
+        self.assertEqual(self.calls, [])
+
+    async def test_ignition_snapshot_rejects_invalid_units_and_restored_values(self):
+        entity = INPUTS["ion_current"]
+        for raw,attrs,expected in (("54.9",{"unit_of_measurement":"µA"},54.9),
+                                   ("54.9",{"unit_of_measurement":"mA"},None),
+                                   ("nan",{"unit_of_measurement":"µA"},None),
+                                   ("54.9",{"unit_of_measurement":"µA","restored":True},None)):
+            self.hass.states.async_set(entity,raw,attrs)
+            self.assertEqual(self.runtime.snapshot("test")["ion_current"],expected)
+        self.assertEqual(self.calls, [])
+
+    async def test_ion_listener_records_edges_without_duplicate_jitter_snapshots(self):
+        from homeassistant.core import Event, State
+        entity=INPUTS["ion_current"]
+        def event(old,new):
+            return Event("state_changed",{"entity_id":entity,
+                "old_state":State(entity,old,{"unit_of_measurement":"µA"}),
+                "new_state":State(entity,new,{"unit_of_measurement":"µA"})})
+        with patch.object(self.runtime,"enqueue") as enqueue:
+            self.runtime._changed(event("54.9","52.1"))
+            enqueue.assert_not_called()
+            for old,new in (("0","54.9"),("54.9","0"),("unavailable","54.9")):
+                self.runtime._changed(event(old,new))
+            self.assertEqual(enqueue.call_count,3)
+
+    async def test_idle_retention_cannot_hide_a_start_after_fifty_seconds(self):
+        baseline=self.runtime.snapshot("startup")
+        baseline['ion_current']=0
+        self.engine.feed(baseline)
+        times=[]
+        for offset in (10,20,30,40,50,60):
+            item=deepcopy(baseline)
+            item.update(t=baseline['t']+offset,gas=offset==60)
+            reason=INPUTS['gas'] if offset==60 else 'interval'
+            with patch.object(self.runtime,'snapshot',return_value=item):
+                self.runtime.enqueue(reason)
+            while not self.runtime.queue.empty():
+                retained=self.runtime.queue.get_nowait()
+                times.append(retained['t'])
+                self.engine.feed(retained)
+                self.runtime.queue.task_done()
+        self.assertTrue(all(b-a <= self.cfg['telemetry_gap_seconds'] for a,b in zip(times,times[1:])))
+        self.assertEqual(self.engine.ignition.report()['relay_off_starts'],1)
+        self.assertEqual(self.calls, [])
+
+    async def test_required_context_transitions_are_captured_read_only(self):
+        await self.runtime.start()
+        await self.drain()
+        for key,state in (('tapwater_active','on'),('ww_activated','off'),('flow_state_v4','FAULT_COOLDOWN')):
+            self.hass.states.async_set(INPUTS[key],state)
+            await self.drain()
+        captured=self.runtime.snapshot('check')
+        self.assertTrue(captured['tapwater_active'])
+        self.assertFalse(captured['ww_activated'])
+        self.assertEqual(captured['flow_state_v4'],'FAULT_COOLDOWN')
+        for key in ('tapwater_active','ww_activated','flow_state_v4'):
+            self.assertIsNotNone(captured['reported_at'][key])
+            self.assertIsNotNone(captured['changed_at'][key])
+        self.assertEqual(self.engine.previous['flow_state_v4'],'FAULT_COOLDOWN')
+        self.assertEqual(self.calls, [])
+
+    async def test_live_ignition_sensor_and_checkpoint_update_without_services(self):
+        self.hass.states.async_set(INPUTS["ion_current"],"0",{"unit_of_measurement":"µA"})
+        await self.load_sensor_platform()
+        self.hass.states.async_set(INPUTS["dhw"],"on")
+        self.hass.states.async_set(INPUTS["gas"],"on")
+        await self.drain()
+        self.hass.states.async_set(INPUTS["ion_current"],"54.9",{"unit_of_measurement":"µA"})
+        await self.drain()
+        state = self.hass.states.get("sensor.heating_agent_ignition")
+        self.assertEqual(state.state,"1")
+        self.assertEqual(state.attributes["recent"][0]["classification"],"unexplained_relay_off")
+        self.assertIn("ion_current",state.attributes["recent"][0]["signals"])
+        # The runtime created by load_sensor_platform owns its own journal.
+        saved=self.runtime.journal.load()
+        self.assertEqual(saved["ignition_evidence"]["relay_off_starts"],1)
+        self.assertFalse(state.attributes["actuator_control"])
         self.assertEqual(self.calls, [])
 
     async def test_climate_changes_do_not_create_pi_report_timestamps(self):

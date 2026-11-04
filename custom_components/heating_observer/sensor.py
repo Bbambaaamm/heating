@@ -14,13 +14,14 @@ KINDS = (
     "status", "learning", "agent_platform", "agent_diagnostic", "agent_knowledge", "agent_baseline",
     "agent_replay", "agent_intelligence", "agent_safety", "agent_permissions",
     "agent_watchdog", "agent_release_gate", "agent_opportunities", "agent_efficiency",
+    "agent_ignition",
 )
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     runtime = hass.data[DOMAIN]
     async_add_entities([
-        (OpportunitySensor if kind == "agent_opportunities" else ObserverSensor)(runtime, kind)
+        (OpportunitySensor if kind == "agent_opportunities" else IgnitionSensor if kind == "agent_ignition" else ObserverSensor)(runtime, kind)
         for kind in KINDS
     ])
 
@@ -49,6 +50,7 @@ class ObserverSensor(SensorEntity):
             "agent_release_gate": "Topení – release gate",
             "agent_opportunities": "Topení – improvement opportunities",
             "agent_efficiency": "Topení – efficiency analysis",
+            "agent_ignition": "Topení – zapálení bez požadavku relé",
         }[kind]
         self._attr_icon = {
             "status": "mdi:chart-timeline-variant",
@@ -65,6 +67,7 @@ class ObserverSensor(SensorEntity):
             "agent_release_gate": "mdi:gate",
             "agent_opportunities": "mdi:lightbulb-multiple-outline",
             "agent_efficiency": "mdi:leaf-circle-outline",
+            "agent_ignition": "mdi:fire-alert",
         }[kind]
 
     @property
@@ -77,6 +80,8 @@ class ObserverSensor(SensorEntity):
                     "service": "Servisní režim", "observing": "Pozorování"}[status]
         if self.kind == "learning":
             return r.engine.data["generation"]
+        if self.kind == "agent_ignition":
+            return r.engine.ignition.data["relay_off_starts"]
         if self.kind == "agent_platform":
             return "Chyba DB" if r.agent_storage_error else "Běží"
         if self.kind == "agent_diagnostic":
@@ -117,8 +122,10 @@ class ObserverSensor(SensorEntity):
                     "last_captured_at": r.last_captured_at, "last_written_at": r.last_written_at,
                     "storage_error": r.storage_error, "actuator_control": False}
         if self.kind == "learning":
-            return {**{k: v for k, v in r.cached_report.items() if k != "metrics"},
+            return {**{k: v for k, v in r.cached_report.items() if k not in ("metrics", "ignition_evidence")},
                     "top_hypotheses": r.cached_report["metrics"][:3]}
+        if self.kind == "agent_ignition":
+            return r.engine.ignition.report()
         if self.kind == "agent_platform":
             return {
                 "mode": "read_only",
@@ -231,3 +238,9 @@ class OpportunitySensor(ObserverSensor):
 
     # Core combines recorder metadata at subclass creation, not per instance.
     _unrecorded_attributes = frozenset({"items"})
+
+
+class IgnitionSensor(ObserverSensor):
+    """Detailed evidence lives in the agent journal/DB, not HA recorder."""
+
+    _unrecorded_attributes = frozenset({"recent"})

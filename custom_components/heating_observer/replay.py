@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from .engine import RULES, rule_description
 from .permissions import PermissionManifest
+from .intelligence import review_failures
 
 
 _RISE_RANK = {
@@ -242,23 +243,22 @@ class ReplayValidationAgent:
             }
 
         status = "INSUFFICIENT_FEATURE_EVIDENCE"
+        failures = []
         if candidate is not None:
             validation = candidate["validation"]
             evidence = candidate["evidence"]
-            low_false_positive = (
-                (evidence.get("warned_normal_rate") or 0) <= 0.25
-                and (validation.get("warned_normal_rate") or 0) <= 0.25
-            )
-            no_misses = evidence["missed"] == 0 and validation["missed"] == 0
+            failures = (["evidence:" + x for x in review_failures(evidence)]
+                        + ["validation:" + x for x in review_failures(validation)])
             status = (
                 "PROMISING_SHADOW_CANDIDATE"
-                if low_false_positive and no_misses
+                if not failures
                 else "CANDIDATE_NEEDS_REFINEMENT"
             )
 
         return {
             "agent": "composite-flow-risk-v1",
             "status": status,
+            "review_failures": failures,
             "minimum_evidence": {
                 "evidence_faults": 3,
                 "evidence_normal_controls": 20,

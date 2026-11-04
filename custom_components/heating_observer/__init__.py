@@ -179,20 +179,23 @@ class Runtime:
         now = dt_util.utcnow().timestamp()
         sample = {"t": now, "schema": 1, "version": VERSION, "reason": reason,
                   "revision": self.config["site_revision"], "ages": {}, "zones": {},
-                  "reported_at": {}, "gap": self.capture_gap,
+                  "reported_at": {}, "changed_at": {}, "gap": self.capture_gap,
                   "pi_report_freshness_verified": False}
         self.capture_gap = False
         for key, entity_id in INPUTS.items():
             raw, state = self._read(entity_id)
-            if key in ("gas", "pump", "relay", "master", "service", "policy", "boost", "dhw", "dhw_recharging", "dhw_valve"):
+            if key in ("gas", "pump", "relay", "master", "service", "policy", "boost", "dhw", "dhw_recharging", "dhw_valve", "tapwater_active", "ww_activated"):
                 value = True if raw == "on" else False if raw == "off" else None
-            elif key == "mode":
+            elif key in ("mode", "flow_state_v4"):
                 value = raw
             else:
                 value = number(raw)
             sample[key] = value
+            if key == "ion_current" and state and state.attributes.get("unit_of_measurement") not in ("µA", "μA", "uA"):
+                sample[key] = None
             reported = state.last_reported.timestamp() if state else None
             sample["reported_at"][key] = reported
+            sample["changed_at"][key] = state.last_changed.timestamp() if state else None
             if key in ("block", "flow"):
                 sample["ages"][key] = now - reported if raw is not None and reported else None
                 if state and state.attributes.get("unit_of_measurement") not in ("°C", "C"):
@@ -274,7 +277,10 @@ class Runtime:
             return
         sample = self.snapshot(reason)
         if reason == "interval" and not (sample.get("gas") or sample.get("relay") or sample.get("pump") or self.engine.data["active"]):
-            if sample["t"] - self.last_idle_at < 60:
+            # Retained idle observations must stay inside the diagnostic
+            # continuity budget: a 60s throttle would hide edges with a 45s gap.
+            idle_seconds = min(30, self.config["telemetry_gap_seconds"] / 2)
+            if sample["t"] - self.last_idle_at < idle_seconds:
                 self.capture_gap |= sample["gap"]
                 return
             self.last_idle_at = sample["t"]
@@ -287,6 +293,17 @@ class Runtime:
 
     @callback
     def _changed(self, event):
+        if event.data["entity_id"] == INPUTS["ion_current"]:
+            old, new = event.data.get("old_state"), event.data.get("new_state")
+            # Capture edges and availability/unit changes immediately, while
+            # ordinary positive-current jitter uses existing periodic samples.
+            # Do not duplicate full zone snapshots at every ion-current tick.
+            if old is not None and new is not None:
+                before, after = number(old.state), number(new.state)
+                if (before is not None and after is not None and before > 0 and after > 0
+                        and all(s.attributes.get("unit_of_measurement") in ("µA", "μA", "uA")
+                                and not s.attributes.get("restored") for s in (old, new))):
+                    return
         self.enqueue(event.data["entity_id"])
 
     @callback
@@ -329,6 +346,10 @@ class Runtime:
             except Exception as error:
                 self.agent_storage_error = type(error).__name__
                 _LOGGER.exception("Heating agent database cache cannot be loaded")
+        # Re-evaluate retained episodes with the installed review policy. A
+        # cached candidate from an older release must not survive unchanged
+        # merely because the learning generation has not advanced yet.
+        self.last_replay_generation = -1
         self.worker = self.hass.async_create_background_task(self._consume(), DOMAIN)
         self.unsubs.append(async_track_state_change_event(self.hass, CRITICAL, self._changed))
         self.unsubs.append(async_track_time_interval(self.hass, self._interval, timedelta(seconds=self.config["sample_seconds"])))
