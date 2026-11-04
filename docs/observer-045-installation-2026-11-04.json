@@ -1,0 +1,81 @@
+{
+  "recorded_at": "2026-11-04T20:26:32.890688+01:00",
+  "status": "FILES_INSTALLED_ACTIVATION_SCHEDULED",
+  "repository": "Bbambaaamm/heating",
+  "merged_pr": 168,
+  "release_sha": "35e9e961ffe5a7d5a561a75c4a43c1e93b18587d",
+  "main_ci": {
+    "run_id": 41894434618,
+    "conclusion": "success"
+  },
+  "source_installation": {
+    "via": "HACS",
+    "repository_id": "1071571281",
+    "domain": "heating_observer",
+    "local_path": "/config/custom_components/heating_observer",
+    "installed_sha_readback": "35e9e961ffe5a7d5a561a75c4a43c1e93b18587d",
+    "raw_file_hashes_readback": false
+  },
+  "runtime": {
+    "observed_version_before_restart": "0.4.4",
+    "target_version": "0.4.5",
+    "activation_verified": false,
+    "core_restart_performed": false,
+    "home_assistant_core": "2026.9.2",
+    "python": "3.14.6",
+    "architecture": "aarch64",
+    "site_revision": "hydraulika-20260921-neoverena"
+  },
+  "configuration_check_after_copy": {
+    "is_valid": true,
+    "errors": []
+  },
+  "backup": {
+    "id": "64aada53",
+    "date": "2026-11-04T20:07:40.107622+01:00",
+    "actual_name": "Automatic backup 2026.9.2",
+    "state": "completed",
+    "homeassistant_included": true,
+    "database_included": true,
+    "local_and_cloud_confirmed": true,
+    "size_bytes": 1523148800,
+    "create_call_timed_out": true,
+    "create_retried": false,
+    "completion_verified_by_readback": true
+  },
+  "rollback_source_sha": "49ac7d8a55f3eb76b6f567a2ee3b9df03d97d790",
+  "activation": {
+    "task_title": "Aktivovat observer 0.4.5",
+    "scheduled_local": "2026-11-04T22:15:00+01:00",
+    "timing_mode": "flexible_schedule",
+    "enabled": true,
+    "requires_two_naturally_idle_snapshots": true,
+    "snapshot_spacing_seconds": [
+      120,
+      600
+    ],
+    "no_forced_heating_shutdown": true,
+    "post_verification_pending": true
+  },
+  "evaluation": {
+    "task_title": "Vyhodnocení topení po nasazení",
+    "enabled": true,
+    "start_local": "2026-11-05T08:00:00+01:00",
+    "timezone": "Europe/Prague",
+    "timing_mode": "flexible_schedule",
+    "frequency": "DAILY",
+    "windows_hours": [
+      24,
+      168
+    ],
+    "mode": "read_only"
+  },
+  "physical_relay_measurement": {
+    "performed": false,
+    "protocol": "docs/relay-contact-verification-2026-11-04.md"
+  },
+  "boiler_parameter_writes": false,
+  "relay_or_trv_control_calls": false,
+  "active_controller_or_prediction_config_changes": false,
+  "global_ha_git_parity_claimed": false
+}
