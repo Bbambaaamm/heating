@@ -66,9 +66,9 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
         for path in sorted((ROOT / "docs").glob("runtime-automations-20261009-part*.json")):
             cls.snapshots.extend(json.loads(path.read_text(encoding="utf-8"))["objects"])
 
-    def test_all_40_runtime_automation_ids_unique(self):
-        self.assertEqual(len(self.automations), 40)
-        self.assertEqual(len(self.by_id), 40)
+    def test_all_41_runtime_automation_ids_unique(self):
+        self.assertEqual(len(self.automations), 41)
+        self.assertEqual(len(self.by_id), 41)
         self.assertEqual(len(self.snapshots), 28)
         self.assertEqual(len({s["id"] for s in self.snapshots}), 28)
         # Preserve the historical snapshot; only blueprint sources and the new
@@ -77,8 +77,24 @@ class HeatingRuntimeSyncTests(unittest.TestCase):
         self.assertEqual(len(blueprints), 10)
         self.assertEqual(
             set(self.by_id).difference(s["id"] for s in self.snapshots),
-            blueprints | {"1771525903912", "heating_v4_relay_lockout_guard"},
+            blueprints | {"1771525903912", "heating_v4_relay_lockout_guard", "predictive_heating_shadow_recalc"},
         )
+
+    def test_predictive_shadow_matches_deployed_configuration_and_helpers(self):
+        receipt = json.loads((ROOT / "docs/predictive-shadow-deployment-2026-11-04.json").read_text())
+        deployed = receipt["automation"]
+        actual = self.by_id["predictive_heating_shadow_recalc"]
+        self.assertEqual(normalize(actual), normalize(deployed["config"]))
+        self.assertEqual(actual["initial_state"], deployed["enabled"])
+        helpers = json.loads((ROOT / "heating/analysis/predictive_shadow_storage_helpers.json").read_text())["helpers"]
+        by_entity = {h["entity_id"]: h for h in helpers}
+        self.assertEqual(set(by_entity), {
+            "input_datetime.predictive_heating_last_attempt",
+            "input_text.predictive_heating_run_status",
+        })
+        timestamp = by_entity["input_datetime.predictive_heating_last_attempt"]
+        self.assertTrue(timestamp["has_date"] and timestamp["has_time"])
+        self.assertEqual(by_entity["input_text.predictive_heating_run_status"]["max"], 255)
 
     def test_live_storage_objects_match_exact_api_snapshot(self):
         for snapshot in self.snapshots:

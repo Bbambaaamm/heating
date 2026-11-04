@@ -11,7 +11,8 @@ from homeassistant.util import dt as dt_util
 import test_heating_runtime as runtime
 
 
-PATH = "docs/candidates/predictive-shadow-candidate.yaml"
+PATH = "automations.yaml"
+CANDIDATE_PATH = "docs/candidates/predictive-shadow-candidate.yaml"
 HEARTBEAT = "input_datetime.predictive_heating_heartbeat"
 SUMMARY = "input_text.predictive_heating_run_status"
 
@@ -20,7 +21,8 @@ class PredictionRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.h = runtime.HeatingRuntimeTests()
         await self.h.asyncSetUp()
-        self.a = deepcopy(runtime.read(PATH)["automation"][0])
+        self.a = deepcopy(next(a for a in runtime.read(PATH)
+                               if str(a.get("id")) == "predictive_heating_shadow_recalc"))
         PLATFORM_SCHEMA(deepcopy(self.a))
         self.failure = None
         self.write_failure = None
@@ -80,6 +82,13 @@ class PredictionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("48 min", self.statuses()[0])
         allowed = {("input_text", "set_value"), ("input_datetime", "set_datetime")}
         self.assertTrue(all((d,s) in allowed for d,s,_ in self.h.calls))
+        helpers = {z["status"] for z in self.a["variables"]["zones"]} | {
+            HEARTBEAT, SUMMARY, "input_datetime.predictive_heating_last_attempt"}
+        for _,_,data in self.h.calls:
+            entities=data.get("entity_id",[])
+            if isinstance(entities,str):
+                entities=[entities]
+            self.assertTrue(set(entities)<=helpers, data)
 
     async def test_weather_service_failure_is_explicit_fallback_not_abort(self):
         self.failure = ServiceValidationError("Service call requested response data but did not match any entities")
@@ -154,5 +163,9 @@ class PredictionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.heartbeat(), "2000-01-01 00:00:00")
 
     async def test_candidate_is_disabled_and_not_in_live_package_include(self):
-        self.assertFalse(self.a["initial_state"])
-        self.assertFalse(PATH.startswith("heating/"))
+        candidate=runtime.read(CANDIDATE_PATH)["automation"][0]
+        self.assertFalse(candidate["initial_state"])
+        self.assertFalse(CANDIDATE_PATH.startswith("heating/"))
+        self.assertTrue(self.a["initial_state"])
+        for key in ("variables","trigger","condition","action","mode"):
+            self.assertEqual(self.a[key],candidate[key],key)

@@ -1,0 +1,318 @@
+{
+  "recorded_at": "2026-11-04T20:55:00+01:00",
+  "scope": "Only predictive shadow automation and its two UI-managed helpers; not global HA/Git parity",
+  "automation": {
+    "entity_id": "automation.predictive_heating_shadow_prepocet",
+    "previous_config_hash": "d87ddfd4b30c6174",
+    "config_hash": "0552060dfc25aef5",
+    "pre_edit_backup": "automation.automation.predictive_heating_shadow_prepocet.20261104_194936.yaml",
+    "enabled": true,
+    "config": {
+      "id": "predictive_heating_shadow_recalc",
+      "alias": "Predictive Heating – Shadow přepočet",
+      "description": "Stínová predikce předtápění: Scheduler, teploty a hodinová předpověď. Zapisuje pouze stavové helpery a heartbeat. Úplnost ověřuje pro všech osm zón, výpadek počasí výslovně označuje. Bez ovládání hlavic, central dispatch a relé kotle.",
+      "triggers": [
+        {
+          "trigger": "homeassistant",
+          "event": "start"
+        },
+        {
+          "trigger": "time_pattern",
+          "minutes": "/5"
+        },
+        {
+          "trigger": "state",
+          "entity_id": [
+            "input_boolean.predictive_heating_enable",
+            "input_boolean.predictive_heating_shadow_mode"
+          ],
+          "to": "on"
+        },
+        {
+          "trigger": "state",
+          "entity_id": [
+            "input_boolean.sklep_michal_schedule_active",
+            "input_boolean.prizemi_michal_schedule_active",
+            "input_boolean.prizemi_chodba_zachod_schedule_active",
+            "input_boolean.1p_jidelna_schedule_active",
+            "input_boolean.1p_kuchyn_schedule_active",
+            "input_boolean.1p_koupelna_schedule_active",
+            "input_boolean.1p_chodba_schedule_active",
+            "input_boolean.2p_mama_schedule_active"
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "state",
+          "entity_id": "input_boolean.predictive_heating_enable",
+          "state": "on"
+        },
+        {
+          "condition": "state",
+          "entity_id": "input_boolean.predictive_heating_shadow_mode",
+          "state": "on"
+        }
+      ],
+      "actions": [
+        {
+          "variables": {
+            "ph_hourly": {},
+            "completed_zones": [],
+            "valid_zones": [],
+            "forecast_zones": [],
+            "run_started": "{{ as_timestamp(now()) }}"
+          }
+        },
+        {
+          "action": "input_datetime.set_datetime",
+          "target": {
+            "entity_id": "input_datetime.predictive_heating_last_attempt"
+          },
+          "data": {
+            "datetime": "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          }
+        },
+        {
+          "action": "input_text.set_value",
+          "target": {
+            "entity_id": "input_text.predictive_heating_run_status"
+          },
+          "data": {
+            "value": "Přepočet probíhá; úplný výsledek zatím nepotvrzen."
+          }
+        },
+        {
+          "action": "weather.get_forecasts",
+          "target": {
+            "entity_id": "weather.forecast_domov"
+          },
+          "data": {
+            "type": "hourly"
+          },
+          "response_variable": "ph_hourly",
+          "continue_on_error": true
+        },
+        {
+          "repeat": {
+            "for_each": "{{ zones }}",
+            "sequence": [
+              {
+                "choose": [
+                  {
+                    "conditions": "{{ true }}",
+                    "sequence": [
+                      {
+                        "variables": {
+                          "zone": "{{ repeat.item.z }}",
+                          "temp_sensor": "{{ repeat.item.temp }}",
+                          "schedule_helper": "{{ repeat.item.schedule }}",
+                          "status_helper": "{{ repeat.item.status }}",
+                          "comfort_helper": "{{ 'input_number.' ~ repeat.item.z ~ '_last_comfort' }}",
+                          "enable_helper": "{{ 'input_boolean.schedule_enable_' ~ repeat.item.z }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "rate_cph": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_learned_rate') | float(repeat.item.rate | float(1.5)) }}",
+                          "bias_min": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_bias_min') | float(0) }}",
+                          "learning_samples": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_samples') | int(0) }}",
+                          "delivery_score": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_delivery_score') | float(0) }}",
+                          "previous_error": "{% set n=states('input_number.ph_' ~ repeat.item.z ~ '_samples')|int(0) %}\n{% set e=states('input_number.ph_' ~ repeat.item.z ~ '_last_error')|float(default=none) %}\n{% if n > 0 and e is number %}{{ ('+' if e > 0 else '') ~ (e|round(1)|string|replace('.',',')) ~ ' °C' }}{% else %}—{% endif %}",
+                          "mae_text": "{% set n=states('input_number.ph_' ~ repeat.item.z ~ '_samples')|int(0) %}\n{% set m=states('input_number.ph_' ~ repeat.item.z ~ '_mae')|float(default=none) %}\n{% if n > 0 and m is number %}{{ (m|round(2)|string|replace('.',',')) ~ ' °C' }}{% else %}—{% endif %}",
+                          "coast_gain": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_coast_gain')|float(0) }}",
+                          "coast_samples": "{{ states('input_number.ph_' ~ repeat.item.z ~ '_coast_samples')|int(0) }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "next_comfort_ts": "{% set schedule=repeat.item.schedule %}\n{% set ns=namespace(ts=none) %}\n{% for s in states.switch %}\n  {% set entities=state_attr(s.entity_id,'entities') or [] %}\n  {% set next_slot=state_attr(s.entity_id,'next_slot') %}\n  {% set acts=state_attr(s.entity_id,'actions') or [] %}\n  {% set nt=state_attr(s.entity_id,'next_trigger') %}\n  {% if s.state == 'on' and schedule in entities and next_slot is number and nt and next_slot >= 0 and next_slot < acts|length and acts[next_slot].service == 'input_boolean.turn_on' %}\n    {% set cand=as_timestamp(nt,none) %}\n    {% if cand is not none and cand > as_timestamp(now()) and (ns.ts is none or cand < ns.ts) %}{% set ns.ts=cand %}{% endif %}\n  {% endif %}\n{% endfor %}\n{{ ns.ts if ns.ts is not none else 'none' }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "weather_values": "{% set target_ts=next_comfort_ts|float(default=none) %}\n{% set data=ph_hourly.get('weather.forecast_domov',{}) if ph_hourly is mapping else {} %}\n{% set fc=data.get('forecast',[]) if data is mapping else [] %}\n{% set ns=namespace(diff=3601, row={}) %}\n{% if target_ts is not none and fc is iterable and fc is not string and fc is not mapping %}\n{% for f in fc if f is mapping %}\n{% set ft=as_timestamp(f.get('datetime'),none) %}\n{% if ft is not none and (ft-target_ts)|abs < ns.diff %}\n{% set ns.diff=(ft-target_ts)|abs %}{% set ns.row=f %}\n{% endif %}\n{% endfor %}{% endif %}\n{% set temp=ns.row.get('temperature')|float(none) %}\n{% set wind=ns.row.get('wind_speed')|float(none) %}\n{% set cloud=ns.row.get('cloud_coverage')|float(none) %}\n{% set forecast_ok=is_number(temp) and is_number(wind) and is_number(cloud) and -80 <= temp <= 60 and 0 <= wind <= 300 and 0 <= cloud <= 100 %}\n{% set current=states.weather.forecast_domov %}\n{% set fresh=current is not none and current.state not in ['unknown','unavailable'] and 0 <= as_timestamp(now())-as_timestamp(current.last_updated) <= 3600 %}\n{% set ct=state_attr('weather.forecast_domov','temperature')|float(none) %}\n{% set cw=state_attr('weather.forecast_domov','wind_speed')|float(none) %}\n{% set cc=state_attr('weather.forecast_domov','cloud_coverage')|float(none) %}\n{% set current_ok=fresh and is_number(ct) and is_number(cw) and is_number(cc) and -80 <= ct <= 60 and 0 <= cw <= 300 and 0 <= cc <= 100 %}\n{{ dict(quality='forecast' if forecast_ok else 'current_weather' if current_ok else 'unavailable', temperature=temp if forecast_ok else ct if current_ok else none, wind_speed=wind if forecast_ok else cw if current_ok else none, cloud_coverage=cloud if forecast_ok else cc if current_ok else none) }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "forecast_temp": "{{ weather_values.temperature }}",
+                          "forecast_wind": "{{ weather_values.wind_speed }}",
+                          "forecast_cloud": "{{ weather_values.cloud_coverage }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "lead_minutes": "{% set current=states(temp_sensor)|float(default=none) %}\n{% set target=states(comfort_helper)|float(default=none) %}\n{% set out=forecast_temp|float(10) %}\n{% set wind=forecast_wind|float(0) %}\n{% set cloud=forecast_cloud|float(50) %}\n{% set rate=rate_cph|float(1.5) %}\n{% set bias=bias_min|float(0) %}\n{% set samples=learning_samples|int(0) %}\n{% set delivery=delivery_score|float(0) %}\n{% if not is_number(current) or not is_number(target) or weather_values.quality == 'unavailable' or target > 27 or target <= current + 0.2 or rate <= 0 %}\n0\n{% else %}\n  {% set gap=target-current %}\n  {% set base=(gap/rate*60) %}\n  {% set cold=1.30 if out < 0 else 1.20 if out < 5 else 1.10 if out < 10 else 1.0 %}\n  {% set windf=0.12 if wind >= 25 else 0.07 if wind >= 15 else 0.03 if wind >= 8 else 0 %}\n  {% set sunf=-0.05 if cloud < 25 and out > 5 else 0 %}\n  {% set deliveryf=0.10 if samples >= 2 and delivery < 40 else 0.05 if samples >= 2 and delivery < 60 else 0 %}\n  {% set raw=base*(cold+windf+sunf+deliveryf)+10+bias %}\n  {{ [[raw|round(0),0]|max,180]|min }}\n{% endif %}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "coast_text": "{% if coast_samples|int > 0 %}\n{% set stop=(states(comfort_helper)|float(0))-(coast_gain|float) %}\ndojezd {{ coast_gain|round(2)|string|replace('.',',') }} °C · Shadow stop ~{{ stop|round(1)|string|replace('.',',') }} °C\n{% else %}dojezd se učí{% endif %}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "zone_data_ok": "{{ is_number(states(temp_sensor)) and is_number(states(comfort_helper)) and states(comfort_helper)|float(99) <= 27 and weather_values.quality != 'unavailable' }}"
+                        }
+                      },
+                      {
+                        "variables": {
+                          "status_text": "{% set current=states(temp_sensor)|float(default=none) %}\n{% set target=states(comfort_helper)|float(default=none) %}\n{% set nts=next_comfort_ts|float(default=none) %}\n{% set lead=lead_minutes|float(0) %}\n{% if not is_state(enable_helper,'on') %}\nrozvrh vypnutý · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% elif is_state(schedule_helper,'on') %}\nkomfort aktivní {{ (target|string|replace('.',',')) ~ ' °C' if target is not none else '' }} · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% elif not is_number(current) or not is_number(target) %}\nchybí teplotní data · model chyba {{ previous_error }}\n{% elif target > 27 %}\nmodel blokován: komfort {{ target|string|replace('.',',') }} °C\n{% elif weather_values.quality == 'unavailable' %}\nchybí platná data počasí · predikce nedostupná\n{% elif nts is none %}\nčekám na další okno · model chyba {{ previous_error }} · MAE {{ mae_text }}\n{% else %}\n  {% set start=nts-lead*60 %}\ncíl {{ nts|timestamp_custom('%H:%M',true) }} / {{ target|string|replace('.',',') }} °C · start {{ start|timestamp_custom('%H:%M',true) }} · {{ lead|round(0)|int }} min · model chyba {{ previous_error }} · MAE {{ mae_text }} · {{ coast_text|trim }}\n{% endif %}"
+                        }
+                      },
+                      {
+                        "action": "input_text.set_value",
+                        "data": {
+                          "entity_id": "{{ status_helper }}",
+                          "value": "{{ ((status_text|trim) ~ (' · náhradní aktuální počasí' if weather_values.quality == 'current_weather' else ''))[:255] }}"
+                        }
+                      },
+                      {
+                        "condition": "template",
+                        "value_template": "{{ states(status_helper) == ((status_text|trim) ~ (' · náhradní aktuální počasí' if weather_values.quality == 'current_weather' else ''))[:255] and as_timestamp(states[status_helper].last_reported,0) >= run_started }}"
+                      },
+                      {
+                        "variables": {
+                          "completed_zones": "{{ completed_zones + [zone] }}",
+                          "valid_zones": "{{ valid_zones + ([zone] if zone_data_ok else []) }}",
+                          "forecast_zones": "{{ forecast_zones + ([zone] if weather_values.quality == 'forecast' else []) }}"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "continue_on_error": true
+              }
+            ]
+          }
+        },
+        {
+          "variables": {
+            "run_status": "{{ 'OK' if completed_zones|count == zones|count and valid_zones|count == zones|count and forecast_zones|count == zones|count else 'DEGRADED' if completed_zones|count == zones|count and valid_zones|count == zones|count else 'INCOMPLETE' }}"
+          }
+        },
+        {
+          "action": "input_text.set_value",
+          "target": {
+            "entity_id": "input_text.predictive_heating_run_status"
+          },
+          "data": {
+            "value": "{{ run_status }} · zápisy {{ completed_zones|count }}/{{ zones|count }} · platná data {{ valid_zones|count }}/{{ zones|count }} · předpověď {{ forecast_zones|count }}/{{ zones|count }} · {{ now().strftime('%H:%M:%S') }}"
+          }
+        },
+        {
+          "event": "heating_prediction_recalculated",
+          "event_data": {
+            "status": "{{ run_status }}",
+            "completed_zones": "{{ completed_zones }}",
+            "valid_zones": "{{ valid_zones }}",
+            "forecast_zones": "{{ forecast_zones }}"
+          }
+        },
+        {
+          "if": "{{ completed_zones|count == zones|count and valid_zones|count == zones|count }}",
+          "then": [
+            {
+              "action": "input_datetime.set_datetime",
+              "target": {
+                "entity_id": "input_datetime.predictive_heating_heartbeat"
+              },
+              "data": {
+                "datetime": "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+              }
+            }
+          ],
+          "else": [
+            {
+              "stop": "Nedokončené zóny nebo neplatná data; heartbeat se neobnovuje.",
+              "error": true
+            }
+          ]
+        }
+      ],
+      "mode": "restart",
+      "variables": {
+        "zones": [
+          {
+            "z": "sklep_michal",
+            "temp": "sensor.sklep_michal_aktualni_teplota",
+            "schedule": "input_boolean.sklep_michal_schedule_active",
+            "status": "input_text.ph_sklep_michal_status",
+            "rate": 7.35
+          },
+          {
+            "z": "prizemi_michal",
+            "temp": "sensor.prizemi_michal_aktualni_teplota",
+            "schedule": "input_boolean.prizemi_michal_schedule_active",
+            "status": "input_text.ph_prizemi_michal_status",
+            "rate": 6.75
+          },
+          {
+            "z": "prizemi_chodba_zachod",
+            "temp": "sensor.prizemi_chodba_zachod_aktualni_teplota",
+            "schedule": "input_boolean.prizemi_chodba_zachod_schedule_active",
+            "status": "input_text.ph_prizemi_chodba_zachod_status",
+            "rate": 1.7
+          },
+          {
+            "z": "1p_jidelna",
+            "temp": "sensor.1_patro_jidelna_aktualni_teplota",
+            "schedule": "input_boolean.1p_jidelna_schedule_active",
+            "status": "input_text.ph_1p_jidelna_status",
+            "rate": 4.46
+          },
+          {
+            "z": "1p_kuchyn",
+            "temp": "sensor.1_patro_kuchyn_aktualni_teplota",
+            "schedule": "input_boolean.1p_kuchyn_schedule_active",
+            "status": "input_text.ph_1p_kuchyn_status",
+            "rate": 2.1
+          },
+          {
+            "z": "1p_koupelna",
+            "temp": "sensor.1_patro_koupelna_aktualni_teplota",
+            "schedule": "input_boolean.1p_koupelna_schedule_active",
+            "status": "input_text.ph_1p_koupelna_status",
+            "rate": 1.38
+          },
+          {
+            "z": "1p_chodba",
+            "temp": "sensor.1_patro_chodba_aktualni_teplota",
+            "schedule": "input_boolean.1p_chodba_schedule_active",
+            "status": "input_text.ph_1p_chodba_status",
+            "rate": 2.61
+          },
+          {
+            "z": "2p_mama",
+            "temp": "sensor.2_patro_mama_aktualni_teplota",
+            "schedule": "input_boolean.2p_mama_schedule_active",
+            "status": "input_text.ph_2p_mama_status",
+            "rate": 5.1
+          }
+        ]
+      },
+      "initial_state": true
+    }
+  },
+  "verification": {
+    "manual_run_id": "033ffabe5304686d9257e53af5b9a4bc",
+    "manual_run_local": "2026-11-04T20:50:38+01:00",
+    "periodic_run_local": "2026-11-04T20:55:00+01:00",
+    "completed_zones": 8,
+    "valid_zones": 8,
+    "forecast_zones": 0,
+    "summary": "DEGRADED · zápisy 8/8 · platná data 8/8 · předpověď 0/8 · 20:55:00",
+    "heartbeat": "2026-11-04 20:55:00",
+    "forecast_service_rows": 48,
+    "next_comfort_ts": "none",
+    "fallback_reason": "No next comfort timestamp supplied by Scheduler in this run; forecast service succeeded. Explicit fresh current-weather fallback, not a demonstrated provider outage."
+  },
+  "limits": {
+    "physical_relay_feedback": "NOT_INSTALLED",
+    "observer_runtime": "0.4.4",
+    "observer_045_activation": "Scheduled around 2026-11-04T22:15:00+01:00, guarded; not completed by this receipt",
+    "active_preheat": "NOT_ENABLED_BY_THIS_CHANGE",
+    "boiler_parameters": "NO_WRITES"
+  }
+}
