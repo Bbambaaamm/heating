@@ -1,0 +1,53 @@
+{# REVIEW PROTOTYPE ONLY. Pure decision, no HA actions. Input: snapshot p.
+   Caller must count independent requests using the normal zone policy,
+   excluding the selected auxiliary. Receipt freshness is not physical proof.
+   The 45 s receipt budget and reuse of the 60 C recovery threshold need review. #}
+{% set zones=['climate.1p_chodba','climate.prizemi_chodba_zachod'] %}
+{% set ns=namespace(decision='UNVERIFIED',reason='invalid_snapshot') %}
+{% if p is mapping %}
+  {% set zone=p.get('support') %}
+  {% set flow=p.get('flow_state') %}
+  {% set count=p.get('real_requesters') %}
+  {% set now_ts=p.get('now') | float(none) %}
+  {% set room=p.get('room') | float(none) %}
+  {% set block=p.get('block') | float(none) %}
+  {% set water=p.get('flow') | float(none) %}
+  {% set ages=p.get('received_at',{}) %}
+  {% set fresh=namespace(ok=is_number(now_ts) and ages is mapping) %}
+  {% for key in ['block','flow','relay','gas','room','bus','demand'] %}
+    {% set stamp=(ages.get(key) | float(none)) if ages is mapping else none %}
+    {% if not is_number(stamp) or not is_number(now_ts)
+          or now_ts-stamp < 0 or now_ts-stamp > 45 %}
+      {% set fresh.ok=false %}
+    {% endif %}
+  {% endfor %}
+  {% if zone == 'none' %}
+    {% set ns.decision='NO_SUPPORT' %}{% set ns.reason='none_selected' %}
+  {% elif zone not in zones %}
+    {% set ns.reason='invalid_support' %}
+  {% elif flow in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}
+    {% set ns.decision='HANDOFF_FLOW_V4' %}{% set ns.reason='existing_safety_owner' %}
+  {% elif flow != 'NORMAL' %}
+    {% set ns.reason='unknown_flow_state' %}
+  {% elif p.get('eligible') is not sameas true %}
+    {% set ns.decision='HANDOFF_REQUIRED' %}{% set ns.reason='support_ineligible' %}
+  {% elif is_number(room) and room >= 24 %}
+    {% set ns.decision='HANDOFF_REQUIRED' %}{% set ns.reason='room_limit' %}
+  {% elif not fresh.ok or p.get('bus') != 'connected'
+       or p.get('demand_valid') is not sameas true
+       or count is not integer or count is boolean or count < 0
+       or p.get('relay') not in ['on','off'] or p.get('gas') not in ['on','off']
+       or not is_number(room) or not is_number(block)
+       or not is_number(water) %}
+    {% set ns.reason='invalid_or_stale_inputs' %}
+  {% elif count == 1 %}
+    {% set ns.decision='KEEP_SUPPORT' %}{% set ns.reason='one_real_requester' %}
+  {% elif p.relay == 'off' and p.gas == 'off' and block < 60 and water < 60 %}
+    {% set ns.decision='RELEASE' %}{% set ns.reason='reported_cool_and_off' %}
+  {% else %}
+    {% set ns.decision='HOLD_COAST' %}{% set ns.reason='release_conditions_not_met' %}
+  {% endif %}
+{% endif %}
+{{ dict(decision=ns.decision,reason=ns.reason,
+        request_normal_owner_off=ns.decision=='HOLD_COAST' and p.get('real_requesters')==0,
+        physical_flow_confirmed=false,actuation_performed=false) | to_json }}

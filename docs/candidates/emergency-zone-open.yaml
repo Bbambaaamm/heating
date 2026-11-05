@@ -1,0 +1,129 @@
+# REVIEW PROTOTYPE ONLY: outside configuration.yaml's active package include.
+# No caller in production, no integration into the existing Flow V4 owner yet.
+# Run one isolated worker per zone under one episode. The coordinator must
+# prevent overlapping workers for the same (episode, zone).
+script:
+  heating_emergency_open_zone_candidate:
+    alias: "Návrh – ověřené nouzové otevření jedné zóny"
+    mode: parallel
+    max: 8
+    fields:
+      zone:
+        required: true
+      episode:
+        required: true
+    sequence:
+      - condition: template
+        value_template: >-
+          {{ zone in ['climate.sklep_michal','climate.prizemi_michal',
+             'climate.prizemi_chodba_zachod','climate.1p_jidelna',
+             'climate.1p_kuchyn','climate.1p_koupelna','climate.1p_chodba','climate.2p_mama']
+             and episode is string and episode.startswith('v3:') }}
+      - variables:
+          payload: "{{ episode[3:] | from_json([]) }}"
+      - condition: template
+        value_template: >-
+          {{ payload is sequence and payload is not string and payload is not mapping
+             and payload | length == 3 and is_number(payload[0])
+             and payload[0] | float > 0 and payload[1] == 1
+             and payload[2] is sequence and payload[2] is not string
+             and payload[2] is not mapping and payload[2] | length == 8 }}
+      - variables:
+          started: "{{ as_timestamp(now()) }}"
+          motor: "{{ 'sensor.' ~ zone.split('.')[1] ~ '_pocet_kroku_motoru' }}"
+          motor_before: "{{ states(motor) | float(none) }}"
+      - repeat:
+          count: 2
+          sequence:
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ not is_state('input_select.heating_flow_state_v4','EMERGENCY_COOLING')
+                       or states('input_text.heating_flow_relief_state_v1') != episode }}
+              then:
+                - event: heating_emergency_zone_candidate_result
+                  event_data:
+                    zone: "{{ zone }}"
+                    status: cancelled
+                    attempts: "{{ repeat.index - 1 }}"
+                    physical_flow_confirmed: false
+                - stop: "Vlastník nebo epizoda již nejsou aktuální."
+            - if:
+                - condition: template
+                  value_template: "{{ not is_state(zone,'heat') }}"
+              then:
+                - action: climate.set_hvac_mode
+                  target:
+                    entity_id: "{{ zone }}"
+                  data:
+                    hvac_mode: heat
+                  continue_on_error: true
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ not is_state('input_select.heating_flow_state_v4','EMERGENCY_COOLING')
+                       or states('input_text.heating_flow_relief_state_v1') != episode }}
+              then:
+                - event: heating_emergency_zone_candidate_result
+                  event_data:
+                    zone: "{{ zone }}"
+                    status: cancelled
+                    attempts: "{{ repeat.index - 1 }}"
+                    physical_flow_confirmed: false
+                - stop: "Změna vlastníka po nastavení režimu; cíl se neodesílá."
+            - action: climate.set_temperature
+              target:
+                entity_id: "{{ zone }}"
+              data:
+                temperature: 29
+              continue_on_error: true
+            - wait_template: >-
+                {{ not is_state('input_select.heating_flow_state_v4','EMERGENCY_COOLING')
+                   or states('input_text.heating_flow_relief_state_v1') != episode
+                   or (is_state(zone,'heat') and is_number(state_attr(zone,'temperature'))
+                       and ((state_attr(zone,'temperature') | float)-29) | abs <= 0.1
+                       and as_timestamp(states[zone].last_reported,0) >= started) }}
+              timeout: "00:00:05"
+              continue_on_timeout: true
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ not is_state('input_select.heating_flow_state_v4','EMERGENCY_COOLING')
+                       or states('input_text.heating_flow_relief_state_v1') != episode }}
+              then:
+                - event: heating_emergency_zone_candidate_result
+                  event_data:
+                    zone: "{{ zone }}"
+                    status: cancelled
+                    attempts: "{{ repeat.index }}"
+                    physical_flow_confirmed: false
+                - stop: "Epizoda nebo vlastník se změnili; starý povel se neopakuje."
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ is_state(zone,'heat') and is_number(state_attr(zone,'temperature'))
+                       and ((state_attr(zone,'temperature') | float)-29) | abs <= 0.1
+                       and as_timestamp(states[zone].last_reported,0) >= started }}
+              then:
+                - event: heating_emergency_zone_candidate_result
+                  event_data:
+                    zone: "{{ zone }}"
+                    status: target_reported
+                    attempts: "{{ repeat.index }}"
+                    motor_step_increase: >-
+                      {{ is_number(motor_before) and is_number(states(motor))
+                         and states(motor)|float > motor_before }}
+                    physical_flow_confirmed: false
+                - stop: "Hlášený cíl potvrzen; nejde o měření otevření ani průtoku."
+            - if:
+                - condition: template
+                  value_template: "{{ repeat.index == 1 }}"
+              then:
+                - delay: "00:00:02"
+      - event: heating_emergency_zone_candidate_result
+        event_data:
+          zone: "{{ zone }}"
+          status: unconfirmed
+          attempts: 2
+          physical_flow_confirmed: false
+      - stop: "Cíl nebyl potvrzen; koordinátor musí zónu označit jako nepotvrzenou."
