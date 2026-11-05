@@ -16,7 +16,7 @@ The first integration stage is controlled by [heating issue #172](https://github
 
 The pilot has no authority to write Home Assistant or Supervisor state, use SSH, publish MQTT commands, control a device or boiler, reload or restart services, deploy to production, or treat repository CI as evidence of live runtime safety. Those boundaries apply even if an issue asks for a broader action.
 
-The current `HERDR.lock` remains on `v0.3.0-rc.8`. The pilot must not be activated from an unpinned Herdr branch. Activation waits for the reviewed Herdr work to be released as a new immutable version, pinned here, validated in CI and accepted through a separate canary/release decision.
+`HERDR.lock` pins the reviewed immutable Herdr release `v0.3.0-rc.28` at commit `375c1b9dac5c426861d241ff90387a836c328d93`. The pilot must never be activated from an unpinned Herdr branch. This pin alone does not activate the pilot; deployment, canary evidence and the fresh issue-bound admission acknowledgement remain separate gates.
 
 ## Policy
 
