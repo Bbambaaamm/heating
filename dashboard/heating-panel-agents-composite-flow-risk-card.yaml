@@ -1,0 +1,72 @@
+type: markdown
+grid_options:
+  columns: full
+  rows: auto
+entity_id:
+  - sensor.heating_agent_replay
+  - sensor.heating_agent_safety
+  - sensor.heating_agent_permissions
+  - sensor.heating_agent_watchdog
+content: |-
+  {% set c = state_attr('sensor.heating_agent_replay', 'composite_flow_risk') %}
+  {% set safety = states('sensor.heating_agent_safety') %}
+  {% set permissions = states('sensor.heating_agent_permissions') %}
+  {% set watchdog = states('sensor.heating_agent_watchdog') %}
+
+  ### Composite Flow-Risk
+  **SHADOW ONLY · NO CONTROL**
+
+  Safety **{{ safety }}** · Permissions **{{ permissions }}** · Watchdog **{{ watchdog }}**
+
+  _TRV PI je pouze proxy požadavku; fyzický průtok není tímto panelem potvrzen._
+
+  {% if not c %}
+  #### Sběr nových 0.4.1 feature-traced epizod
+  Composite dataset zatím nebyl vytvořen. Historické replay počty se sem záměrně nepřenášejí.
+  {% else %}
+  {% set ds = c.get('dataset', {}) %}
+  {% set minimum = c.get('minimum_evidence', {}) %}
+  {% set candidate = c.get('candidate') or {} %}
+  {% set definition = candidate.get('definition') or {} %}
+  {% set ev = candidate.get('evidence') or {} %}
+  {% set val = candidate.get('validation') or {} %}
+  {% set ev_fp = ev.get('warned_normal_rate') %}
+  {% set val_fp = val.get('warned_normal_rate') %}
+  {% set ev_lead = ev.get('lead_median_s') %}
+  {% set val_lead = val.get('lead_median_s') %}
+
+  **Stav:** {{ c.get('status', 'UNKNOWN') }}
+
+  #### Evidence gate
+  | Dataset | Fault | Normal |
+  |---|---:|---:|
+  | Evidence | **{{ ds.get('evidence_faults', 0) }} / {{ minimum.get('evidence_faults', 3) }}** | **{{ ds.get('evidence_normal_controls', 0) }} / {{ minimum.get('evidence_normal_controls', 20) }}** |
+  | Held-out validation | **{{ ds.get('validation_faults', 0) }} / {{ minimum.get('validation_faults', 1) }}** | **{{ ds.get('validation_normal_controls', 0) }} / {{ minimum.get('validation_normal_controls', 10) }}** |
+
+  #### Evidence-only kandidát
+  {% if c.get('candidate_rule') %}
+  **{{ c.get('candidate_rule') }}**
+
+  PI10 ≤ **{{ definition.get('pi10_max', '—') }}** · block rise ≥ **{{ definition.get('block_rise_min', '—') }}** · phase **{{ definition.get('phase', '—') }}** · request age ≥ **{{ definition.get('request_age_min', '—') }}**
+
+  | Metrika | Evidence | Held-out |
+  |---|---:|---:|
+  | False positive | **{{ ((ev_fp|float) * 100)|round(1) ~ ' %' if ev_fp is not none else '—' }}** | **{{ ((val_fp|float) * 100)|round(1) ~ ' %' if val_fp is not none else '—' }}** |
+  | Timely detections | **{{ ev.get('timely', '—') }}** | **{{ val.get('timely', '—') }}** |
+  | Misses | **{{ ev.get('missed', '—') }}** | **{{ val.get('missed', '—') }}** |
+  | Median lead | **{{ (ev_lead|float)|round(1) ~ ' s' if ev_lead is not none else '—' }}** | **{{ (val_lead|float)|round(1) ~ ' s' if val_lead is not none else '—' }}** |
+  {% else %}
+  _Kandidát nebude vybrán, dokud evidence-only gate nemá dostatek feature-traced dat._
+  {% endif %}
+
+  {% if c.get('validation_evaluated_after_selection') %}
+  Held-out validace byla vyhodnocena **až po evidence-only výběru**.
+  {% else %}
+  Held-out validace zatím čeká na evidence-only výběr kandidáta.
+  {% endif %}
+
+  #### Tvrdé invarianty
+  Active protection changed: **{{ c.get('active_protection_changed') }}** · Deployment allowed: **{{ c.get('deployment_allowed') }}** · Validation used for ranking: **{{ c.get('validation_used_for_ranking') }}**
+
+  _I stav PROMISING_SHADOW_CANDIDATE zůstává hypotéza a není povolení k fyzickému zásahu._
+  {% endif %}
