@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "invariants": [
     {
       "id": "S01",
@@ -140,6 +140,13 @@
       "description": "Agent s parentem nesmí rozšířit capabilities nad parenta.",
       "kind": "permission",
       "rule": "child_capabilities_subset_parent"
+    },
+    {
+      "id": "S21",
+      "severity": "high",
+      "description": "Heatblock nad projektovou eskalační mezí 72 °C nesmí být stav OK ani po odpadnutí relé nebo hořáku.",
+      "kind": "state",
+      "rule": "heatblock_over_72_is_not_ok"
     }
   ]
 }
