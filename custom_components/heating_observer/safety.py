@@ -39,6 +39,7 @@ class SafetySentinel:
         master = sample.get("master")
         mode = sample.get("mode")
         code = number(sample.get("code"))
+        block = number(sample.get("block"))
         active_fault = code is not None and int(code) in FAULTS
 
         def violation(invariant: str, message: str, severity: str = "critical"):
@@ -53,6 +54,9 @@ class SafetySentinel:
             violation("S02", "master heating is OFF while boiler relay is ON")
         if mode == "Off" and relay is True:
             violation("S03", "heating mode is Off while boiler relay is ON")
+
+        if block is not None and block > 72:
+            violation("S21", f"boiler heatblock {block:.1f} °C exceeds 72 °C safety threshold")
 
         if active_fault and relay is True:
             self._fault_relay_streak += 1
