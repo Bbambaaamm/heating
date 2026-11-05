@@ -8,5 +8,13 @@ policy_profile: heating-safe-engineering
 hard_invariants:
   - repository_changes_do_not_imply_runtime_actuation
   - safety_relevant_production_changes_require_explicit_project_gate
+  - no_home_assistant_or_supervisor_write_access
+  - no_ssh_mqtt_device_or_boiler_control
+  - no_reload_restart_or_production_deployment
+  - repository_ci_is_not_live_runtime_evidence
+  - unexplained_burner_start_is_not_domestic_hot_water
+  - one_requesting_zone_is_a_valid_heating_request
+  - software_lock_maximum_is_ten_minutes
+  - hard_lockout_and_flow_v4_must_not_be_bypassed
 inheritance:
   child_may_expand_parent_permissions: false
