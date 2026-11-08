@@ -5,12 +5,12 @@
   "badges": [
     {
       "type": "custom:mushroom-template-badge",
-      "content": "Panel",
-      "icon": "mdi:view-dashboard",
-      "color": "teal",
+      "content": "Topení",
+      "icon": "mdi:home-thermometer-outline",
+      "color": "grey",
       "tap_action": {
         "action": "navigate",
-        "navigation_path": "/heating-panel/panel"
+        "navigation_path": "/lovelace/heating-overview-preview"
       }
     },
     {
@@ -25,26 +25,6 @@
     },
     {
       "type": "custom:mushroom-template-badge",
-      "content": "Ochrana",
-      "icon": "mdi:shield-home-outline",
-      "color": "{{ 'red' if is_state('input_select.heating_flow_state_v4','HARD_LOCKOUT') else 'orange' if states('input_select.heating_flow_state_v4') in ['EMERGENCY_COOLING','RESTORING'] else 'teal' if is_state('input_select.heating_flow_state_v4','NORMAL') else 'grey' }}",
-      "tap_action": {
-        "action": "navigate",
-        "navigation_path": "/lovelace/heating-observation"
-      }
-    },
-    {
-      "type": "custom:mushroom-template-badge",
-      "content": "Historie",
-      "icon": "mdi:chart-line",
-      "color": "grey",
-      "tap_action": {
-        "action": "navigate",
-        "navigation_path": "/lovelace/home-history"
-      }
-    },
-    {
-      "type": "custom:mushroom-template-badge",
       "content": "Technika",
       "icon": "mdi:cog-outline",
       "color": "grey",
@@ -55,12 +35,32 @@
     },
     {
       "type": "custom:mushroom-template-badge",
+      "content": "Ochrana",
+      "icon": "mdi:shield-home-outline",
+      "color": "grey",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/heating-observation"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
       "content": "Kotel",
       "icon": "mdi:water-boiler",
-      "color": "{{ 'red' if states('sensor.boiler_servicecodenumber') in ['2964','2965','2966','2967'] else 'orange' if is_state('binary_sensor.boiler_burngas','on') else 'blue' }}",
+      "color": "teal",
       "tap_action": {
         "action": "navigate",
         "navigation_path": "/lovelace/boiler-pro"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Historie",
+      "icon": "mdi:chart-line",
+      "color": "grey",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/home-history"
       }
     }
   ],
@@ -73,7 +73,7 @@
     "card": {
       "type": "markdown",
       "text_only": true,
-      "content": "# Kotel · servis\nŽivý provoz, diagnostika, servis a energie"
+      "content": "# Podrobnosti kotle\nProvoz, třícestný ventil, servisní údaje a spotřeba"
     }
   },
   "type": "sections",
@@ -446,7 +446,7 @@
             },
             {
               "entity": "binary_sensor.boiler_tapwateractive",
-              "name": "Ohřev teplé vody"
+              "name": "Aktivní režim TUV hlášený EMS"
             },
             {
               "entity": "binary_sensor.boiler_ww3wayvalve",
@@ -454,11 +454,11 @@
             },
             {
               "entity": "binary_sensor.boiler_wwcharging",
-              "name": "Nabíjení zásobníku TUV"
+              "name": "Nabíjení hlášené EMS"
             },
             {
               "entity": "binary_sensor.boiler_wwrecharging",
-              "name": "Dobíjení zásobníku TUV"
+              "name": "Dobíjení hlášené EMS"
             },
             {
               "entity": "binary_sensor.boiler_wwtempok",
@@ -637,11 +637,31 @@
           "entities": [
             {
               "entity": "number.boiler_boilhyston",
-              "name": "Hystereze zapnutí (°C)"
+              "name": "Hystereze zapnutí (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_boilhystoff",
-              "name": "Hystereze vypnutí (°C)"
+              "name": "Hystereze vypnutí (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "sensor.boiler_heatblock",
@@ -769,58 +789,168 @@
         },
         {
           "type": "entities",
-          "title": "Ovládání topení",
+          "title": "Parametry topení · odečet EMS",
           "show_header_toggle": false,
           "entities": [
             {
               "entity": "switch.boiler_heatingactivated",
-              "name": "Topení – povolit / zakázat"
+              "name": "Topení – povolit / zakázat",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "switch.boiler_heatingoff",
-              "name": "Nouzové vypnutí vytápění"
+              "name": "Nouzové vypnutí vytápění",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "type": "divider"
             },
             {
               "entity": "number.boiler_heatingtemp",
-              "name": "Žádaná teplota topení (°C)"
+              "name": "Žádaná teplota topení (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_burnmaxpower",
-              "name": "Maximální výkon hořáku (%)"
+              "name": "Maximální výkon hořáku (%)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_burnminpower",
-              "name": "Minimální výkon hořáku (%)"
+              "name": "Minimální výkon hořáku (%)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "type": "divider"
             },
             {
               "entity": "switch.boiler_curveon",
-              "name": "Topná křivka zapnutá"
+              "name": "Topná křivka zapnutá",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_curvebase",
-              "name": "Základ topné křivky (°C)"
+              "name": "Základ topné křivky (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_curveend",
-              "name": "Konec topné křivky (°C)"
+              "name": "Konec topné křivky (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_summertemp",
-              "name": "Letní teplota (°C)"
+              "name": "Letní teplota (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "switch.boiler_nofrostmode",
-              "name": "Režim proti zamrznutí"
+              "name": "Režim proti zamrznutí",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             },
             {
               "entity": "number.boiler_nofrosttemp",
-              "name": "Teplota proti zamrznutí (°C)"
+              "name": "Teplota proti zamrznutí (°C)",
+              "type": "simple-entity",
+              "tap_action": {
+                "action": "none"
+              },
+              "hold_action": {
+                "action": "none"
+              },
+              "double_tap_action": {
+                "action": "none"
+              }
             }
           ],
           "card_mod": {
