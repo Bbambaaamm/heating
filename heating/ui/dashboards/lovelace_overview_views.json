@@ -64,7 +64,7 @@
           "cards": [
             {
               "type": "markdown",
-              "content": "{% macro value(e,unit='',digits=0) -%}{% if is_number(states(e)) %}{{ (((states(e)|float)|round(0)|int|string) if digits==0 else ((states(e)|float)|round(digits)|string|replace('.',','))) ~ (' ' ~ unit if unit else '') }}{% else %}—{% endif %}{%- endmacro %}\n{% macro power(e) -%}{% if is_number(states(e)) %}{% set n=states(e)|float %}{{ ((n/1000)|round(2)|string|replace('.',',')) ~ ' kW' if n|abs>=1000 else ((n|round(0)|int)|string) ~ ' W' }}{% else %}—{% endif %}{%- endmacro %}\n{% set zones={\"sklep_michal\": \"Sklep · Michal\", \"prizemi_michal\": \"Přízemí · Michal\", \"prizemi_chodba_zachod\": \"Chodba / WC\", \"1p_kuchyn\": \"Kuchyň\", \"1p_jidelna\": \"Jídelna\", \"1p_chodba\": \"Chodba\", \"1p_koupelna\": \"Koupelna\", \"2p_mama\": \"Máma\"} %}\n{% set data_ts=as_timestamp(states('sensor.oig_1804240009_real_data_update'),none) %}{% set age=as_timestamp(now())-data_ts if data_ts is not none else none %}{% set energy_fresh=age is not none and age>=-60 and age<=600 %}\n{% set issue=namespace(items=[],critical=0) %}\n{% set flow4=states('input_select.heating_flow_state_v4') %}\n{% if flow4 == 'HARD_LOCKOUT' %}\n  {% set issue.critical=issue.critical+1 %}\n  {% set issue.items=issue.items+[('Topení · HARD LOCKOUT','Hlavice jsou vrácené do normálních cílů, ale kotel zůstává bezpečně vypnutý.','/lovelace/heating-observation')] %}\n{% elif flow4 == 'EMERGENCY_COOLING' %}\n  {% set issue.critical=issue.critical+1 %}\n  {% set issue.items=issue.items+[('Topení · nouzové chlazení','Kotel je vypnutý a hlavice odvádějí přebytečné teplo.','/lovelace/heating-observation')] %}\n{% elif flow4 == 'RESTORING' %}\n  {% set issue.items=issue.items+[('Topení · obnova','Systém vrací hlavice a řízení do normálního režimu.','/lovelace/heating-observation')] %}\n{% elif flow4 not in ['NORMAL'] %}\n  {% set issue.items=issue.items+[('Topení · stav neověřen','Stav Flow V4 není známý.','/lovelace/heating-observation')] %}\n{% endif %}\n{% for e,n in [('binary_sensor.heating_core_v4_healthy','Automatizace topení'),('binary_sensor.heating_core_entities_available','Klíčové entity topení'),('binary_sensor.heating_dispatch_inputs_available','Vstupy řízení topení'),('binary_sensor.heating_helpers_all_available','Pomocné vstupy topení')] %}\n{% if not is_state(e,'on') %}{% set issue.critical=issue.critical+1 %}{% set issue.items=issue.items+[(n,'Dostupnost není potvrzená. Otevři diagnostiku topení.','/lovelace/heating-overview-detail')] %}{% endif %}{% endfor %}\n{% if is_state('binary_sensor.rpi_power_status','on') %}{% set issue.critical=issue.critical+1 %}{% set issue.items=issue.items+[('Napájení Home Assistantu','Zařízení hlásí problém s napájením.','/lovelace/home-care')] %}{% elif not has_value('binary_sensor.rpi_power_status') %}{% set issue.items=issue.items+[('Napájení Home Assistantu','Kontrola napájení není dostupná.','/lovelace/home-care')] %}{% endif %}\n{% set gate=states('cover.vrata_gatebox_position') %}\n{% set g=states.cover.vrata_gatebox_position %}\n{% set moving=gate in ['opening','closing'] %}\n{% set too_long=moving and (as_timestamp(now())-as_timestamp(g.last_changed))>120 %}\n{% set pos1=state_attr('cover.vrata','current_position') %}{% set pos2=state_attr('cover.vrata_gatebox_position','current_position') %}\n{% set mismatch=not moving and is_number(pos1) and is_number(pos2) and ((pos1|float)-(pos2|float))|abs>5 %}\n{% if not has_value('cover.vrata') or not has_value('cover.vrata_gatebox_position') or too_long or mismatch %}\n{% set issue.items=issue.items+[('Vrata · ověř stav','Dlouho hlášený pohyb.' if too_long else 'Poloha není spolehlivě potvrzená.','/lovelace/vrata')] %}\n{% endif %}\n{% if not energy_fresh %}{% set issue.items=issue.items+[('Energetika · starší data','Čas aktuálních dat chybí nebo je starší než 10 minut.','/lovelace/home-energy')] %}{% endif %}\n{% if not is_number(states('sensor.oig_1804240009_notification_count_error')) or not is_number(states('sensor.oig_1804240009_notification_count_warning')) %}{% set issue.items=issue.items+[('Battery Box · zprávy neověřeny','Počet chybových nebo varovných zpráv není dostupný.','/lovelace/home-energy')] %}{% elif states('sensor.oig_1804240009_notification_count_error')|float(0)>0 %}{% set issue.items=issue.items+[('Battery Box hlásí chybu','Zkontroluj chybové zprávy v detailu energetiky.','/lovelace/home-energy')] %}{% elif states('sensor.oig_1804240009_notification_count_warning')|float(0)>0 %}{% set issue.items=issue.items+[('Battery Box hlásí upozornění','Zkontroluj zprávy v detailu energetiky.','/lovelace/home-energy')] %}{% endif %}\n{% set issue.items=issue.items+[('Energetika · kontrola integrace','Audit 19. 9. zjistil opakované korekce režimu Home UPS / Home 1. Vyřešení zatím není potvrzené; nulový počet zpráv zařízení to nevylučuje.','/lovelace/home-energy')] %}\n{% for z,n in zones.items() %}{% set a='sensor.'~z~'_stav_adaptacniho_behu' %}{% set e='sensor.'~z~'_chyba_softwaru' %}\n{% if not is_state('binary_sensor.heating_valve_'~z~'_alive','on') %}{% set issue.items=issue.items+[(n,'Chybí ověřená aktuální data hlavice.','/lovelace/heating-overview-detail')] %}\n{% elif is_state(e,'something') %}{% set issue.items=issue.items+[(n,'Hlavice hlásí závadu.','/lovelace/heating-overview-detail')] %}\n{% elif not has_value(a) or not has_value(e) %}{% set issue.items=issue.items+[(n,'Diagnostika hlavice není úplná.','/lovelace/heating-overview-detail')] %}\n{% elif state_attr(a,'In_progress')==true %}{% set issue.items=issue.items+[(n,'Probíhá adaptace ventilu.','/lovelace/heating-overview-detail')] %}\n{% elif state_attr(a,'Valve_characteristic_found')!=true or state_attr(a,'Valve_characteristic_lost')==true %}{% set issue.items=issue.items+[(n,'Adaptace ventilu není potvrzená. Ověř usazení hlavice a případný chybový kód; stav sám neprokazuje mechanickou závadu.','/lovelace/heating-overview-detail')] %}{% endif %}{% endfor %}\n{% if not has_value('sensor.tz3000_jidelna_teplota') %}{% set issue.items=issue.items+[('Jídelna · externí čidlo','Externí měření chybí; teplota hlavice zůstává dostupná, pokud ji karta ukazuje. Zkontroluj baterie čidla a spojení Zigbee.','/lovelace/heating-overview-detail')] %}{% endif %}\n{% if is_state('sensor.kotel_efficiency_rating','Kritické cyklování!') %}{% set issue.items=issue.items+[('Krátké úseky hoření','Za posledních 24 h: '~states('sensor.kotel_start_count_24h')~' úseků hoření; za poslední hodinu: '~states('sensor.kotel_start_count_1h')~'. Počty zahrnují rozběhnutý úsek. Relé a hořák mohou mít odlišný průběh.','/lovelace/heating-overview-detail')] %}{% endif %}\n{% set f=states('sensor.mi_air_purifier_2h_zbyvajici_zivotnost_filtru') %}\n{% if is_number(f) and f|float<=0 %}{% set issue.items=issue.items+[('Filtr čističky','Počítadlo životnosti hlásí 0 %. Prohlédni filtr; počítadlo resetuj až po skutečné údržbě.','/lovelace/home-care')] %}{% elif not is_number(f) %}{% set issue.items=issue.items+[('Čistička · stav filtru','Údaj o životnosti filtru chybí.','/lovelace/home-care')] %}{% endif %}\n{% set backup=as_timestamp(states('sensor.backup_posledni_uspesne_automaticke_zalohovani'),none) %}\n{% if backup is none or (as_timestamp(now())-backup)>172800 %}{% set issue.items=issue.items+[('Záloha Home Assistantu','Úspěšná záloha chybí nebo je starší než 48 hodin.','/lovelace/home-care')] %}{% endif %}\n## {{ 'Řízení vyžaduje kontrolu' if issue.critical else 'Dům pod dohledem' }}\n{% if issue.items %}**{{ issue.items|length }} {{ 'bod k prověření' if issue.items|length==1 else 'body k prověření' if issue.items|length<5 else 'bodů k prověření' }}** · Topení {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else 'neověřeno' }}\n{% for title,description,path in issue.items[:3] %}\n- [{{ title }}]({{ path }})\n{% endfor %}\n[Všechna upozornění →](/lovelace/home-care)\n{% else %}Kontrolované funkce bez hlášeného problému.\n{% endif %}",
+              "content": "{% macro value(e,unit='',digits=0) -%}{% if is_number(states(e)) %}{{ (((states(e)|float)|round(0)|int|string) if digits==0 else ((states(e)|float)|round(digits)|string|replace('.',','))) ~ (' ' ~ unit if unit else '') }}{% else %}—{% endif %}{%- endmacro %}\n{% macro power(e) -%}{% if is_number(states(e)) %}{% set n=states(e)|float %}{{ ((n/1000)|round(2)|string|replace('.',',')) ~ ' kW' if n|abs>=1000 else ((n|round(0)|int)|string) ~ ' W' }}{% else %}—{% endif %}{%- endmacro %}\n{% set zones={\"sklep_michal\": \"Sklep · Michal\", \"prizemi_michal\": \"Přízemí · Michal\", \"prizemi_chodba_zachod\": \"Chodba / WC\", \"1p_kuchyn\": \"Kuchyň\", \"1p_jidelna\": \"Jídelna\", \"1p_chodba\": \"Chodba\", \"1p_koupelna\": \"Koupelna\", \"2p_mama\": \"Máma\"} %}\n{% set data_ts=as_timestamp(states('sensor.oig_1804240009_real_data_update'),none) %}{% set age=as_timestamp(now())-data_ts if data_ts is not none else none %}{% set energy_fresh=age is not none and age>=-60 and age<=600 %}\n{% set issue=namespace(items=[],critical=0) %}\n{% set flow4=states('input_select.heating_flow_state_v4') %}\n{% if flow4 == 'HARD_LOCKOUT' %}\n  {% set issue.critical=issue.critical+1 %}\n  {% set issue.items=issue.items+[('Topení · softwarový zámek','Ochrana blokuje požadavek na relé. Stav a odpočet jsou v detailu ochrany.','/lovelace/heating-observation')] %}\n{% elif flow4 == 'EMERGENCY_COOLING' %}\n  {% set issue.critical=issue.critical+1 %}\n  {% set issue.items=issue.items+[('Topení · nouzové chlazení','Ochrana odvádí přebytečné teplo. Stav hořáku a relé ověř v detailu ochrany.','/lovelace/heating-observation')] %}\n{% elif flow4 == 'RESTORING' %}\n  {% set issue.items=issue.items+[('Topení · obnova','Systém vrací hlavice a řízení do normálního režimu.','/lovelace/heating-observation')] %}\n{% elif flow4 not in ['NORMAL'] %}\n  {% set issue.items=issue.items+[('Topení · stav neověřen','Stav Flow V4 není známý.','/lovelace/heating-observation')] %}\n{% endif %}\n{% for e,n in [('binary_sensor.heating_core_v4_healthy','Automatizace topení'),('binary_sensor.heating_core_entities_available','Klíčové entity topení'),('binary_sensor.heating_dispatch_inputs_available','Vstupy řízení topení'),('binary_sensor.heating_helpers_all_available','Pomocné vstupy topení')] %}\n{% if not is_state(e,'on') %}{% set issue.critical=issue.critical+1 %}{% set issue.items=issue.items+[(n,'Dostupnost není potvrzená. Otevři diagnostiku topení.','/lovelace/heating-overview-detail')] %}{% endif %}{% endfor %}\n{% if is_state('binary_sensor.rpi_power_status','on') %}{% set issue.critical=issue.critical+1 %}{% set issue.items=issue.items+[('Napájení Home Assistantu','Zařízení hlásí problém s napájením.','/lovelace/home-care')] %}{% elif not has_value('binary_sensor.rpi_power_status') %}{% set issue.items=issue.items+[('Napájení Home Assistantu','Kontrola napájení není dostupná.','/lovelace/home-care')] %}{% endif %}\n{% set gate=states('cover.vrata_gatebox_position') %}\n{% set g=states.cover.vrata_gatebox_position %}\n{% set moving=gate in ['opening','closing'] %}\n{% set too_long=moving and (as_timestamp(now())-as_timestamp(g.last_changed))>120 %}\n{% set pos1=state_attr('cover.vrata','current_position') %}{% set pos2=state_attr('cover.vrata_gatebox_position','current_position') %}\n{% set mismatch=not moving and is_number(pos1) and is_number(pos2) and ((pos1|float)-(pos2|float))|abs>5 %}\n{% if not has_value('cover.vrata') or not has_value('cover.vrata_gatebox_position') or too_long or mismatch %}\n{% set issue.items=issue.items+[('Vrata · ověř stav','Dlouho hlášený pohyb.' if too_long else 'Poloha není spolehlivě potvrzená.','/lovelace/vrata')] %}\n{% endif %}\n{% if not energy_fresh %}{% set issue.items=issue.items+[('Energetika · starší data','Čas aktuálních dat chybí nebo je starší než 10 minut.','/lovelace/home-energy')] %}{% endif %}\n{% if not is_number(states('sensor.oig_1804240009_notification_count_error')) or not is_number(states('sensor.oig_1804240009_notification_count_warning')) %}{% set issue.items=issue.items+[('Battery Box · zprávy neověřeny','Počet chybových nebo varovných zpráv není dostupný.','/lovelace/home-energy')] %}{% elif states('sensor.oig_1804240009_notification_count_error')|float(0)>0 %}{% set issue.items=issue.items+[('Battery Box hlásí chybu','Zkontroluj chybové zprávy v detailu energetiky.','/lovelace/home-energy')] %}{% elif states('sensor.oig_1804240009_notification_count_warning')|float(0)>0 %}{% set issue.items=issue.items+[('Battery Box hlásí upozornění','Zkontroluj zprávy v detailu energetiky.','/lovelace/home-energy')] %}{% endif %}\n{% set issue.items=issue.items+[('Energetika · kontrola integrace','Audit 19. 9. zjistil opakované korekce režimu Home UPS / Home 1. Vyřešení zatím není potvrzené; nulový počet zpráv zařízení to nevylučuje.','/lovelace/home-energy')] %}\n{% for z,n in zones.items() %}{% set a='sensor.'~z~'_stav_adaptacniho_behu' %}{% set e='sensor.'~z~'_chyba_softwaru' %}\n{% if not is_state('binary_sensor.heating_valve_'~z~'_alive','on') %}{% set issue.items=issue.items+[(n,'Chybí ověřená aktuální data hlavice.','/lovelace/heating-overview-detail')] %}\n{% elif is_state(e,'something') %}{% set issue.items=issue.items+[(n,'Hlavice hlásí závadu.','/lovelace/heating-overview-detail')] %}\n{% elif not has_value(a) or not has_value(e) %}{% set issue.items=issue.items+[(n,'Diagnostika hlavice není úplná.','/lovelace/heating-overview-detail')] %}\n{% elif state_attr(a,'In_progress')==true %}{% set issue.items=issue.items+[(n,'Probíhá adaptace ventilu.','/lovelace/heating-overview-detail')] %}\n{% elif state_attr(a,'Valve_characteristic_found')!=true or state_attr(a,'Valve_characteristic_lost')==true %}{% set issue.items=issue.items+[(n,'Adaptace ventilu není potvrzená. Ověř usazení hlavice a případný chybový kód; stav sám neprokazuje mechanickou závadu.','/lovelace/heating-overview-detail')] %}{% endif %}{% endfor %}\n{% if not has_value('sensor.tz3000_jidelna_teplota') %}{% set issue.items=issue.items+[('Jídelna · externí čidlo','Externí měření chybí; teplota hlavice zůstává dostupná, pokud ji karta ukazuje. Zkontroluj baterie čidla a spojení Zigbee.','/lovelace/heating-overview-detail')] %}{% endif %}\n{% if is_state('sensor.kotel_efficiency_rating','Kritické cyklování!') %}{% set issue.items=issue.items+[('Krátké úseky hoření','Za posledních 24 h: '~states('sensor.kotel_start_count_24h')~' úseků hoření; za poslední hodinu: '~states('sensor.kotel_start_count_1h')~'. Počty zahrnují rozběhnutý úsek. Relé a hořák mohou mít odlišný průběh.','/lovelace/heating-overview-detail')] %}{% endif %}\n{% set f=states('sensor.mi_air_purifier_2h_zbyvajici_zivotnost_filtru') %}\n{% if is_number(f) and f|float<=0 %}{% set issue.items=issue.items+[('Filtr čističky','Počítadlo životnosti hlásí 0 %. Prohlédni filtr; počítadlo resetuj až po skutečné údržbě.','/lovelace/home-care')] %}{% elif not is_number(f) %}{% set issue.items=issue.items+[('Čistička · stav filtru','Údaj o životnosti filtru chybí.','/lovelace/home-care')] %}{% endif %}\n{% set backup=as_timestamp(states('sensor.backup_posledni_uspesne_automaticke_zalohovani'),none) %}\n{% if backup is none or (as_timestamp(now())-backup)>172800 %}{% set issue.items=issue.items+[('Záloha Home Assistantu','Úspěšná záloha chybí nebo je starší než 48 hodin.','/lovelace/home-care')] %}{% endif %}\n## {{ 'Řízení vyžaduje kontrolu' if issue.critical else 'Dům pod dohledem' }}\n{% if issue.items %}**{{ issue.items|length }} {{ 'bod k prověření' if issue.items|length==1 else 'body k prověření' if issue.items|length<5 else 'bodů k prověření' }}** · Topení {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else 'neověřeno' }}\n{% for title,description,path in issue.items[:3] %}\n- [{{ title }}]({{ path }})\n{% endfor %}\n[Všechna upozornění →](/lovelace/home-care)\n{% else %}Kontrolované funkce bez hlášeného problému.\n{% endif %}",
               "grid_options": {
                 "columns": "full",
                 "rows": "auto"
@@ -629,7 +629,7 @@
           "cards": [
             {
               "type": "markdown",
-              "content": "{% set zones=['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_kuchyn','1p_jidelna','1p_chodba','1p_koupelna','2p_mama'] %}\n{% set ns=namespace(active=0,unknown=0) %}\n{% for z in zones %}\n  {% set req=states('binary_sensor.zona_'~z~'_aktivni') %}\n  {% set alive=is_state('binary_sensor.heating_valve_'~z~'_alive','on') %}\n  {% if not alive or req not in ['on','off'] %}\n    {% set ns.unknown=ns.unknown+1 %}\n  {% elif req=='on' %}\n    {% set ns.active=ns.active+1 %}\n  {% endif %}\n{% endfor %}\n{% set healthy=is_state('binary_sensor.heating_core_entities_available','on') and is_state('binary_sensor.heating_core_v4_healthy','on') and is_state('binary_sensor.heating_helpers_all_available','on') and is_state('binary_sensor.heating_dispatch_inputs_available','on') and is_state('binary_sensor.system_status','on') %}\n{% set mode=states('input_select.topny_rezim') %}\n{% set f=states('input_select.heating_flow_state_v4') %}\n{% if is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') and is_state('binary_sensor.boiler_burngas','on') and is_state('switch.kotel_rele_spinac','off') %}\n## Hořák běží při rozepnutém topném relé\n[Podrobnosti kotle →](/lovelace/boiler-pro) · [Ochrana →](/lovelace/heating-observation)\n{% elif f == 'HARD_LOCKOUT' %}\n## 🔒 HARD LOCKOUT\nOchrana blokuje topné relé · zóny obnovené · [Ochrana →](/lovelace/heating-observation)\n{% elif f == 'EMERGENCY_COOLING' %}\n## 🛡️ Nouzové chlazení\nOchrana blokuje topné relé · blok **{{ states('sensor.boiler_heatblock') ~ ' °C' if is_number(states('sensor.boiler_heatblock')) else '—' }}** · [Ochrana →](/lovelace/heating-observation)\n{% elif f == 'RESTORING' %}\n## ↻ Obnova topení\nOchrana blokuje topné relé · obnova cílů hlavic · [Ochrana →](/lovelace/heating-observation)\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## 🔧 Servisní režim\nBěžné řízení pozastavené\n{% elif is_state('input_boolean.topny_system_enable','off') or mode=='Off' %}\n## Topení je vypnuté\n{{ mode }} · Flow V4 {{ f }}\n{% elif not healthy or ns.unknown %}\n## ⚠️ Topení vyžaduje kontrolu\n{{ mode }} · V4 {{ f }} · {{ ns.active }}/8 potřebuje teplo · [Technika →](/lovelace/heating-overview-detail)\n{% elif ns.active > 0 %}\n## {{ ns.active }} {{ 'místnost potřebuje' if ns.active==1 else 'místnosti potřebují' if ns.active<5 else 'místností potřebuje' }} teplo\n{% if is_state('binary_sensor.boiler_burngas','on') %}Kotel právě topí{% elif is_state('switch.kotel_rele_spinac','on') %}Požadavek na kotel je aktivní{% elif is_state('binary_sensor.kotel_should_be_on','on') %}Kotel čeká na bezpečné zpoždění startu{% else %}Kotel čeká na společný požadavek{% endif %} · **{{ mode }}** · V4 {{ f }} · {{ ns.active }}/8\n{% else %}\n## ✅ Dům teplo nepotřebuje\n{{ mode }} · V4 {{ f }} · kotel nyní nemusí topit\n{% endif %}",
+              "content": "{% set zones=['sklep_michal','prizemi_michal','prizemi_chodba_zachod','1p_kuchyn','1p_jidelna','1p_chodba','1p_koupelna','2p_mama'] %}\n{% set ns=namespace(active=0,unknown=0) %}\n{% for z in zones %}\n  {% set req=states('binary_sensor.zona_'~z~'_aktivni') %}\n  {% set alive=is_state('binary_sensor.heating_valve_'~z~'_alive','on') %}\n  {% if not alive or req not in ['on','off'] %}\n    {% set ns.unknown=ns.unknown+1 %}\n  {% elif req=='on' %}\n    {% set ns.active=ns.active+1 %}\n  {% endif %}\n{% endfor %}\n{% set healthy=is_state('binary_sensor.heating_core_entities_available','on') and is_state('binary_sensor.heating_core_v4_healthy','on') and is_state('binary_sensor.heating_helpers_all_available','on') and is_state('binary_sensor.heating_dispatch_inputs_available','on') and is_state('binary_sensor.system_status','on') %}\n{% set mode=states('input_select.topny_rezim') %}\n{% set f=states('input_select.heating_flow_state_v4') %}\n{% set unexpected = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') and is_state('binary_sensor.boiler_burngas','on') and is_state('switch.kotel_rele_spinac','off') %}\n{% if f == 'HARD_LOCKOUT' %}\n## 🔒 Softwarový zámek\nOchrana blokuje požadavek na topné relé · [Stav ochrany a odpočet →](/lovelace/heating-observation)\n{% elif f == 'EMERGENCY_COOLING' %}\n## 🛡️ Nouzové chlazení\nOchrana blokuje topné relé · blok **{{ states('sensor.boiler_heatblock') ~ ' °C' if is_number(states('sensor.boiler_heatblock')) else '—' }}** · [Ochrana →](/lovelace/heating-observation)\n{% elif f == 'RESTORING' %}\n## ↻ Obnova topení\nOchrana blokuje topné relé · obnova cílů hlavic · [Ochrana →](/lovelace/heating-observation)\n{% elif unexpected %}\n## Stav kotle vyžaduje kontrolu\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## 🔧 Servisní režim\nBěžné řízení pozastavené\n{% elif is_state('input_boolean.topny_system_enable','off') or mode=='Off' %}\n## Topení je vypnuté\n{{ mode }} · Flow V4 {{ f }}\n{% elif not healthy or ns.unknown %}\n## ⚠️ Topení vyžaduje kontrolu\n{{ mode }} · V4 {{ f }} · {{ ns.active }}/8 potřebuje teplo · [Technika →](/lovelace/heating-overview-detail)\n{% elif ns.active > 0 %}\n## {{ ns.active }} {{ 'místnost potřebuje' if ns.active==1 else 'místnosti potřebují' if ns.active<5 else 'místností potřebuje' }} teplo\n{% if is_state('binary_sensor.boiler_burngas','on') %}Kotel právě topí{% elif is_state('switch.kotel_rele_spinac','on') %}Požadavek na kotel je aktivní{% elif is_state('binary_sensor.kotel_should_be_on','on') %}Kotel čeká na bezpečné zpoždění startu{% else %}Kotel čeká na společný požadavek{% endif %} · **{{ mode }}** · V4 {{ f }} · {{ ns.active }}/8\n{% else %}\n## ✅ Dům teplo nepotřebuje\n{{ mode }} · V4 {{ f }} · kotel nyní nemusí topit\n{% endif %}\n\n{% if unexpected %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/lovelace/boiler-pro)\n{% endif %}",
               "entity_id": [
                 "input_select.topny_rezim",
                 "input_boolean.topny_system_enable",
@@ -647,7 +647,8 @@
                 "binary_sensor.heating_core_v4_healthy",
                 "binary_sensor.heating_helpers_all_available",
                 "binary_sensor.heating_dispatch_inputs_available",
-                "binary_sensor.kotel_should_be_on"
+                "binary_sensor.kotel_should_be_on",
+                "sensor.system_bus_status"
               ],
               "grid_options": {
                 "columns": "full",
@@ -3601,7 +3602,7 @@
             },
             {
               "type": "markdown",
-              "content": "{% set demand = states('binary_sensor.kotel_should_be_on') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set link = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set active = states('sensor.kotel_aktivni_zony_pocet') %}\n{% set minimum = states('sensor.kotel_effective_min_active_zones') %}\n{% set f = states('input_select.heating_flow_state_v4') %}\n{% set temp = states('sensor.boiler_curflowtemp') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set protection = {'NORMAL':'Běžný provoz','EMERGENCY_COOLING':'Nouzové chlazení','RESTORING':'Obnova','HARD_LOCKOUT':'Blokace'} %}\n{% if not link %}\n## Spojení s kotlem vyžaduje kontrolu\n{% elif flame == 'on' and relay == 'off' %}\n## Hořák běží při rozepnutém topném relé\n{% elif code in ['2964','2965','2966','2967'] %}\n## Kotel hlásí poruchu {{ code }}\n{% elif f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n## {{ protection[f] }}\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## Servisní režim\n{% elif is_state('input_boolean.topny_system_enable','off') or is_state('input_select.topny_rezim','Off') %}\n## Automatické vytápění je vypnuté\n{% elif demand not in yn or relay not in yn or flame not in yn or f not in protection %}\n## Část provozních údajů je nedostupná\n{% elif flame == 'on' %}\n## Hořák běží\n{% elif relay == 'on' %}\n## Topné relé je sepnuté\n{% elif demand == 'on' %}\n## Řízení žádá topení\n{% else %}\n## Řízení právě nežádá topení\n{% endif %}\n\n| Signál | Teď |\n| :--- | :--- |\n| Požadavek řízení | **{{ yn.get(demand,'—') }}** |\n| Sepnuté topné relé | **{{ yn.get(relay,'—') }}** |\n| Aktivní hořák | **{{ yn.get(flame,'—') if link else '—' }}** |\n| Žádající zóny / minimum | {{ active if is_number(active) else '—' }} / {{ minimum if is_number(minimum) else '—' }} |\n| Výstupní voda | {{ temp ~ ' °C' if link and is_number(temp) else '—' }} |\n| Režim / ochrana | {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else '—' }} · {{ protection.get(f,'stav neznámý') }} |",
+              "content": "{% set demand = states('binary_sensor.kotel_should_be_on') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set link = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set active = states('sensor.kotel_aktivni_zony_pocet') %}\n{% set minimum = states('sensor.kotel_effective_min_active_zones') %}\n{% set f = states('input_select.heating_flow_state_v4') %}\n{% set temp = states('sensor.boiler_curflowtemp') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set protection = {'NORMAL':'Běžný provoz','EMERGENCY_COOLING':'Nouzové chlazení','RESTORING':'Obnova','HARD_LOCKOUT':'Blokace'} %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n## {{ protection[f] }}\n{% elif not link %}\n## Spojení s kotlem vyžaduje kontrolu\n{% elif link and flame == 'on' and relay == 'off' %}\n## Stav kotle vyžaduje kontrolu\n{% elif code in ['2964','2965','2966','2967'] %}\n## Kotel hlásí poruchu {{ code }}\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## Servisní režim\n{% elif is_state('input_boolean.topny_system_enable','off') or is_state('input_select.topny_rezim','Off') %}\n## Automatické vytápění je vypnuté\n{% elif demand not in yn or relay not in yn or flame not in yn or f not in protection %}\n## Část provozních údajů je nedostupná\n{% elif flame == 'on' %}\n## Hořák běží\n{% elif relay == 'on' %}\n## Topné relé je sepnuté\n{% elif demand == 'on' %}\n## Řízení žádá topení\n{% else %}\n## Řízení právě nežádá topení\n{% endif %}\n\n{% if link and flame == 'on' and relay == 'off' %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/lovelace/boiler-pro)\n{% endif %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n[Stav ochrany a odpočet →](/lovelace/heating-observation)\n{% if not link %}**Spojení s kotlem není potvrzené.**{% elif code in ['2964','2965','2966','2967'] %}**Kotel hlásí poruchu {{ code }}.**{% endif %}\n{% endif %}\n\n| Signál | Teď |\n| :--- | :--- |\n| Požadavek řízení | **{{ yn.get(demand,'—') }}** |\n| Sepnuté topné relé | **{{ yn.get(relay,'—') }}** |\n| Aktivní hořák | **{{ yn.get(flame,'—') if link else '—' }}** |\n| Žádající zóny / minimum | {{ active if is_number(active) else '—' }} / {{ minimum if is_number(minimum) else '—' }} |\n| Výstupní voda | {{ temp ~ ' °C' if link and is_number(temp) else '—' }} |\n| Režim / ochrana | {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else '—' }} · {{ protection.get(f,'stav neznámý') }} |",
               "entity_id": [
                 "binary_sensor.kotel_should_be_on",
                 "switch.kotel_rele_spinac",
@@ -4616,6 +4617,289 @@
       ]
     },
     {
+      "title": "Topení · původní technika",
+      "path": "heating",
+      "icon": "mdi:radiator",
+      "badges": [],
+      "cards": [
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "entities",
+              "title": "Stav poptávky & agregace",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "sensor.kotel_aktivni_zony_pocet",
+                  "name": "Aktivní zóny (požadavek)"
+                },
+                {
+                  "entity": "sensor.kotel_poptavka_prumer",
+                  "name": "Průměrná poptávka zón (%)"
+                },
+                {
+                  "entity": "sensor.kotel_poptavka_max",
+                  "name": "Max. poptávka zóny (%)"
+                },
+                {
+                  "entity": "binary_sensor.kotel_threshold_ok_active_zones",
+                  "name": "Splněno: min. aktivních zón"
+                },
+                {
+                  "entity": "binary_sensor.kotel_threshold_ok_avg_demand",
+                  "name": "Splněno: min. průměrná poptávka"
+                },
+                {
+                  "entity": "binary_sensor.kotel_threshold_all_ok",
+                  "name": "Splněno: některá podmínka (OR)"
+                }
+              ]
+            },
+            {
+              "type": "horizontal-stack",
+              "cards": [
+                {
+                  "type": "gauge",
+                  "name": "Poptávka – průměr (%)",
+                  "entity": "sensor.kotel_poptavka_prumer",
+                  "min": 0,
+                  "max": 100
+                },
+                {
+                  "type": "gauge",
+                  "name": "Poptávka – maximum (%)",
+                  "entity": "sensor.kotel_poptavka_max",
+                  "min": 0,
+                  "max": 100
+                },
+                {
+                  "type": "gauge",
+                  "name": "Aktivní zóny",
+                  "entity": "sensor.kotel_aktivni_zony_pocet",
+                  "min": 0,
+                  "max": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "entities",
+              "title": "Politika kotle (prahy & blokace)",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "input_number.kotel_min_active_zones",
+                  "name": "Min. aktivních zón pro ZAP",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_number.kotel_min_avg_demand_pct",
+                  "name": "Min. průměrná poptávka (%) pro ZAP",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_number.kotel_min_zone_demand_pct"
+                },
+                {
+                  "entity": "input_number.kotel_on_delay_sec",
+                  "name": "Zpoždění ZAP (s)",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_number.kotel_off_delay_sec",
+                  "name": "Zpoždění VYP (s)",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "binary_sensor.kotel_mode_off_block",
+                  "name": "Blokace kotle (režim Off)",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "switch.kotel_rele_spinac",
+                  "name": "Kotel – relé (Aqara T2)",
+                  "secondary_info": "last-updated",
+                  "type": "simple-entity",
+                  "tap_action": {
+                    "action": "none"
+                  },
+                  "hold_action": {
+                    "action": "none"
+                  },
+                  "double_tap_action": {
+                    "action": "none"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "entities",
+              "title": "Režim & Boost",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "input_select.topny_rezim",
+                  "name": "Topení – režim",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_number.eco_temp_default",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_boolean.boost_now",
+                  "name": "Boost – zapnout nyní",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_number.boost_comfort_offset_c"
+                },
+                {
+                  "entity": "input_number.boost_minutes",
+                  "name": "Boost – délka (min)",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_datetime.boost_until",
+                  "name": "Boost – platí do",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_boolean.topny_system_enable",
+                  "name": "Topení – povoleno (master)",
+                  "secondary_info": "last-updated"
+                },
+                {
+                  "entity": "input_boolean.kotel_ignore_open_windows",
+                  "name": "Kotel – ignorovat otevřená okna",
+                  "secondary_info": "last-updated"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "history-graph",
+              "title": "Historie (24 h) – kotel & poptávka",
+              "hours_to_show": 24,
+              "refresh_interval": 0,
+              "entities": [
+                {
+                  "entity": "switch.kotel_rele_spinac",
+                  "name": "Kotel – relé"
+                },
+                {
+                  "entity": "sensor.kotel_poptavka_prumer",
+                  "name": "Průměrná poptávka (%)"
+                },
+                {
+                  "entity": "sensor.kotel_poptavka_max",
+                  "name": "Poptávka (%)"
+                },
+                {
+                  "entity": "sensor.kotel_aktivni_zony_pocet",
+                  "name": "Aktivní zóny (#)"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "history-graph",
+              "title": "Historie (24 h) – teploty & požadavky zón",
+              "hours_to_show": 24,
+              "refresh_interval": 0,
+              "entities": [
+                {
+                  "entity": "sensor.sklep_michal_aktualni_teplota",
+                  "name": "Sklep Michal"
+                },
+                {
+                  "entity": "sensor.prizemi_michal_aktualni_teplota",
+                  "name": "Přízemí Michal"
+                },
+                {
+                  "entity": "sensor.prizemi_chodba_zachod_aktualni_teplota",
+                  "name": "Přízemí Chodba záchod"
+                },
+                {
+                  "entity": "sensor.1_patro_chodba_aktualni_teplota",
+                  "name": "1. patro Chodba"
+                },
+                {
+                  "entity": "sensor.1_patro_kuchyn_aktualni_teplota",
+                  "name": "1. patro - Kuchyň"
+                },
+                {
+                  "entity": "sensor.tz3000_jidelna_teplota",
+                  "name": "1. patro - Jídelna"
+                },
+                {
+                  "entity": "sensor.1_patro_koupelna_aktualni_teplota",
+                  "name": "1. patro Koupelna"
+                },
+                {
+                  "entity": "sensor.2_patro_mama_aktualni_teplota",
+                  "name": "2. patro Máma"
+                },
+                {
+                  "entity": "sensor.zona_sklep_michal_demand",
+                  "name": "Sklep Michal"
+                },
+                {
+                  "entity": "sensor.zona_prizemi_michal_demand",
+                  "name": "Přízemí Michal "
+                },
+                {
+                  "entity": "sensor.zona_prizemi_chodba_zachod_demand",
+                  "name": "Přízemí Chodba záchod"
+                },
+                {
+                  "entity": "sensor.zona_1p_chodba_demand",
+                  "name": "1. patro Chodba"
+                },
+                {
+                  "entity": "sensor.zona_1p_kuchyn_demand",
+                  "name": "1. patro - Kuchyň"
+                },
+                {
+                  "entity": "sensor.zona_1p_jidelna_demand",
+                  "name": "1. patro - Jídelna"
+                },
+                {
+                  "entity": "sensor.zona_1p_koupelna_demand",
+                  "name": "1. patro Koupelna"
+                },
+                {
+                  "entity": "sensor.zona_2p_mama_demand",
+                  "name": "2. patro Máma"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "type": "masonry",
+      "subview": true,
+      "back_path": "/lovelace/heating-overview-detail"
+    },
+    {
       "type": "sections",
       "visible": [
         {
@@ -5574,9 +5858,10 @@
             },
             {
               "type": "markdown",
-              "content": "{% set f = states('input_select.heating_flow_state_v4') %}\n{% set t = states('sensor.boiler_heatblock') %}\n{% set fault = states('binary_sensor.heating_boiler_fault_clear') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set bus = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% if bus and flame == 'on' and relay == 'off' %}\n## Hořák běží při rozepnutém topném relé\nOvěř stav kotle v podrobnostech.\n{% elif f == 'EMERGENCY_COOLING' %}\n## Probíhá nouzové chlazení\nOchrana odvádí teplo a sleduje stav kotle. Hlavice ručně nezavírej.\n{% elif f == 'RESTORING' %}\n## Probíhá automatická obnova\nOchrana ověřuje stav kotle a návrat hlavic na jejich cíle.\n{% elif f == 'HARD_LOCKOUT' %}\n## Ochrana blokuje vytápění\nPodmínky návratu najdeš níže.\n{% elif not bus %}\n## Spojení s kotlem není potvrzené\nOvěř komunikaci v podrobnostech kotle.\n{% elif code in ['2964','2965','2966','2967'] %}\n## Kotel hlásí poruchu {{ code }}\n{% elif f == 'NORMAL' and fault == 'on' and flame in yn and relay in yn %}\n## Ochrana právě nezasahuje\nPožadavek na vytápění najdeš v Technice topení.\n{% else %}\n## Stav ochrany vyžaduje ověření\nZkontroluj níže aktuální provozní signály.\n{% endif %}\n\n**Blok kotle** {{ t ~ ' °C' if bus and is_number(t) else '—' }} · **Hořák aktivní** {{ yn.get(flame,'—') if bus else '—' }} · **Relé sepnuté** {{ yn.get(relay,'—') }}\n\n<small>Flow V4 {{ f if has_value('input_select.heating_flow_state_v4') else '—' }} · kód kotle {{ code if bus and has_value('sensor.boiler_servicecodenumber') else '—' }}</small>",
+              "content": "{% set f = states('input_select.heating_flow_state_v4') %}\n{% set t = states('sensor.boiler_heatblock') %}\n{% set fault = states('binary_sensor.heating_boiler_fault_clear') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set bus = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% if f == 'EMERGENCY_COOLING' %}\n## Probíhá nouzové chlazení\nOchrana odvádí teplo a sleduje kotel. Hlavice ručně nezavírej.\n{% elif f == 'RESTORING' %}\n## Probíhá automatická obnova\nOchrana ověřuje stav kotle a návrat hlavic na jejich cíle.\n{% elif f == 'HARD_LOCKOUT' %}\n## Aktivní softwarový zámek\nOchrana blokuje požadavek na topné relé.\n{% elif f == 'NORMAL' %}\n## Flow V4 je v běžném režimu\n{% if bus and fault == 'on' and flame in yn and relay in yn %}Ochrana právě nezasahuje.{% endif %}\n{% else %}\n## Stav ochrany není ověřený\n{% endif %}\n\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n{% set deadline = as_timestamp(state_attr('timer.heating_lockout_limit_10m','finishes_at'), none) if is_state('timer.heating_lockout_limit_10m','active') else none %}\n{% if deadline is not none %}\n{% set left = ((deadline - as_timestamp(now())) / 60) | round(0, 'ceil') | int %}\n{% if left > 0 %}**Do konce časovače zámku přibližně {{ left }} min.**{% else %}**Čas časovače zámku uplynul.** Čeká se na aktualizaci stavu.{% endif %}\n{% elif f == 'HARD_LOCKOUT' %}\n**Odpočet zámku není dostupný.** Stav ochrany ověř podle aktuálních signálů.\n{% endif %}\nKonec časovače sám nespouští hořák. Nouzové chlazení může pokračovat.\n{% endif %}\n\n{% if bus and flame == 'on' and relay == 'off' %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/lovelace/boiler-pro)\n{% endif %}\n{% if not bus %}\n**Spojení s kotlem není potvrzené.** Údaje o hořáku, teplotě a kódu mohou chybět.\n{% elif code in ['2964','2965','2966','2967'] %}\n**Kotel hlásí poruchu {{ code }}.**\n{% elif fault != 'on' or flame not in yn or relay not in yn %}\n**Část podmínek provozu vyžaduje ověření.** Podívej se na technické signály.\n{% endif %}\n\n**Blok kotle** {{ t ~ ' °C' if bus and is_number(t) else '—' }} · **Hořák aktivní** {{ yn.get(flame,'—') if bus else '—' }} · **Relé sepnuté** {{ yn.get(relay,'—') }}\n\n<small>Flow V4 {{ f if has_value('input_select.heating_flow_state_v4') else '—' }} · kód kotle {{ code if bus and has_value('sensor.boiler_servicecodenumber') else '—' }}</small>\n\n[Podrobnosti kotle →](/lovelace/boiler-pro) · [Technika topení →](/lovelace/heating-overview-detail)",
               "entity_id": [
                 "input_select.heating_flow_state_v4",
+                "timer.heating_lockout_limit_10m",
                 "sensor.boiler_heatblock",
                 "binary_sensor.heating_boiler_fault_clear",
                 "sensor.boiler_servicecodenumber",
@@ -5615,14 +5900,19 @@
             {
               "type": "markdown",
               "title": "Podmínky bezpečného návratu",
-              "content": "{% set f=states('input_select.heating_flow_state_v4') %}\n{% set cool=is_number(states('sensor.boiler_heatblock')) and states('sensor.boiler_heatblock')|float < 60 %}\n{% set paths=is_state('input_boolean.heating_flow_paths_verified_v4','on') %}\n{% set fault=is_state('binary_sensor.heating_boiler_fault_clear','on') %}\n{% set bus=is_state('sensor.system_bus_status','connected') %}\n{% set burner=is_state('binary_sensor.boiler_burngas','off') %}\n{% set restore=is_state('input_boolean.heating_restore_verified','on') %}\n### Podmínky bezpečného návratu\n- {{ '✅' if cool else '⏳' }} Blok kotle pod **60 °C**\n- {{ '✅' if burner else '⏳' }} Hořák vypnutý\n- {{ '✅' if fault else '❌' }} Servisní kód / fault-clear bezpečný\n- {{ '✅' if bus else '❌' }} EMS připojený\n- {{ '✅' if paths else '⏳' }} Průtokové cesty hlášené jako ověřené\n- {{ '✅' if restore else '⏳' }} Všech 8 hlavic potvrzuje normální cíle\n\n{% if f=='HARD_LOCKOUT' %}Pokud některá bezpečnostní podmínka neprojde, V4 vrátí hlavice do normálu, ale **kotel nechá OFF**.{% else %}AUTO se po úspěšném RESTORING obnoví jen pokud bylo před incidentem povolené.{% endif %}",
+              "content": "{% set f = states('input_select.heating_flow_state_v4') %}\n{% set t = states('sensor.boiler_heatblock') %}\n{% set fault = states('binary_sensor.heating_boiler_fault_clear') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set bus = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set service = states('input_boolean.heating_service_mode') %}\n{% set paths = states('input_boolean.heating_flow_paths_verified_v4') %}\n{% set restored = states('input_boolean.heating_restore_verified') %}\n{% macro check(ok, known=true) -%}{{ '✅' if ok and known else '⏳' if known else '—' }}{%- endmacro %}\n### Kontroly před obnovou\n- {{ check(bus, has_value('sensor.system_bus_status') and has_value('binary_sensor.system_status')) }} Komunikace EMS potvrzená\n- {{ check(fault == 'on', bus and fault in yn) }} Stav fault-clear potvrzený\n- {{ check(flame == 'off', bus and flame in yn) }} Hořák vypnutý\n- {{ check(is_number(t) and t | float < 60, bus and is_number(t)) }} Blok kotle pod **60 °C**\n- {{ check(relay == 'off', relay in yn) }} Topné relé rozepnuté\n- {{ check(service == 'off', service in yn) }} Servisní režim vypnutý\n\n### Další signály průběhu\n- {{ check(paths == 'on', paths in yn) }} Průtokové cesty hlášené jako ověřené\n- {{ check(restored == 'on', restored in yn) }} Návrat cílů hlavic hlášený jako ověřený\n\n<small>Pomlčka značí neověřený údaj. Návrat automatického řízení závisí na stavu ochrany a původním povolení AUTO.</small>",
               "entity_id": [
                 "input_select.heating_flow_state_v4",
+                "timer.heating_lockout_limit_10m",
                 "sensor.boiler_heatblock",
-                "input_boolean.heating_flow_paths_verified_v4",
                 "binary_sensor.heating_boiler_fault_clear",
-                "sensor.system_bus_status",
+                "sensor.boiler_servicecodenumber",
                 "binary_sensor.boiler_burngas",
+                "switch.kotel_rele_spinac",
+                "sensor.system_bus_status",
+                "binary_sensor.system_status",
+                "input_boolean.heating_service_mode",
+                "input_boolean.heating_flow_paths_verified_v4",
                 "input_boolean.heating_restore_verified"
               ],
               "grid_options": {
