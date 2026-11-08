@@ -1,0 +1,922 @@
+{
+  "title": "Topení · porovnání",
+  "views": [
+    {
+      "title": "Porovnání",
+      "path": "prehled",
+      "type": "sections",
+      "icon": "mdi:radiator",
+      "max_columns": 3,
+      "dense_section_placement": false,
+      "sections": [
+        {
+          "type": "grid",
+          "column_span": 2,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Místnosti",
+              "heading_style": "title",
+              "icon": "mdi:radiator",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "heading",
+              "heading": "Sklep",
+              "heading_style": "subtitle",
+              "icon": "mdi:floor-plan",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.mi_air_purifier_2h_teplota') %}\n{% set goal = state_attr('climate.sklep_michal', 'temperature') %}\n{% set request = states('binary_sensor.zona_sklep_michal_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_sklep_michal_alive', 'on') and has_value('climate.sklep_michal') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Michal\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.sklep_michal_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_sklep_michal'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/sklep-michal)",
+              "entity_id": [
+                "climate.sklep_michal",
+                "sensor.mi_air_purifier_2h_teplota",
+                "input_boolean.sklep_michal_manual_override",
+                "input_boolean.schedule_enable_sklep_michal",
+                "binary_sensor.zona_sklep_michal_aktivni",
+                "binary_sensor.heating_valve_sklep_michal_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "heading",
+              "heading": "Přízemí",
+              "heading_style": "subtitle",
+              "icon": "mdi:floor-plan",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.prizemi_michal_aktualni_teplota') %}\n{% set goal = state_attr('climate.prizemi_michal', 'temperature') %}\n{% set request = states('binary_sensor.zona_prizemi_michal_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_prizemi_michal_alive', 'on') and has_value('climate.prizemi_michal') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Michal\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.prizemi_michal_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_prizemi_michal'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/prizemi-michal)",
+              "entity_id": [
+                "climate.prizemi_michal",
+                "sensor.prizemi_michal_aktualni_teplota",
+                "input_boolean.prizemi_michal_manual_override",
+                "input_boolean.schedule_enable_prizemi_michal",
+                "binary_sensor.zona_prizemi_michal_aktivni",
+                "binary_sensor.heating_valve_prizemi_michal_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.prizemi_chodba_zachod_aktualni_teplota') %}\n{% set goal = state_attr('climate.prizemi_chodba_zachod', 'temperature') %}\n{% set request = states('binary_sensor.zona_prizemi_chodba_zachod_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive', 'on') and has_value('climate.prizemi_chodba_zachod') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Chodba / WC\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.prizemi_chodba_zachod_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_prizemi_chodba_zachod'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/prizemi-chodba-zachod)",
+              "entity_id": [
+                "climate.prizemi_chodba_zachod",
+                "sensor.prizemi_chodba_zachod_aktualni_teplota",
+                "input_boolean.prizemi_chodba_zachod_manual_override",
+                "input_boolean.schedule_enable_prizemi_chodba_zachod",
+                "binary_sensor.zona_prizemi_chodba_zachod_aktivni",
+                "binary_sensor.heating_valve_prizemi_chodba_zachod_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "heading",
+              "heading": "1. patro",
+              "heading_style": "subtitle",
+              "icon": "mdi:floor-plan",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_kuchyn_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_kuchyn', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_kuchyn_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_kuchyn_alive', 'on') and has_value('climate.1p_kuchyn') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Kuchyň\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_kuchyn_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_kuchyn'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/1p-kuchyn)",
+              "entity_id": [
+                "climate.1p_kuchyn",
+                "sensor.1_patro_kuchyn_aktualni_teplota",
+                "input_boolean.1p_kuchyn_manual_override",
+                "input_boolean.schedule_enable_1p_kuchyn",
+                "binary_sensor.zona_1p_kuchyn_aktivni",
+                "binary_sensor.heating_valve_1p_kuchyn_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_jidelna_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_jidelna', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_jidelna_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_jidelna_alive', 'on') and has_value('climate.1p_jidelna') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Jídelna\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_jidelna_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_jidelna'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/1p-jidelna)",
+              "entity_id": [
+                "climate.1p_jidelna",
+                "sensor.1_patro_jidelna_aktualni_teplota",
+                "input_boolean.1p_jidelna_manual_override",
+                "input_boolean.schedule_enable_1p_jidelna",
+                "binary_sensor.zona_1p_jidelna_aktivni",
+                "binary_sensor.heating_valve_1p_jidelna_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_chodba_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_chodba', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_chodba_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_chodba_alive', 'on') and has_value('climate.1p_chodba') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Chodba\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_chodba_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_chodba'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/1p-chodba)",
+              "entity_id": [
+                "climate.1p_chodba",
+                "sensor.1_patro_chodba_aktualni_teplota",
+                "input_boolean.1p_chodba_manual_override",
+                "input_boolean.schedule_enable_1p_chodba",
+                "binary_sensor.zona_1p_chodba_aktivni",
+                "binary_sensor.heating_valve_1p_chodba_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_koupelna_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_koupelna', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_koupelna_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_koupelna_alive', 'on') and has_value('climate.1p_koupelna') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Koupelna\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_koupelna_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_koupelna'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/1p-koupelna)",
+              "entity_id": [
+                "climate.1p_koupelna",
+                "sensor.1_patro_koupelna_aktualni_teplota",
+                "input_boolean.1p_koupelna_manual_override",
+                "input_boolean.schedule_enable_1p_koupelna",
+                "binary_sensor.zona_1p_koupelna_aktivni",
+                "binary_sensor.heating_valve_1p_koupelna_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "heading",
+              "heading": "2. patro",
+              "heading_style": "subtitle",
+              "icon": "mdi:floor-plan",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.2_patro_mama_aktualni_teplota') %}\n{% set goal = state_attr('climate.2p_mama', 'temperature') %}\n{% set request = states('binary_sensor.zona_2p_mama_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_2p_mama_alive', 'on') and has_value('climate.2p_mama') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n### Máma\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.2p_mama_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_2p_mama'), 'neověřený') }}\n[Stav místnosti a dnešní rozvrh →](/topeni-porovnani/2p-mama)",
+              "entity_id": [
+                "climate.2p_mama",
+                "sensor.2_patro_mama_aktualni_teplota",
+                "input_boolean.2p_mama_manual_override",
+                "input_boolean.schedule_enable_2p_mama",
+                "binary_sensor.zona_2p_mama_aktivni",
+                "binary_sensor.heating_valve_2p_mama_alive"
+              ],
+              "grid_options": {
+                "columns": 12,
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav kotle",
+              "heading_style": "title",
+              "icon": "mdi:fire",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set demand = states('binary_sensor.kotel_should_be_on') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set link = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set active = states('sensor.kotel_aktivni_zony_pocet') %}\n{% set minimum = states('sensor.kotel_effective_min_active_zones') %}\n{% set f = states('input_select.heating_flow_state_v4') %}\n{% set temp = states('sensor.boiler_curflowtemp') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set protection = {'NORMAL':'Běžný provoz','EMERGENCY_COOLING':'Nouzové chlazení','RESTORING':'Obnova','HARD_LOCKOUT':'Blokace'} %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n## {{ protection[f] }}\n{% elif not link %}\n## Spojení s kotlem vyžaduje kontrolu\n{% elif link and flame == 'on' and relay == 'off' %}\n## Stav kotle vyžaduje kontrolu\n{% elif code in ['2964','2965','2966','2967'] %}\n## Kotel hlásí poruchu {{ code }}\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## Servisní režim\n{% elif is_state('input_boolean.topny_system_enable','off') or is_state('input_select.topny_rezim','Off') %}\n## Automatické vytápění je vypnuté\n{% elif demand not in yn or relay not in yn or flame not in yn or f not in protection %}\n## Část provozních údajů je nedostupná\n{% elif flame == 'on' %}\n## Hořák běží\n{% elif relay == 'on' %}\n## Topné relé je sepnuté\n{% elif demand == 'on' %}\n## Řízení žádá topení\n{% else %}\n## Řízení právě nežádá topení\n{% endif %}\n\n{% if link and flame == 'on' and relay == 'off' %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n[Stav ochrany a odpočet →](/topeni-porovnani/ochrana)\n{% if not link %}**Spojení s kotlem není potvrzené.**{% elif code in ['2964','2965','2966','2967'] %}**Kotel hlásí poruchu {{ code }}.**{% endif %}\n{% endif %}\n\n| Signál | Teď |\n| :--- | :--- |\n| Požadavek řízení | **{{ yn.get(demand,'—') }}** |\n| Sepnuté topné relé | **{{ yn.get(relay,'—') }}** |\n| Aktivní hořák | **{{ yn.get(flame,'—') if link else '—' }}** |\n| Žádající zóny / minimum | {{ active if is_number(active) else '—' }} / {{ minimum if is_number(minimum) else '—' }} |\n| Výstupní voda | {{ temp ~ ' °C' if link and is_number(temp) else '—' }} |\n| Režim / ochrana | {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else '—' }} · {{ protection.get(f,'stav neznámý') }} |",
+              "entity_id": [
+                "binary_sensor.kotel_should_be_on",
+                "switch.kotel_rele_spinac",
+                "binary_sensor.boiler_burngas",
+                "sensor.system_bus_status",
+                "binary_sensor.system_status",
+                "sensor.boiler_servicecodenumber",
+                "sensor.kotel_aktivni_zony_pocet",
+                "sensor.kotel_effective_min_active_zones",
+                "input_select.heating_flow_state_v4",
+                "sensor.boiler_curflowtemp",
+                "input_boolean.heating_service_mode",
+                "input_boolean.topny_system_enable",
+                "input_select.topny_rezim"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "**Porovnávací pohled** · Živá data pouze pro čtení.\n\n[Otevřít stávající Přehled →](/lovelace/heating-overview-preview)",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Stav kotle",
+      "path": "kotel",
+      "type": "sections",
+      "icon": "mdi:fire",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Živý stav",
+              "heading_style": "title",
+              "icon": "mdi:fire",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set demand = states('binary_sensor.kotel_should_be_on') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set link = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set active = states('sensor.kotel_aktivni_zony_pocet') %}\n{% set minimum = states('sensor.kotel_effective_min_active_zones') %}\n{% set f = states('input_select.heating_flow_state_v4') %}\n{% set temp = states('sensor.boiler_curflowtemp') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set protection = {'NORMAL':'Běžný provoz','EMERGENCY_COOLING':'Nouzové chlazení','RESTORING':'Obnova','HARD_LOCKOUT':'Blokace'} %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n## {{ protection[f] }}\n{% elif not link %}\n## Spojení s kotlem vyžaduje kontrolu\n{% elif link and flame == 'on' and relay == 'off' %}\n## Stav kotle vyžaduje kontrolu\n{% elif code in ['2964','2965','2966','2967'] %}\n## Kotel hlásí poruchu {{ code }}\n{% elif is_state('input_boolean.heating_service_mode','on') %}\n## Servisní režim\n{% elif is_state('input_boolean.topny_system_enable','off') or is_state('input_select.topny_rezim','Off') %}\n## Automatické vytápění je vypnuté\n{% elif demand not in yn or relay not in yn or flame not in yn or f not in protection %}\n## Část provozních údajů je nedostupná\n{% elif flame == 'on' %}\n## Hořák běží\n{% elif relay == 'on' %}\n## Topné relé je sepnuté\n{% elif demand == 'on' %}\n## Řízení žádá topení\n{% else %}\n## Řízení právě nežádá topení\n{% endif %}\n\n{% if link and flame == 'on' and relay == 'off' %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n[Stav ochrany a odpočet →](/topeni-porovnani/ochrana)\n{% if not link %}**Spojení s kotlem není potvrzené.**{% elif code in ['2964','2965','2966','2967'] %}**Kotel hlásí poruchu {{ code }}.**{% endif %}\n{% endif %}\n\n| Signál | Teď |\n| :--- | :--- |\n| Požadavek řízení | **{{ yn.get(demand,'—') }}** |\n| Sepnuté topné relé | **{{ yn.get(relay,'—') }}** |\n| Aktivní hořák | **{{ yn.get(flame,'—') if link else '—' }}** |\n| Žádající zóny / minimum | {{ active if is_number(active) else '—' }} / {{ minimum if is_number(minimum) else '—' }} |\n| Výstupní voda | {{ temp ~ ' °C' if link and is_number(temp) else '—' }} |\n| Režim / ochrana | {{ states('input_select.topny_rezim') if has_value('input_select.topny_rezim') else '—' }} · {{ protection.get(f,'stav neznámý') }} |",
+              "entity_id": [
+                "binary_sensor.kotel_should_be_on",
+                "switch.kotel_rele_spinac",
+                "binary_sensor.boiler_burngas",
+                "sensor.system_bus_status",
+                "binary_sensor.system_status",
+                "sensor.boiler_servicecodenumber",
+                "sensor.kotel_aktivni_zony_pocet",
+                "sensor.kotel_effective_min_active_zones",
+                "input_select.heating_flow_state_v4",
+                "sensor.boiler_curflowtemp",
+                "input_boolean.heating_service_mode",
+                "input_boolean.topny_system_enable",
+                "input_select.topny_rezim"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Ochrana kotle",
+      "path": "ochrana",
+      "type": "sections",
+      "icon": "mdi:shield-check",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Aktuální fáze",
+              "heading_style": "title",
+              "icon": "mdi:shield-check",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set f = states('input_select.heating_flow_state_v4') %}\n{% set t = states('sensor.boiler_heatblock') %}\n{% set fault = states('binary_sensor.heating_boiler_fault_clear') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set bus = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% if f == 'EMERGENCY_COOLING' %}\n## Probíhá nouzové chlazení\nOchrana odvádí teplo a sleduje kotel. Hlavice ručně nezavírej.\n{% elif f == 'RESTORING' %}\n## Probíhá automatická obnova\nOchrana ověřuje stav kotle a návrat hlavic na jejich cíle.\n{% elif f == 'HARD_LOCKOUT' %}\n## Aktivní softwarový zámek\nOchrana blokuje požadavek na topné relé.\n{% elif f == 'NORMAL' %}\n## Flow V4 je v běžném režimu\n{% if bus and fault == 'on' and flame in yn and relay in yn %}Ochrana právě nezasahuje.{% endif %}\n{% else %}\n## Stav ochrany není ověřený\n{% endif %}\n\n{% if f in ['EMERGENCY_COOLING','RESTORING','HARD_LOCKOUT'] %}\n{% set deadline = as_timestamp(state_attr('timer.heating_lockout_limit_10m','finishes_at'), none) if is_state('timer.heating_lockout_limit_10m','active') else none %}\n{% if deadline is not none %}\n{% set left = ((deadline - as_timestamp(now())) / 60) | round(0, 'ceil') | int %}\n{% if left > 0 %}**Do konce časovače zámku přibližně {{ left }} min.**{% else %}**Čas časovače zámku uplynul.** Čeká se na aktualizaci stavu.{% endif %}\n{% elif f == 'HARD_LOCKOUT' %}\n**Odpočet zámku není dostupný.** Stav ochrany ověř podle aktuálních signálů.\n{% endif %}\nKonec časovače sám nespouští hořák. Nouzové chlazení může pokračovat.\n{% endif %}\n\n{% if bus and flame == 'on' and relay == 'off' %}\n**Výstraha · Hořák běží při rozepnutém topném relé.** [Podrobnosti kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% if not bus %}\n**Spojení s kotlem není potvrzené.** Údaje o hořáku, teplotě a kódu mohou chybět.\n{% elif code in ['2964','2965','2966','2967'] %}\n**Kotel hlásí poruchu {{ code }}.**\n{% elif fault != 'on' or flame not in yn or relay not in yn %}\n**Část podmínek provozu vyžaduje ověření.** Podívej se na technické signály.\n{% endif %}\n\n**Blok kotle** {{ t ~ ' °C' if bus and is_number(t) else '—' }} · **Hořák aktivní** {{ yn.get(flame,'—') if bus else '—' }} · **Relé sepnuté** {{ yn.get(relay,'—') }}\n\n<small>Flow V4 {{ f if has_value('input_select.heating_flow_state_v4') else '—' }} · kód kotle {{ code if bus and has_value('sensor.boiler_servicecodenumber') else '—' }}</small>\n\n[Podrobnosti kotle →](/topeni-porovnani/kotel)",
+              "entity_id": [
+                "input_select.heating_flow_state_v4",
+                "timer.heating_lockout_limit_10m",
+                "sensor.boiler_heatblock",
+                "binary_sensor.heating_boiler_fault_clear",
+                "sensor.boiler_servicecodenumber",
+                "binary_sensor.boiler_burngas",
+                "switch.kotel_rele_spinac",
+                "sensor.system_bus_status",
+                "binary_sensor.system_status"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Podmínky obnovy",
+              "heading_style": "title",
+              "icon": "mdi:check-circle-outline",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set f = states('input_select.heating_flow_state_v4') %}\n{% set t = states('sensor.boiler_heatblock') %}\n{% set fault = states('binary_sensor.heating_boiler_fault_clear') %}\n{% set code = states('sensor.boiler_servicecodenumber') %}\n{% set flame = states('binary_sensor.boiler_burngas') %}\n{% set relay = states('switch.kotel_rele_spinac') %}\n{% set bus = is_state('sensor.system_bus_status','connected') and is_state('binary_sensor.system_status','on') %}\n{% set yn = {'on':'Ano','off':'Ne'} %}\n{% set service = states('input_boolean.heating_service_mode') %}\n{% set paths = states('input_boolean.heating_flow_paths_verified_v4') %}\n{% set restored = states('input_boolean.heating_restore_verified') %}\n{% macro check(ok, known=true) -%}{{ '✅' if ok and known else '⏳' if known else '—' }}{%- endmacro %}\n### Kontroly před obnovou\n- {{ check(bus, has_value('sensor.system_bus_status') and has_value('binary_sensor.system_status')) }} Komunikace EMS potvrzená\n- {{ check(fault == 'on', bus and fault in yn) }} Stav fault-clear potvrzený\n- {{ check(flame == 'off', bus and flame in yn) }} Hořák vypnutý\n- {{ check(is_number(t) and t | float < 60, bus and is_number(t)) }} Blok kotle pod **60 °C**\n- {{ check(relay == 'off', relay in yn) }} Topné relé rozepnuté\n- {{ check(service == 'off', service in yn) }} Servisní režim vypnutý\n\n### Další signály průběhu\n- {{ check(paths == 'on', paths in yn) }} Průtokové cesty hlášené jako ověřené\n- {{ check(restored == 'on', restored in yn) }} Návrat cílů hlavic hlášený jako ověřený\n\n<small>Pomlčka značí neověřený údaj. Návrat automatického řízení závisí na stavu ochrany a původním povolení AUTO.</small>",
+              "entity_id": [
+                "input_select.heating_flow_state_v4",
+                "timer.heating_lockout_limit_10m",
+                "sensor.boiler_heatblock",
+                "binary_sensor.heating_boiler_fault_clear",
+                "sensor.boiler_servicecodenumber",
+                "binary_sensor.boiler_burngas",
+                "switch.kotel_rele_spinac",
+                "sensor.system_bus_status",
+                "binary_sensor.system_status",
+                "input_boolean.heating_service_mode",
+                "input_boolean.heating_flow_paths_verified_v4",
+                "input_boolean.heating_restore_verified"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Michal · Sklep",
+      "path": "sklep-michal",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.mi_air_purifier_2h_teplota') %}\n{% set goal = state_attr('climate.sklep_michal', 'temperature') %}\n{% set request = states('binary_sensor.zona_sklep_michal_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_sklep_michal_alive', 'on') and has_value('climate.sklep_michal') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.sklep_michal_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_sklep_michal'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.sklep_michal",
+                "sensor.mi_air_purifier_2h_teplota",
+                "input_boolean.sklep_michal_manual_override",
+                "input_boolean.schedule_enable_sklep_michal",
+                "binary_sensor.zona_sklep_michal_aktivni",
+                "binary_sensor.heating_valve_sklep_michal_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"sklep_michal\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Michal · Přízemí",
+      "path": "prizemi-michal",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.prizemi_michal_aktualni_teplota') %}\n{% set goal = state_attr('climate.prizemi_michal', 'temperature') %}\n{% set request = states('binary_sensor.zona_prizemi_michal_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_prizemi_michal_alive', 'on') and has_value('climate.prizemi_michal') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.prizemi_michal_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_prizemi_michal'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.prizemi_michal",
+                "sensor.prizemi_michal_aktualni_teplota",
+                "input_boolean.prizemi_michal_manual_override",
+                "input_boolean.schedule_enable_prizemi_michal",
+                "binary_sensor.zona_prizemi_michal_aktivni",
+                "binary_sensor.heating_valve_prizemi_michal_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"prizemi_michal\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Chodba / WC · Přízemí",
+      "path": "prizemi-chodba-zachod",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.prizemi_chodba_zachod_aktualni_teplota') %}\n{% set goal = state_attr('climate.prizemi_chodba_zachod', 'temperature') %}\n{% set request = states('binary_sensor.zona_prizemi_chodba_zachod_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_prizemi_chodba_zachod_alive', 'on') and has_value('climate.prizemi_chodba_zachod') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.prizemi_chodba_zachod_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_prizemi_chodba_zachod'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.prizemi_chodba_zachod",
+                "sensor.prizemi_chodba_zachod_aktualni_teplota",
+                "input_boolean.prizemi_chodba_zachod_manual_override",
+                "input_boolean.schedule_enable_prizemi_chodba_zachod",
+                "binary_sensor.zona_prizemi_chodba_zachod_aktivni",
+                "binary_sensor.heating_valve_prizemi_chodba_zachod_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"prizemi_chodba_zachod\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Kuchyň · 1. patro",
+      "path": "1p-kuchyn",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_kuchyn_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_kuchyn', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_kuchyn_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_kuchyn_alive', 'on') and has_value('climate.1p_kuchyn') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_kuchyn_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_kuchyn'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.1p_kuchyn",
+                "sensor.1_patro_kuchyn_aktualni_teplota",
+                "input_boolean.1p_kuchyn_manual_override",
+                "input_boolean.schedule_enable_1p_kuchyn",
+                "binary_sensor.zona_1p_kuchyn_aktivni",
+                "binary_sensor.heating_valve_1p_kuchyn_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"1p_kuchyn\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Jídelna · 1. patro",
+      "path": "1p-jidelna",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_jidelna_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_jidelna', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_jidelna_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_jidelna_alive', 'on') and has_value('climate.1p_jidelna') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_jidelna_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_jidelna'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.1p_jidelna",
+                "sensor.1_patro_jidelna_aktualni_teplota",
+                "input_boolean.1p_jidelna_manual_override",
+                "input_boolean.schedule_enable_1p_jidelna",
+                "binary_sensor.zona_1p_jidelna_aktivni",
+                "binary_sensor.heating_valve_1p_jidelna_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"1p_jidelna\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Chodba · 1. patro",
+      "path": "1p-chodba",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_chodba_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_chodba', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_chodba_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_chodba_alive', 'on') and has_value('climate.1p_chodba') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_chodba_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_chodba'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.1p_chodba",
+                "sensor.1_patro_chodba_aktualni_teplota",
+                "input_boolean.1p_chodba_manual_override",
+                "input_boolean.schedule_enable_1p_chodba",
+                "binary_sensor.zona_1p_chodba_aktivni",
+                "binary_sensor.heating_valve_1p_chodba_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"1p_chodba\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Koupelna · 1. patro",
+      "path": "1p-koupelna",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.1_patro_koupelna_aktualni_teplota') %}\n{% set goal = state_attr('climate.1p_koupelna', 'temperature') %}\n{% set request = states('binary_sensor.zona_1p_koupelna_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_1p_koupelna_alive', 'on') and has_value('climate.1p_koupelna') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.1p_koupelna_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_1p_koupelna'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.1p_koupelna",
+                "sensor.1_patro_koupelna_aktualni_teplota",
+                "input_boolean.1p_koupelna_manual_override",
+                "input_boolean.schedule_enable_1p_koupelna",
+                "binary_sensor.zona_1p_koupelna_aktivni",
+                "binary_sensor.heating_valve_1p_koupelna_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"1p_koupelna\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Máma · 2. patro",
+      "path": "2p-mama",
+      "type": "sections",
+      "icon": "mdi:home-thermometer",
+      "max_columns": 2,
+      "dense_section_placement": false,
+      "subview": true,
+      "back_path": "/topeni-porovnani/prehled",
+      "sections": [
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Stav místnosti",
+              "heading_style": "title",
+              "icon": "mdi:thermometer",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set value = states('sensor.2_patro_mama_aktualni_teplota') %}\n{% set goal = state_attr('climate.2p_mama', 'temperature') %}\n{% set request = states('binary_sensor.zona_2p_mama_aktivni') %}\n{% set ok = is_state('binary_sensor.heating_valve_2p_mama_alive', 'on') and has_value('climate.2p_mama') %}\n{% set state_labels = {'on':'Ano','off':'Ne'} %}\n**Měřená teplota** · {{ value ~ ' °C' if is_number(value) else 'nedostupná' }}  \n**Cíl hlavice** · {{ goal ~ ' °C' if ok and is_number(goal) else 'neověřený' }}  \n**Ruční režim** · {{ state_labels.get(states('input_boolean.2p_mama_manual_override'), 'neověřený') }}  \n**Rozvrh povolený** · {{ state_labels.get(states('input_boolean.schedule_enable_2p_mama'), 'neověřený') }}\n\n### Požadavek na teplo\n{% if not ok or request not in state_labels %}\n**Stav požadavku není ověřený.** Ověř dostupnost hlavice a signálu místnosti.\n{% elif request == 'off' %}\n**Místnost právě nehlásí požadavek na teplo.**\n{% else %}\n**Místnost hlásí požadavek na teplo.**\n{% set phase = states('input_select.heating_flow_state_v4') %}\n{% if phase in ['HARD_LOCKOUT','EMERGENCY_COOLING','RESTORING'] %}\nSoučasně je aktivní ochrana. [Stav ochrany →](/topeni-porovnani/ochrana)\n{% elif is_state('switch.kotel_rele_spinac','off') %}\nTopné relé je rozepnuté. Z těchto údajů nelze určit konkrétní příčinu. [Stav kotle →](/topeni-porovnani/kotel)\n{% elif is_state('switch.kotel_rele_spinac','on') %}\nTopné relé je sepnuté. [Stav kotle →](/topeni-porovnani/kotel)\n{% endif %}\n{% endif %}",
+              "entity_id": [
+                "climate.2p_mama",
+                "sensor.2_patro_mama_aktualni_teplota",
+                "input_boolean.2p_mama_manual_override",
+                "input_boolean.schedule_enable_2p_mama",
+                "binary_sensor.zona_2p_mama_aktivni",
+                "binary_sensor.heating_valve_2p_mama_alive",
+                "input_select.heating_flow_state_v4",
+                "switch.kotel_rele_spinac"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rozvrh",
+              "heading_style": "title",
+              "icon": "mdi:calendar-week",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "{% set z=\"2p_mama\" %}\n{% set wd=['mon','tue','wed','thu','fri','sat','sun'] %}{% set dow=now().weekday() %}\n{% set ns=namespace(lines=[],rules=0) %}\n{% for s in states.switch if s.entity_id.startswith('switch.schedule_') and s.state=='on' %}\n{% if ('input_boolean.'~z~'_schedule_active') in s.attributes.get('entities',[]) %}\n{% set ns.rules=ns.rules+1 %}{% set days=s.attributes.get('weekdays',[]) %}\n{% if 'daily' in days or wd[dow] in days or ('weekend' in days and dow>=5) or ('workday' in days and dow<5) %}\n{% set actions=s.attributes.get('actions',[]) %}\n{% for slot in s.attributes.get('timeslots',[]) %}{% set i=loop.index0 %}\n{% if i<actions|length and actions[i].get('service')=='input_boolean.turn_on' %}\n{% set parts=slot.split(' - ') %}{% set ns.lines=ns.lines+[(parts[0][:5]~' – '~parts[1][:5]) if parts|length==2 else slot] %}\n{% endif %}{% endfor %}{% endif %}{% endif %}{% endfor %}\n### Dnes · časová okna komfortu\n{% if is_state('input_boolean.schedule_enable_'~z,'off') %}**Rozvrh zóny je pozastavený.** Níže jsou uložená zapnutá pravidla.\n{% elif not is_state('input_boolean.schedule_enable_'~z,'on') %}**Povolení rozvrhu není ověřené.**\n{% else %}Rozvrh zóny je **povolený**.\n{% endif %}\n{% if ns.lines %}{% for line in ns.lines|sort %}\n- **{{ line }}** · Komfort\n{% endfor %}\nMimo uvedené intervaly je v těchto pravidlech nastaven útlum.\n{% elif ns.rules %}**Dnes není naplánovaný komfort.**\n{% else %}**Není dostupné žádné zapnuté pravidlo této zóny.** Stav pravidel lze ověřit v produkčním Přehledu.\n{% endif %}\n<small>Ruční zásah, přitopení a centrální režim mohou mít přednost.</small>",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
