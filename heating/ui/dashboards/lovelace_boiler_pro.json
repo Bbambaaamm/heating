@@ -1,0 +1,1022 @@
+{
+  "title": "Kotel · servis",
+  "path": "boiler-pro",
+  "icon": "mdi:fire",
+  "badges": [
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Panel",
+      "icon": "mdi:view-dashboard",
+      "color": "teal",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/heating-panel/panel"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Rozvrhy",
+      "icon": "mdi:calendar-clock",
+      "color": "grey",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/heating-schedule"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Ochrana",
+      "icon": "mdi:shield-home-outline",
+      "color": "{{ 'red' if is_state('input_select.heating_flow_state_v4','HARD_LOCKOUT') else 'orange' if states('input_select.heating_flow_state_v4') in ['EMERGENCY_COOLING','RESTORING'] else 'teal' if is_state('input_select.heating_flow_state_v4','NORMAL') else 'grey' }}",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/heating-observation"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Historie",
+      "icon": "mdi:chart-line",
+      "color": "grey",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/home-history"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Technika",
+      "icon": "mdi:cog-outline",
+      "color": "grey",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/heating-overview-detail"
+      }
+    },
+    {
+      "type": "custom:mushroom-template-badge",
+      "content": "Kotel",
+      "icon": "mdi:water-boiler",
+      "color": "{{ 'red' if states('sensor.boiler_servicecodenumber') in ['2964','2965','2966','2967'] else 'orange' if is_state('binary_sensor.boiler_burngas','on') else 'blue' }}",
+      "tap_action": {
+        "action": "navigate",
+        "navigation_path": "/lovelace/boiler-pro"
+      }
+    }
+  ],
+  "subview": true,
+  "back_path": "/lovelace/heating-overview-detail",
+  "header": {
+    "layout": "start",
+    "badges_position": "bottom",
+    "badges_wrap": "scroll",
+    "card": {
+      "type": "markdown",
+      "text_only": true,
+      "content": "# Kotel · servis\nŽivý provoz, diagnostika, servis a energie"
+    }
+  },
+  "type": "sections",
+  "max_columns": 2,
+  "dense_section_placement": false,
+  "sections": [
+    {
+      "type": "grid",
+      "column_span": 2,
+      "background": {
+        "color": "#35505d",
+        "opacity": 0.055
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Stav kotle",
+          "icon": "mdi:water-boiler",
+          "heading_style": "title",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "conditional",
+          "conditions": [
+            {
+              "condition": "or",
+              "conditions": [
+                {
+                  "condition": "state",
+                  "entity": "sensor.system_bus_status",
+                  "state_not": "connected"
+                },
+                {
+                  "condition": "state",
+                  "entity": "sensor.boiler_curflowtemp",
+                  "state": [
+                    "unavailable",
+                    "unknown"
+                  ]
+                },
+                {
+                  "condition": "state",
+                  "entity": "sensor.boiler_servicecodenumber",
+                  "state": [
+                    "unavailable",
+                    "unknown"
+                  ]
+                }
+              ]
+            }
+          ],
+          "card": {
+            "type": "markdown",
+            "content": "**Údaje kotle nejsou kompletně dostupné.**\n\nZkontroluj spojení EMS a dostupnost čidel. V testu hlavic nepokračuj, dokud nejsou údaje znovu dostupné.",
+            "card_mod": {
+              "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+            }
+          }
+        },
+        {
+          "type": "markdown",
+          "content": "**Aktuální stav kotle**\n\n{{ states('sensor.ems_esp_boiler_kotel_aktualni_stav_s_popisem') if has_value('sensor.ems_esp_boiler_kotel_aktualni_stav_s_popisem') else 'Údaj z kotle není dostupný.' }}\n\n**Poslední uložená porucha · historie**\n\n{{ states('sensor.ems_esp_boiler_kotel_posledni_porucha_s_popisem') if has_value('sensor.ems_esp_boiler_kotel_posledni_porucha_s_popisem') else 'Historie poruch není dostupná.' }}\n\n<small>Uložená porucha sama o sobě neznamená, že právě trvá. [Význam kódů Bosch](https://junkers-cz-cs-c.boschhc-documents.com/download/pdf/file/6720889912#page=47)</small>",
+          "entity_id": [
+            "sensor.ems_esp_boiler_kotel_aktualni_stav_s_popisem",
+            "sensor.ems_esp_boiler_kotel_posledni_porucha_s_popisem"
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "custom:mushroom-chips-card",
+          "alignment": "justify",
+          "chips": [
+            {
+              "type": "template",
+              "entity": "binary_sensor.boiler_heatingactive",
+              "icon": "mdi:radiator",
+              "content": "{% if is_state('binary_sensor.boiler_heatingactive','on') %}Vytápění: běží{% elif is_state('binary_sensor.boiler_heatingactive','off') %}Vytápění: stojí{% else %}Vytápění: stav neověřen{% endif %}",
+              "icon_color": "{{ 'amber' if is_state('binary_sensor.boiler_heatingactive','on') else 'grey' if is_state('binary_sensor.boiler_heatingactive','off') else 'red' }}"
+            },
+            {
+              "type": "template",
+              "entity": "binary_sensor.boiler_burngas",
+              "icon": "mdi:gas-burner",
+              "content": "{% if is_state('binary_sensor.boiler_burngas','on') %}Hořák: běží{% elif is_state('binary_sensor.boiler_burngas','off') %}Hořák: stojí{% else %}Hořák: stav neověřen{% endif %}",
+              "icon_color": "{{ 'amber' if is_state('binary_sensor.boiler_burngas','on') else 'grey' if is_state('binary_sensor.boiler_burngas','off') else 'red' }}"
+            },
+            {
+              "type": "template",
+              "entity": "binary_sensor.boiler_heatingpump",
+              "icon": "mdi:pump",
+              "content": "{% if is_state('binary_sensor.boiler_heatingpump','on') %}Čerpadlo: běží{% elif is_state('binary_sensor.boiler_heatingpump','off') %}Čerpadlo: stojí{% else %}Čerpadlo: stav neověřen{% endif %}",
+              "icon_color": "{{ 'amber' if is_state('binary_sensor.boiler_heatingpump','on') else 'grey' if is_state('binary_sensor.boiler_heatingpump','off') else 'red' }}"
+            },
+            {
+              "type": "template",
+              "entity": "binary_sensor.boiler_tapwateractive",
+              "icon": "mdi:water-thermometer",
+              "content": "{% if is_state('binary_sensor.boiler_tapwateractive','on') %}Režim TUV dle EMS: aktivní{% elif is_state('binary_sensor.boiler_tapwateractive','off') %}Režim TUV dle EMS: neaktivní{% else %}Režim TUV dle EMS: neověřen{% endif %}",
+              "icon_color": "{{ 'amber' if is_state('binary_sensor.boiler_tapwateractive','on') else 'grey' if is_state('binary_sensor.boiler_tapwateractive','off') else 'red' }}"
+            },
+            {
+              "type": "template",
+              "entity": "sensor.system_bus_status",
+              "icon": "mdi:lan",
+              "content": "BUS: {{ states('sensor.system_bus_status') }}\n",
+              "icon_color": "{{ 'green' if is_state('sensor.system_bus_status','connected') else 'red' }}\n"
+            },
+            {
+              "type": "entity",
+              "entity": "sensor.boiler_curflowtemp",
+              "name": "°C",
+              "icon": "mdi:thermometer-water"
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "square": false,
+          "columns": 3,
+          "cards": [
+            {
+              "type": "gauge",
+              "name": "Teplota vody",
+              "entity": "sensor.boiler_curflowtemp",
+              "min": 20,
+              "max": 90,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            },
+            {
+              "type": "gauge",
+              "name": "Výkon hořáku",
+              "entity": "sensor.boiler_absburnpow",
+              "min": 0,
+              "max": 100,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            },
+            {
+              "type": "gauge",
+              "name": "Modulace čerpadla",
+              "entity": "sensor.boiler_heatingpumpmod",
+              "min": 0,
+              "max": 100,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 2,
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "TUV a třícestný ventil",
+          "icon": "mdi:valve",
+          "heading_style": "title",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "markdown",
+          "content": "{% set vent = 'binary_sensor.boiler_ww3wayvalve' %}\n{% set ready = is_state('sensor.system_bus_status', 'connected') %}\n{% set position = states(vent) %}\n{% if ready and position in ['on', 'off'] %}\n### {{ 'Hlášená poloha TUV' if position == 'on' else 'Hlášená poloha vytápění' }}\nPoslední změna hlášeného stavu **{{ as_local(states.binary_sensor.boiler_ww3wayvalve.last_changed).strftime('%d. %m. %Y v %H:%M:%S') }}**\n{% else %}\n### Poloha ventilu nedostupná\nČeká se na platný údaj z EMS.\n{% endif %}\n\n<small>EMS hlásí stav řízení ventilu. V této instalaci kotel slouží k vytápění prostor.</small>",
+          "entity_id": [
+            "binary_sensor.boiler_ww3wayvalve",
+            "sensor.system_bus_status"
+          ],
+          "card_mod": {
+            "style": {
+              ".": "ha-card {border-radius:18px;border:1px solid rgba(15,118,110,.22);background:linear-gradient(130deg,rgba(15,118,110,.085),transparent 80%),var(--ha-card-background,var(--card-background-color));box-shadow:inset 0 1px 0 rgba(255,255,255,.05);} ha-markdown {padding:11px 14px !important;}",
+              "ha-markdown$": "h2 {font-size:20px;line-height:1.12;letter-spacing:-.3px;margin:0 0 4px;} p {font-size:12.8px;line-height:1.28;margin:0;} small {font-size:11px;color:var(--secondary-text-color);} a {color:var(--primary-text-color);text-decoration:none;font-weight:600;}"
+            }
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "markdown",
+          "title": "Živý stav TUV · EMS",
+          "content": "{% set ready = is_state('sensor.system_bus_status', 'connected') %}\n{% macro flag(id) -%}\n{{ 'Ano' if ready and is_state(id, 'on') else 'Ne' if ready and is_state(id, 'off') else '—' }}\n{%- endmacro %}\n{% macro temp(id) -%}\n{{ states(id) ~ ' °C' if ready and is_number(states(id)) else '—' }}\n{%- endmacro %}\n{% set mode = states('select.boiler_wwcomfort1') %}\n| Údaj | Hodnota |\n| :--- | :--- |\n| Ohřev TUV povolený | **{{ flag('switch.boiler_wwactivated') }}** |\n| Uložená teplota TUV | {{ temp('number.boiler_wwseltemp') }} |\n| Režim přípravy TUV | {{ 'ECO' if ready and mode in ['eco', 'eko'] else mode if ready and has_value('select.boiler_wwcomfort1') else '—' }} |\n| `1-b7` · Aktuální požadavek TUV | **{{ temp('sensor.boiler_wwsettemp') }}** |\n| Dezinfekce hlášená EMS | {{ flag('switch.boiler_wwdisinfecting') }} |",
+          "entity_id": [
+            "switch.boiler_wwactivated",
+            "number.boiler_wwseltemp",
+            "select.boiler_wwcomfort1",
+            "sensor.boiler_wwsettemp",
+            "switch.boiler_wwdisinfecting",
+            "sensor.system_bus_status"
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "history-graph",
+          "title": "Ventil, hořák a relé · posledních 12 hodin",
+          "hours_to_show": 12,
+          "entities": [
+            {
+              "entity": "binary_sensor.boiler_ww3wayvalve",
+              "name": "Ventil v poloze TUV · EMS"
+            },
+            {
+              "entity": "binary_sensor.boiler_burngas",
+              "name": "Hořák"
+            },
+            {
+              "entity": "switch.kotel_rele_spinac",
+              "name": "Topné relé"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "logbook",
+          "title": "Časy změn stavu ventilu · posledních 12 hodin",
+          "target": {
+            "entity_id": [
+              "binary_sensor.boiler_ww3wayvalve"
+            ]
+          },
+          "hours_to_show": 12,
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "markdown",
+          "title": "Servisní parametry TUV · odečet z panelu",
+          "content": "| Kód | Ruční odečet 7. 11. 2026 |\n| :--- | :--- |\n| `1-A4` · Horní mez výkonu ohřevu TUV | **100 %** |\n| `1-b5` · Teplota zásobníku | **`---`** (bez platné hodnoty) |\n| `3-C1` · Limit výkonu při ohřevu TUV | **100 %** |\n| `3-C7` · Ruční termická dezinfekce | **OFF** |\n| `6-t5` · Zkouška ventilu | **0** (vytápění při zkoušce) |",
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "background": {
+        "color": "#35505d",
+        "opacity": 0.055
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Živý provoz",
+          "icon": "mdi:chart-line",
+          "heading_style": "title"
+        },
+        {
+          "type": "entity-filter",
+          "entities": [
+            {
+              "entity": "sensor.boiler_curflowtemp",
+              "name": "Výstupní teplota vody"
+            },
+            {
+              "entity": "sensor.boiler_heatblock",
+              "name": "Teplota bloku výměníku"
+            },
+            {
+              "entity": "number.boiler_selflowtemp",
+              "name": "Požadovaná výstupní teplota",
+              "type": "simple-entity"
+            },
+            {
+              "entity": "sensor.boiler_curburnpow",
+              "name": "Hlášená modulace hořáku"
+            },
+            {
+              "entity": "sensor.boiler_absburnpow",
+              "name": "Hlášený výkon hořáku"
+            },
+            {
+              "entity": "sensor.boiler_heatingpumpmod",
+              "name": "Hlášená modulace čerpadla"
+            },
+            {
+              "entity": "sensor.boiler_flamecurr",
+              "name": "Hlášený ionizační proud"
+            },
+            {
+              "entity": "sensor.boiler_exhausttemp",
+              "name": "Teplota spalin · údaj EMS",
+              "conditions": [
+                {
+                  "condition": "numeric_state",
+                  "above": 0
+                }
+              ]
+            }
+          ],
+          "conditions": [
+            {
+              "condition": "state",
+              "state_not": [
+                "unknown",
+                "unavailable"
+              ]
+            }
+          ],
+          "show_empty": false,
+          "card": {
+            "type": "entities",
+            "title": "Aktuální měření kotle",
+            "show_header_toggle": false,
+            "card_mod": {
+              "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+            }
+          }
+        },
+        {
+          "type": "entity-filter",
+          "entities": [
+            {
+              "entity": "binary_sensor.boiler_heatingactive",
+              "name": "Vytápění aktivní"
+            },
+            {
+              "entity": "binary_sensor.boiler_burngas",
+              "name": "Hořák"
+            },
+            {
+              "entity": "binary_sensor.boiler_heatingpump",
+              "name": "Čerpadlo"
+            },
+            {
+              "entity": "binary_sensor.boiler_fanwork",
+              "name": "Ventilátor"
+            },
+            {
+              "entity": "binary_sensor.boiler_ignwork",
+              "name": "Zapalování"
+            },
+            {
+              "entity": "binary_sensor.boiler_tapwateractive",
+              "name": "Ohřev teplé vody"
+            },
+            {
+              "entity": "binary_sensor.boiler_ww3wayvalve",
+              "name": "Přepnutí třícestného ventilu na TUV"
+            },
+            {
+              "entity": "binary_sensor.boiler_wwcharging",
+              "name": "Nabíjení zásobníku TUV"
+            },
+            {
+              "entity": "binary_sensor.boiler_wwrecharging",
+              "name": "Dobíjení zásobníku TUV"
+            },
+            {
+              "entity": "binary_sensor.boiler_wwtempok",
+              "name": "TUV: teplota dosažena"
+            }
+          ],
+          "conditions": [
+            {
+              "condition": "state",
+              "state_not": [
+                "unknown",
+                "unavailable"
+              ]
+            }
+          ],
+          "show_empty": false,
+          "card": {
+            "type": "entities",
+            "title": "Hlášené provozní stavy",
+            "show_header_toggle": false,
+            "card_mod": {
+              "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+            }
+          }
+        },
+        {
+          "type": "entity-filter",
+          "entities": [
+            {
+              "entity": "sensor.boiler_heatstarts",
+              "name": "Starty při vytápění"
+            },
+            {
+              "entity": "sensor.boiler_burnstarts",
+              "name": "Všechny starty hořáku"
+            },
+            {
+              "entity": "sensor.boiler_heatworkmin",
+              "name": "Doba vytápění"
+            },
+            {
+              "entity": "sensor.boiler_burnworkmin",
+              "name": "Celková doba hořáku"
+            },
+            {
+              "entity": "sensor.boiler_ubauptime",
+              "name": "Provozní čas řídicí jednotky"
+            },
+            {
+              "entity": "sensor.boiler_wwstarts",
+              "name": "Starty ohřevu TUV"
+            },
+            {
+              "entity": "sensor.boiler_wwworkm",
+              "name": "Doba ohřevu TUV"
+            }
+          ],
+          "conditions": [
+            {
+              "condition": "state",
+              "state_not": [
+                "unknown",
+                "unavailable"
+              ]
+            }
+          ],
+          "show_empty": false,
+          "card": {
+            "type": "entities",
+            "title": "Čítače kotle",
+            "show_header_toggle": false,
+            "card_mod": {
+              "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+            }
+          }
+        },
+        {
+          "square": false,
+          "type": "grid",
+          "columns": 1,
+          "cards": [
+            {
+              "type": "history-graph",
+              "title": "Teploty vody a požadavek · 24 h",
+              "entities": [
+                {
+                  "entity": "sensor.boiler_curflowtemp",
+                  "name": "Výstupní voda"
+                },
+                {
+                  "entity": "sensor.boiler_heatblock",
+                  "name": "Blok výměníku"
+                },
+                {
+                  "entity": "number.boiler_selflowtemp",
+                  "name": "Požadavek"
+                }
+              ],
+              "hours_to_show": 24,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            }
+          ]
+        },
+        {
+          "square": false,
+          "type": "grid",
+          "columns": 1,
+          "cards": [
+            {
+              "type": "history-graph",
+              "title": "Hořák, čerpadlo a vytápění · 24 h",
+              "entities": [
+                {
+                  "entity": "binary_sensor.boiler_heatingactive"
+                },
+                {
+                  "entity": "binary_sensor.boiler_heatingpump"
+                },
+                {
+                  "entity": "binary_sensor.boiler_burngas"
+                }
+              ],
+              "hours_to_show": 24,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            }
+          ]
+        },
+        {
+          "square": false,
+          "type": "grid",
+          "columns": 1,
+          "cards": [
+            {
+              "type": "history-graph",
+              "title": "Výkon hořáku a modulace čerpadla · 24 h",
+              "entities": [
+                {
+                  "entity": "sensor.boiler_absburnpow",
+                  "name": "Výkon hořáku"
+                },
+                {
+                  "entity": "sensor.boiler_heatingpumpmod",
+                  "name": "Modulace čerpadla"
+                }
+              ],
+              "hours_to_show": 24,
+              "card_mod": {
+                "style": "ha-card{border-radius:20px;border:1px solid rgba(37,99,235,.18);background:linear-gradient(135deg,rgba(37,99,235,.045),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "background": {
+        "color": "#3c4f5c",
+        "opacity": 0.055
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Servis a řízení",
+          "icon": "mdi:wrench-cog",
+          "heading_style": "title"
+        },
+        {
+          "type": "entities",
+          "title": "Údržba & servis",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "number.boiler_boilhyston",
+              "name": "Hystereze zapnutí (°C)"
+            },
+            {
+              "entity": "number.boiler_boilhystoff",
+              "name": "Hystereze vypnutí (°C)"
+            },
+            {
+              "entity": "sensor.boiler_heatblock",
+              "name": "Blok topení (°C)"
+            },
+            {
+              "entity": "sensor.boiler_flamecurr",
+              "name": "Proud plamene (µA)"
+            },
+            {
+              "entity": "binary_sensor.boiler_fanwork",
+              "name": "Ventilátor"
+            },
+            {
+              "entity": "binary_sensor.boiler_ignwork",
+              "name": "Zapalování"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Diagnostika EMS-ESP",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "section",
+              "label": "Stav"
+            },
+            {
+              "entity": "binary_sensor.system_status",
+              "name": "Systém – online"
+            },
+            {
+              "entity": "sensor.system_bus_status",
+              "name": "EMS Bus – stav"
+            },
+            {
+              "type": "section",
+              "label": "Síť & MQTT"
+            },
+            {
+              "entity": "sensor.system_rssi",
+              "name": "Wi-Fi RSSI (dBm)"
+            },
+            {
+              "entity": "sensor.system_wifistrength",
+              "name": "Wi-Fi síla (%)"
+            },
+            {
+              "entity": "sensor.system_wifireconnects",
+              "name": "Wi-Fi reconnects"
+            },
+            {
+              "entity": "sensor.system_mqttfails",
+              "name": "MQTT fails"
+            },
+            {
+              "type": "section",
+              "label": "HW brány"
+            },
+            {
+              "type": "conditional",
+              "conditions": [
+                {
+                  "condition": "state",
+                  "entity": "sensor.system_temperature",
+                  "state_not": [
+                    "unknown",
+                    "unavailable"
+                  ]
+                }
+              ],
+              "row": {
+                "entity": "sensor.system_temperature",
+                "name": "CPU teplota brány"
+              }
+            },
+            {
+              "entity": "sensor.system_freemem",
+              "name": "Volná paměť (kB)"
+            },
+            {
+              "entity": "sensor.system_max_alloc",
+              "name": "Max. alokace (kB)"
+            },
+            {
+              "entity": "sensor.system_txreads",
+              "name": "TX reads"
+            },
+            {
+              "entity": "sensor.system_txwrites",
+              "name": "TX writes"
+            },
+            {
+              "entity": "sensor.system_txfails",
+              "name": "TX fails"
+            },
+            {
+              "entity": "sensor.system_rxreceived",
+              "name": "RX received"
+            },
+            {
+              "entity": "sensor.system_rxfails",
+              "name": "RX fails"
+            },
+            {
+              "type": "section",
+              "label": "Systém"
+            },
+            {
+              "entity": "sensor.system_uptime",
+              "name": "Uptime"
+            },
+            {
+              "entity": "sensor.system_version",
+              "name": "Verze firmwaru"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Ovládání topení",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "switch.boiler_heatingactivated",
+              "name": "Topení – povolit / zakázat"
+            },
+            {
+              "entity": "switch.boiler_heatingoff",
+              "name": "Nouzové vypnutí vytápění"
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "entity": "number.boiler_heatingtemp",
+              "name": "Žádaná teplota topení (°C)"
+            },
+            {
+              "entity": "number.boiler_burnmaxpower",
+              "name": "Maximální výkon hořáku (%)"
+            },
+            {
+              "entity": "number.boiler_burnminpower",
+              "name": "Minimální výkon hořáku (%)"
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "entity": "switch.boiler_curveon",
+              "name": "Topná křivka zapnutá"
+            },
+            {
+              "entity": "number.boiler_curvebase",
+              "name": "Základ topné křivky (°C)"
+            },
+            {
+              "entity": "number.boiler_curveend",
+              "name": "Konec topné křivky (°C)"
+            },
+            {
+              "entity": "number.boiler_summertemp",
+              "name": "Letní teplota (°C)"
+            },
+            {
+              "entity": "switch.boiler_nofrostmode",
+              "name": "Režim proti zamrznutí"
+            },
+            {
+              "entity": "number.boiler_nofrosttemp",
+              "name": "Teplota proti zamrznutí (°C)"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 2,
+      "background": {
+        "color": "#5a4a2e",
+        "opacity": 0.05
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Energie a spotřeba",
+          "icon": "mdi:fire-circle",
+          "heading_style": "title",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Spotřeba / Energie – aktuální hodnoty (kWh)",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.boiler_gasmeterheat",
+              "name": "Počítadlo plynu pro vytápění"
+            },
+            {
+              "entity": "sensor.boiler_wwgasmeter",
+              "name": "TUV Počítadlo plynu"
+            },
+            {
+              "entity": "sensor.boiler_nrgtotal",
+              "name": "Celková energie"
+            },
+            {
+              "entity": "sensor.boiler_nrgheat",
+              "name": "Energie pro vytápění"
+            },
+            {
+              "entity": "sensor.boiler_nrgww",
+              "name": "TUV Energie"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Spotřeba – DENNĚ (kWh)",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.heating_gas_daily",
+              "name": "Plyn – topení (dnes)"
+            },
+            {
+              "entity": "sensor.ww_gas_daily",
+              "name": "Plyn – TUV (dnes)"
+            },
+            {
+              "entity": "sensor.heating_energy_daily",
+              "name": "Energie – topení (dnes)"
+            },
+            {
+              "entity": "sensor.ww_energy_daily",
+              "name": "Energie – TUV (dnes)"
+            },
+            {
+              "entity": "sensor.total_energy_daily",
+              "name": "Energie – celkem (dnes)"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Spotřeba – MĚSÍČNĚ (kWh)",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.heating_gas_monthly",
+              "name": "Plyn – topení (měsíc)"
+            },
+            {
+              "entity": "sensor.ww_gas_monthly",
+              "name": "Plyn – TUV (měsíc)"
+            },
+            {
+              "entity": "sensor.heating_energy_monthly",
+              "name": "Energie – topení (měsíc)"
+            },
+            {
+              "entity": "sensor.ww_energy_monthly",
+              "name": "Energie – TUV (měsíc)"
+            },
+            {
+              "entity": "sensor.total_energy_monthly",
+              "name": "Energie – celkem (měsíc)"
+            }
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "chart_type": "bar",
+          "period": "day",
+          "type": "statistics-graph",
+          "title": "Energie plynu · denní přírůstky (30 dní, kWh)",
+          "days_to_show": 30,
+          "entities": [
+            {
+              "entity": "sensor.heating_gas_daily",
+              "name": "Topení"
+            },
+            {
+              "entity": "sensor.ww_gas_daily",
+              "name": "TUV"
+            }
+          ],
+          "stat_types": [
+            "change"
+          ],
+          "hide_legend": false,
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "chart_type": "bar",
+          "period": "day",
+          "type": "statistics-graph",
+          "title": "Energie hlášená kotlem · denní přírůstky (30 dní, kWh)",
+          "days_to_show": 30,
+          "entities": [
+            {
+              "entity": "sensor.heating_energy_daily",
+              "name": "Topení"
+            },
+            {
+              "entity": "sensor.ww_energy_daily",
+              "name": "TUV"
+            },
+            {
+              "entity": "sensor.total_energy_daily",
+              "name": "Celkem"
+            }
+          ],
+          "stat_types": [
+            "change"
+          ],
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "chart_type": "bar",
+          "period": "month",
+          "type": "statistics-graph",
+          "title": "Celková energie kotle · měsíční přírůstky (12 měsíců, kWh)",
+          "days_to_show": 365,
+          "entities": [
+            "sensor.total_energy_monthly"
+          ],
+          "stat_types": [
+            "change"
+          ],
+          "hide_legend": false,
+          "card_mod": {
+            "style": "ha-card{border-radius:20px;border:1px solid rgba(15,118,110,.20);background:linear-gradient(135deg,rgba(15,118,110,.055),transparent 74%),var(--ha-card-background,var(--card-background-color));box-shadow:0 8px 20px -18px rgba(15,23,42,.38),inset 0 1px 0 rgba(255,255,255,.05);}"
+          }
+        },
+        {
+          "type": "markdown",
+          "content": "Denní a měsíční sloupce zobrazují přírůstky čítačů. Aktuální den i měsíc jsou neúplné. Energie plynu a energie kotle jsou rozdílné údaje; jejich poměr zde není prezentován jako měřená účinnost.",
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          },
+          "card_mod": {
+            "style": "ha-card {border-radius:20px;border:1px solid rgba(15,118,110,.25);background:linear-gradient(130deg,rgba(15,118,110,.10),transparent 85%),var(--ha-card-background,var(--card-background-color));}"
+          }
+        }
+      ]
+    }
+  ]
+}
