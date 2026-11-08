@@ -15,16 +15,6 @@
     },
     {
       "type": "custom:mushroom-template-badge",
-      "content": "Rozvrhy",
-      "icon": "mdi:calendar-clock",
-      "color": "grey",
-      "tap_action": {
-        "action": "navigate",
-        "navigation_path": "/lovelace/heating-schedule"
-      }
-    },
-    {
-      "type": "custom:mushroom-template-badge",
       "content": "Technika",
       "icon": "mdi:cog-outline",
       "color": "grey",
